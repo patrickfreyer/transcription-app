@@ -1,6 +1,6 @@
 {
   "name": "audio-transcription-app",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Elegant audio transcription app using OpenAI Whisper API",
   "main": "main.js",
   "scripts": {
