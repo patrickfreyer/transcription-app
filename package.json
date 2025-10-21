@@ -23,7 +23,8 @@
     "electron-icon-builder": "^2.0.1"
   },
   "dependencies": {
-    "openai": "^4.24.0"
+    "openai": "^4.24.0",
+    "@xenova/transformers": "^2.17.2"
   },
   "build": {
     "appId": "com.transcription.app",

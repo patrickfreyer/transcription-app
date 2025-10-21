@@ -320,15 +320,26 @@
         transcribeBtn.textContent = 'Transcribing...';
 
         try {
-          const apiKey = await window.electron.getApiKey();
+          // Get settings to determine mode
+          const settings = await window.electron.getSettings();
 
-          if (!apiKey) {
-            throw new Error('API key not found. Please set up your API key first.');
+          if (!settings) {
+            throw new Error('Settings not found. Please configure your settings first.');
+          }
+
+          const mode = settings.mode || 'api';
+
+          // Update progress text based on mode
+          const progressText = document.querySelector('.progress-text');
+          if (mode === 'local') {
+            progressText.textContent = 'Transcribing locally... This may take a few minutes on first run.';
+          } else {
+            progressText.textContent = 'Transcribing your audio... This may take a moment.';
           }
 
           const result = await window.electron.transcribeAudio(
             selectedFile.path,
-            apiKey
+            mode
           );
 
           if (result.success) {

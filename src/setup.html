@@ -9,19 +9,48 @@
   <body>
     <div class="container">
       <h1>Audio Transcription</h1>
-      <p class="subtitle">Enter your OpenAI API key to get started.</p>
+      <p class="subtitle">Choose your transcription method.</p>
 
       <div class="error-message" id="error-message"></div>
       <div class="loading" id="loading">Validating API key...</div>
 
       <form id="setup-form">
         <div class="input-group">
+          <label>Transcription Mode</label>
+          <div class="mode-selector">
+            <label class="mode-option">
+              <input type="radio" name="mode" value="api" id="mode-api" checked />
+              <div class="mode-card">
+                <div class="mode-title">API Mode</div>
+                <div class="mode-description">Use OpenAI Whisper API (requires API key)</div>
+                <div class="mode-features">
+                  <span class="feature">✓ Cloud-based</span>
+                  <span class="feature">✓ Fast processing</span>
+                  <span class="feature">✓ Latest model</span>
+                </div>
+              </div>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="mode" value="local" id="mode-local" />
+              <div class="mode-card">
+                <div class="mode-title">Local Mode</div>
+                <div class="mode-description">Use local Whisper small model (~465 MB)</div>
+                <div class="mode-features">
+                  <span class="feature">✓ Private</span>
+                  <span class="feature">✓ Offline</span>
+                  <span class="feature">✓ No API fees</span>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="input-group" id="api-key-group">
           <label for="api-key">OpenAI API Key</label>
           <input
             type="password"
             id="api-key"
             placeholder="sk-..."
-            required
             autocomplete="off"
           />
         </div>
@@ -43,63 +72,114 @@
     <script>
       const form = document.getElementById('setup-form');
       const apiKeyInput = document.getElementById('api-key');
+      const apiKeyGroup = document.getElementById('api-key-group');
+      const modeApiRadio = document.getElementById('mode-api');
+      const modeLocalRadio = document.getElementById('mode-local');
       const errorMessage = document.getElementById('error-message');
       const loading = document.getElementById('loading');
       const submitBtn = document.getElementById('submit-btn');
 
-      // Check if API key already exists
-      window.electron.getApiKey().then((apiKey) => {
-        if (apiKey) {
-          apiKeyInput.value = apiKey;
+      // Check if settings already exist
+      window.electron.getSettings().then((settings) => {
+        if (settings) {
+          if (settings.mode === 'local') {
+            modeLocalRadio.checked = true;
+            apiKeyGroup.style.display = 'none';
+          } else {
+            modeApiRadio.checked = true;
+            if (settings.apiKey) {
+              apiKeyInput.value = settings.apiKey;
+            }
+          }
         }
+      });
+
+      // Handle mode change
+      modeApiRadio.addEventListener('change', () => {
+        apiKeyGroup.style.display = 'block';
+        apiKeyInput.required = true;
+      });
+
+      modeLocalRadio.addEventListener('change', () => {
+        apiKeyGroup.style.display = 'none';
+        apiKeyInput.required = false;
+        errorMessage.classList.remove('show');
       });
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
+        const mode = document.querySelector('input[name="mode"]:checked').value;
         const apiKey = apiKeyInput.value.trim();
 
-        // Basic validation
-        if (!apiKey.startsWith('sk-')) {
-          errorMessage.textContent =
-            'Invalid API key format. OpenAI API keys start with "sk-"';
-          errorMessage.classList.add('show');
-          return;
-        }
-
-        // Clear any previous errors and show loading
+        // Clear any previous errors
         errorMessage.classList.remove('show');
-        loading.classList.add('show');
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Validating...';
 
-        try {
-          // Validate API key with OpenAI
-          const validationResult = await window.electron.validateApiKey(apiKey);
+        if (mode === 'api') {
+          // Validate API key format
+          if (!apiKey.startsWith('sk-')) {
+            errorMessage.textContent =
+              'Invalid API key format. OpenAI API keys start with "sk-"';
+            errorMessage.classList.add('show');
+            return;
+          }
 
-          if (validationResult.success) {
-            // API key is valid, save it
-            await window.electron.saveApiKey(apiKey);
+          // Show loading
+          loading.classList.add('show');
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Validating...';
+
+          try {
+            // Validate API key with OpenAI
+            const validationResult = await window.electron.validateApiKey(apiKey);
+
+            if (validationResult.success) {
+              // API key is valid, save settings
+              await window.electron.saveSettings({ mode: 'api', apiKey });
+
+              // Brief success feedback before navigating
+              submitBtn.textContent = '✓ Valid!';
+              submitBtn.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+
+              setTimeout(() => {
+                // Navigate to upload screen
+                window.electron.navigate('upload');
+              }, 500);
+            } else {
+              // Validation failed
+              throw new Error(validationResult.error);
+            }
+          } catch (error) {
+            // Show error message
+            errorMessage.textContent = error.message || 'Failed to validate API key';
+            errorMessage.classList.add('show');
+            loading.classList.remove('show');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Continue';
+          }
+        } else {
+          // Local mode - no validation needed
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Setting up...';
+
+          try {
+            // Save settings
+            await window.electron.saveSettings({ mode: 'local' });
 
             // Brief success feedback before navigating
-            submitBtn.textContent = '✓ Valid!';
+            submitBtn.textContent = '✓ Ready!';
             submitBtn.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
 
             setTimeout(() => {
               // Navigate to upload screen
               window.electron.navigate('upload');
             }, 500);
-          } else {
-            // Validation failed
-            throw new Error(validationResult.error);
+          } catch (error) {
+            errorMessage.textContent = error.message || 'Failed to save settings';
+            errorMessage.classList.add('show');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Continue';
           }
-        } catch (error) {
-          // Show error message
-          errorMessage.textContent = error.message || 'Failed to validate API key';
-          errorMessage.classList.add('show');
-          loading.classList.remove('show');
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Continue';
         }
       });
     </script>

@@ -4,6 +4,23 @@ const OpenAI = require('openai');
 const fs = require('fs');
 const os = require('os');
 
+// Import Transformers.js for local Whisper
+let pipeline;
+let localTranscriber = null;
+
+// Lazy load the pipeline to avoid slowing down app startup
+async function getLocalTranscriber() {
+  if (!localTranscriber) {
+    if (!pipeline) {
+      const { pipeline: importedPipeline } = await import('@xenova/transformers');
+      pipeline = importedPipeline;
+    }
+    // Use Whisper small model for good balance of size and quality
+    localTranscriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small');
+  }
+  return localTranscriber;
+}
+
 // Set the app name for dock and menu bar
 app.setName('Audio Transcription');
 
@@ -25,9 +42,9 @@ function createWindow() {
     backgroundColor: '#ffffff',
   });
 
-  // Check if API key exists, otherwise show setup
-  const apiKey = global.apiKey || null;
-  if (!apiKey) {
+  // Check if settings exist, otherwise show setup
+  const settings = global.settings || null;
+  if (!settings || (!settings.apiKey && settings.mode === 'api')) {
     mainWindow.loadFile('src/setup.html');
   } else {
     mainWindow.loadFile('src/upload.html');
@@ -82,14 +99,19 @@ ipcMain.handle('validate-api-key', async (event, apiKey) => {
   }
 });
 
-// Handle API key storage
-ipcMain.handle('save-api-key', async (event, apiKey) => {
-  global.apiKey = apiKey;
+// Handle settings storage (replaces old API key storage)
+ipcMain.handle('save-settings', async (event, settings) => {
+  global.settings = settings;
   return { success: true };
 });
 
+ipcMain.handle('get-settings', async () => {
+  return global.settings || null;
+});
+
+// Legacy support for old getApiKey calls
 ipcMain.handle('get-api-key', async () => {
-  return global.apiKey || null;
+  return global.settings?.apiKey || null;
 });
 
 // Navigate to different screens
@@ -119,32 +141,69 @@ ipcMain.handle('save-recording', async (event, arrayBuffer) => {
 });
 
 // Handle transcription
-ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
+ipcMain.handle('transcribe-audio', async (event, filePath, mode) => {
   try {
-    const openai = new OpenAI({ apiKey });
-
-    // Check file size (25MB limit)
+    // Check file size (25MB limit for API, relaxed for local)
     const stats = fs.statSync(filePath);
     const fileSizeInMB = stats.size / (1024 * 1024);
 
-    if (fileSizeInMB > 25) {
+    if (mode === 'api') {
+      // API mode - use OpenAI Whisper API
+      const apiKey = global.settings?.apiKey;
+
+      if (!apiKey) {
+        return {
+          success: false,
+          error: 'API key not found. Please configure your API key.',
+        };
+      }
+
+      if (fileSizeInMB > 25) {
+        return {
+          success: false,
+          error: 'File size exceeds 25MB limit. Please use a smaller file.',
+        };
+      }
+
+      const openai = new OpenAI({ apiKey });
+
+      // Create transcription with VTT format for timestamps
+      const transcription = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(filePath),
+        model: 'whisper-1',
+        response_format: 'vtt',
+      });
+
       return {
-        success: false,
-        error: 'File size exceeds 25MB limit. Please use a smaller file.',
+        success: true,
+        transcript: transcription,
+      };
+    } else {
+      // Local mode - use Transformers.js
+      if (fileSizeInMB > 100) {
+        return {
+          success: false,
+          error: 'File size exceeds 100MB limit. Please use a smaller file.',
+        };
+      }
+
+      // Get or initialize local transcriber (lazy loading)
+      const transcriber = await getLocalTranscriber();
+
+      // Transcribe the audio file
+      const result = await transcriber(filePath, {
+        return_timestamps: true,
+        chunk_length_s: 30,
+      });
+
+      // Convert result to VTT format to match API output
+      const vttContent = convertToVTT(result);
+
+      return {
+        success: true,
+        transcript: vttContent,
       };
     }
-
-    // Create transcription with VTT format for timestamps
-    const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(filePath),
-      model: 'whisper-1',
-      response_format: 'vtt',
-    });
-
-    return {
-      success: true,
-      transcript: transcription,
-    };
   } catch (error) {
     return {
       success: false,
@@ -152,6 +211,42 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
     };
   }
 });
+
+// Helper function to convert Transformers.js output to VTT format
+function convertToVTT(result) {
+  let vtt = 'WEBVTT\n\n';
+
+  if (result.chunks && result.chunks.length > 0) {
+    result.chunks.forEach((chunk, index) => {
+      const start = formatTimestamp(chunk.timestamp[0]);
+      const end = formatTimestamp(chunk.timestamp[1]);
+      vtt += `${index + 1}\n`;
+      vtt += `${start} --> ${end}\n`;
+      vtt += `${chunk.text.trim()}\n\n`;
+    });
+  } else {
+    // If no chunks, just output the full text
+    vtt += '1\n';
+    vtt += '00:00:00.000 --> 00:00:10.000\n';
+    vtt += `${result.text}\n\n`;
+  }
+
+  return vtt;
+}
+
+// Helper function to format timestamp for VTT
+function formatTimestamp(seconds) {
+  if (seconds === null || seconds === undefined) {
+    return '00:00:00.000';
+  }
+
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+}
 
 // Handle save transcript
 ipcMain.handle('save-transcript', async (event, content, format, fileName) => {
