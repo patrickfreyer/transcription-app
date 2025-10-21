@@ -56,7 +56,7 @@ jobs:
         run: npm ci
 
       - name: Build Windows app
-        run: npm run build:win
+        run: npm run build:win -- --publish never
 
       - name: List build artifacts
         run: dir dist
