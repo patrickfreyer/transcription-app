@@ -215,8 +215,20 @@ ipcMain.handle('transcribe-audio', async (event, filePath, mode) => {
         };
       }
 
-      // Get or initialize local transcriber (lazy loading)
-      const transcriber = await getLocalTranscriber();
+      // Send progress updates to renderer
+      const progressCallback = (progressData) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('model-download-progress', progressData);
+        }
+      };
+
+      // Get or initialize local transcriber (lazy loading with progress)
+      const transcriber = await getLocalTranscriber(progressCallback);
+
+      // Send transcription start message
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('transcription-progress', { status: 'transcribing' });
+      }
 
       // Transcribe the audio file
       const result = await transcriber(filePath, {
