@@ -3,13 +3,29 @@ const path = require('path');
 const OpenAI = require('openai');
 const fs = require('fs');
 const os = require('os');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-const ffprobePath = require('@ffprobe-installer/ffprobe').path;
 
-// Set ffmpeg and ffprobe paths
-ffmpeg.setFfmpegPath(ffmpegPath);
-ffmpeg.setFfprobePath(ffprobePath);
+// Add error logging for startup issues
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  dialog.showErrorBox('Application Error', `An error occurred during startup:\n\n${error.message}\n\nStack: ${error.stack}`);
+});
+
+let ffmpeg, ffmpegPath, ffprobePath;
+try {
+  ffmpeg = require('fluent-ffmpeg');
+  ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+  ffprobePath = require('@ffprobe-installer/ffprobe').path;
+
+  // Set ffmpeg and ffprobe paths
+  ffmpeg.setFfmpegPath(ffmpegPath);
+  ffmpeg.setFfprobePath(ffprobePath);
+
+  console.log('FFmpeg path:', ffmpegPath);
+  console.log('FFprobe path:', ffprobePath);
+} catch (error) {
+  console.error('Error loading ffmpeg:', error);
+  // App can still run without ffmpeg for files under 25MB
+}
 
 // Set the app name for dock and menu bar
 app.setName('Audio Transcription');
