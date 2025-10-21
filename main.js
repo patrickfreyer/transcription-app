@@ -311,32 +311,103 @@ ipcMain.handle('save-recording', async (event, arrayBuffer) => {
 
 // Handle transcription
 ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
+  let chunkPaths = [];
+
   try {
     const openai = new OpenAI({ apiKey });
-
-    // Check file size (25MB limit)
     const stats = fs.statSync(filePath);
     const fileSizeInMB = stats.size / (1024 * 1024);
 
+    // Check if file needs to be split
     if (fileSizeInMB > 25) {
+      // Send progress update for splitting
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('transcription-progress', {
+          status: 'splitting',
+          message: 'Splitting large audio file into chunks...',
+        });
+      }
+
+      // Split audio into chunks
+      chunkPaths = await splitAudioIntoChunks(filePath, 20);
+
+      // Get duration of each chunk for timestamp adjustment
+      const chunkDurations = [];
+      for (const chunkPath of chunkPaths) {
+        const duration = await getAudioDuration(chunkPath);
+        chunkDurations.push(duration);
+      }
+
+      // Process each chunk
+      const transcripts = [];
+      for (let i = 0; i < chunkPaths.length; i++) {
+        const chunkPath = chunkPaths[i];
+
+        // Send progress update
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('transcription-progress', {
+            status: 'transcribing',
+            message: `Transcribing chunk ${i + 1} of ${chunkPaths.length}...`,
+            current: i + 1,
+            total: chunkPaths.length,
+          });
+        }
+
+        // Transcribe chunk
+        try {
+          const transcription = await openai.audio.transcriptions.create({
+            file: fs.createReadStream(chunkPath),
+            model: 'whisper-1',
+            response_format: 'vtt',
+          });
+          transcripts.push(transcription);
+        } catch (error) {
+          console.error(`Error transcribing chunk ${i + 1}:`, error);
+          // Add empty transcript for failed chunk
+          transcripts.push('');
+        }
+      }
+
+      // Send progress update for combining
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('transcription-progress', {
+          status: 'combining',
+          message: 'Combining transcripts...',
+        });
+      }
+
+      // Combine transcripts
+      const combinedTranscript = combineVTTTranscripts(transcripts, chunkDurations);
+
+      // Clean up chunks
+      cleanupChunks(chunkPaths);
+
       return {
-        success: false,
-        error: 'File size exceeds 25MB limit. Please use a smaller file.',
+        success: true,
+        transcript: combinedTranscript,
+        chunked: true,
+        totalChunks: chunkPaths.length,
+      };
+    } else {
+      // File is small enough, process normally
+      const transcription = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(filePath),
+        model: 'whisper-1',
+        response_format: 'vtt',
+      });
+
+      return {
+        success: true,
+        transcript: transcription,
+        chunked: false,
       };
     }
-
-    // Create transcription with VTT format for timestamps
-    const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(filePath),
-      model: 'whisper-1',
-      response_format: 'vtt',
-    });
-
-    return {
-      success: true,
-      transcript: transcription,
-    };
   } catch (error) {
+    // Clean up chunks on error
+    if (chunkPaths.length > 0) {
+      cleanupChunks(chunkPaths);
+    }
+
     return {
       success: false,
       error: error.message || 'Transcription failed',
