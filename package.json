@@ -31,6 +31,11 @@
   "build": {
     "appId": "com.transcription.app",
     "productName": "Audio Transcription",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/@ffmpeg-installer/**/*",
+      "node_modules/@ffprobe-installer/**/*"
+    ],
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
