@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run ffmpeg tests
+        run: node test-ffmpeg.js
+
       - name: Build macOS app
         run: npm run build:mac -- --publish never
 
