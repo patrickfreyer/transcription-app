@@ -1,57 +1,16 @@
-const { app, BrowserWindow, ipcMain, dialog, net } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const OpenAI = require('openai');
 const fs = require('fs');
 const os = require('os');
 
-// Polyfill fetch for Node.js main process using Electron's net module
+// Polyfill fetch for Node.js main process using undici
 if (typeof globalThis.fetch === 'undefined') {
-  globalThis.fetch = async (url, options = {}) => {
-    return new Promise((resolve, reject) => {
-      const request = net.request({
-        method: options.method || 'GET',
-        url: url.toString(),
-      });
-
-      if (options.headers) {
-        Object.entries(options.headers).forEach(([key, value]) => {
-          request.setHeader(key, value);
-        });
-      }
-
-      request.on('response', (response) => {
-        const chunks = [];
-        response.on('data', (chunk) => {
-          chunks.push(chunk);
-        });
-        response.on('end', () => {
-          const buffer = Buffer.concat(chunks);
-          const responseObj = {
-            ok: response.statusCode >= 200 && response.statusCode < 300,
-            status: response.statusCode,
-            statusText: response.statusMessage,
-            headers: new Map(Object.entries(response.headers)),
-            url: url.toString(),
-            arrayBuffer: async () => buffer,
-            blob: async () => buffer,
-            text: async () => buffer.toString('utf-8'),
-            json: async () => JSON.parse(buffer.toString('utf-8')),
-          };
-          resolve(responseObj);
-        });
-      });
-
-      request.on('error', (error) => {
-        reject(error);
-      });
-
-      if (options.body) {
-        request.write(options.body);
-      }
-
-      request.end();
-    });
-  };
+  const { fetch, Headers, Request, Response } = require('undici');
+  globalThis.fetch = fetch;
+  globalThis.Headers = Headers;
+  globalThis.Request = Request;
+  globalThis.Response = Response;
 }
 
 // Import Transformers.js for local Whisper
