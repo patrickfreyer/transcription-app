@@ -6,6 +6,7 @@ const os = require('os');
 
 // Import Transformers.js for local Whisper
 let pipeline;
+let env;
 let localTranscriber = null;
 let modelDownloading = false;
 
@@ -22,6 +23,22 @@ async function getLocalTranscriber(progressCallback) {
           throw new Error(`Failed to load transformers library: ${err.message}`);
         });
         pipeline = transformers.pipeline;
+        env = transformers.env;
+
+        // Configure the cache directory for Electron
+        // Use app's user data directory to store models
+        const cacheDir = path.join(app.getPath('userData'), 'models');
+        if (!fs.existsSync(cacheDir)) {
+          fs.mkdirSync(cacheDir, { recursive: true });
+        }
+        env.cacheDir = cacheDir;
+
+        // Set backend to use ONNX Runtime Node (better for desktop)
+        env.backends.onnx.wasm.numThreads = 4;
+
+        // Allow local models and remote loading
+        env.allowRemoteModels = true;
+        env.allowLocalModels = true;
 
         if (progressCallback) progressCallback({ status: 'downloading_model', progress: 25 });
       }
