@@ -3,6 +3,11 @@ const path = require('path');
 const OpenAI = require('openai');
 const fs = require('fs');
 const os = require('os');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+
+// Set ffmpeg path
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 // Set the app name for dock and menu bar
 app.setName('Audio Transcription');
