@@ -196,15 +196,7 @@
           return;
         }
 
-        // Check file size (25MB)
-        const maxSize = 25 * 1024 * 1024;
-        if (file.size > maxSize) {
-          errorMessage.textContent =
-            'File size exceeds 25MB limit. Please use a smaller file.';
-          errorMessage.classList.add('show');
-          return;
-        }
-
+        // Note: No file size limit check - large files are now supported via chunking
         selectedFile = file;
 
         // Display file info
