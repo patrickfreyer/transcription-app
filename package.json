@@ -23,7 +23,9 @@
     "electron-icon-builder": "^2.0.1"
   },
   "dependencies": {
-    "openai": "^4.24.0"
+    "openai": "^4.24.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0"
   },
   "build": {
     "appId": "com.transcription.app",

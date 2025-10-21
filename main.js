@@ -3,6 +3,11 @@ const path = require('path');
 const OpenAI = require('openai');
 const fs = require('fs');
 const os = require('os');
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
+
+// Set ffmpeg path
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 // Set the app name for dock and menu bar
 app.setName('Audio Transcription');
@@ -118,34 +123,110 @@ ipcMain.handle('save-recording', async (event, arrayBuffer) => {
   }
 });
 
+// Re-encode audio file to reduce size
+function reencodeAudio(inputPath, outputPath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .noVideo() // Remove video stream if present
+      .audioCodec('libopus') // Use Opus codec for voice
+      .audioBitrate('12k') // 12kbps for voice quality
+      .audioChannels(1) // Mono audio
+      .audioFrequency(16000) // 16kHz sample rate (sufficient for speech)
+      .outputOptions([
+        '-application voip', // Optimize for voice
+        '-map_metadata -1' // Remove metadata to reduce size
+      ])
+      .output(outputPath)
+      .on('end', () => resolve())
+      .on('error', (err) => reject(err))
+      .on('progress', (progress) => {
+        // Send progress updates to the renderer process
+        if (mainWindow && progress.percent) {
+          mainWindow.webContents.send('reencode-progress', Math.round(progress.percent));
+        }
+      })
+      .run();
+  });
+}
+
 // Handle transcription
 ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
+  let reencodedFilePath = null;
+
   try {
     const openai = new OpenAI({ apiKey });
 
-    // Check file size (25MB limit)
+    // Check file size
     const stats = fs.statSync(filePath);
     const fileSizeInMB = stats.size / (1024 * 1024);
 
+    let fileToTranscribe = filePath;
+
+    // If file is larger than 25MB, re-encode it
     if (fileSizeInMB > 25) {
-      return {
-        success: false,
-        error: 'File size exceeds 25MB limit. Please use a smaller file.',
-      };
+      // Notify the renderer that we're re-encoding
+      if (mainWindow) {
+        mainWindow.webContents.send('reencode-start', fileSizeInMB);
+      }
+
+      // Create temp file for re-encoded audio
+      const tempDir = os.tmpdir();
+      const ext = path.extname(filePath);
+      reencodedFilePath = path.join(tempDir, `reencoded-${Date.now()}.ogg`);
+
+      // Re-encode the audio file
+      await reencodeAudio(filePath, reencodedFilePath);
+
+      // Check if re-encoded file is small enough
+      const recodedStats = fs.statSync(reencodedFilePath);
+      const recodedSizeInMB = recodedStats.size / (1024 * 1024);
+
+      if (recodedSizeInMB > 25) {
+        // Clean up
+        if (fs.existsSync(reencodedFilePath)) {
+          fs.unlinkSync(reencodedFilePath);
+        }
+
+        return {
+          success: false,
+          error: `File is too large even after re-encoding (${recodedSizeInMB.toFixed(2)}MB). The audio may be exceptionally long or high quality.`,
+        };
+      }
+
+      fileToTranscribe = reencodedFilePath;
+
+      // Notify renderer that re-encoding is complete
+      if (mainWindow) {
+        mainWindow.webContents.send('reencode-complete', recodedSizeInMB);
+      }
     }
 
     // Create transcription with VTT format for timestamps
     const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(filePath),
+      file: fs.createReadStream(fileToTranscribe),
       model: 'whisper-1',
       response_format: 'vtt',
     });
+
+    // Clean up re-encoded file if it was created
+    if (reencodedFilePath && fs.existsSync(reencodedFilePath)) {
+      fs.unlinkSync(reencodedFilePath);
+    }
 
     return {
       success: true,
       transcript: transcription,
     };
   } catch (error) {
+    // Clean up re-encoded file on error
+    if (reencodedFilePath && fs.existsSync(reencodedFilePath)) {
+      try {
+        fs.unlinkSync(reencodedFilePath);
+      } catch (cleanupError) {
+        console.error('Failed to clean up re-encoded file:', cleanupError);
+      }
+    }
+
     return {
       success: false,
       error: error.message || 'Transcription failed',

@@ -35,7 +35,7 @@
       <div id="upload-mode" class="mode-container">
         <div class="drop-zone" id="drop-zone">
           <div class="drop-text">Drop audio file here or click to browse</div>
-          <div class="drop-subtext">Supports MP3, WAV, M4A, WEBM, MP4 (max 25MB)</div>
+          <div class="drop-subtext">Supports MP3, WAV, M4A, WEBM, MP4 - Large files will be automatically compressed</div>
           <input
             type="file"
             id="file-input"
@@ -196,15 +196,6 @@
           return;
         }
 
-        // Check file size (25MB)
-        const maxSize = 25 * 1024 * 1024;
-        if (file.size > maxSize) {
-          errorMessage.textContent =
-            'File size exceeds 25MB limit. Please use a smaller file.';
-          errorMessage.classList.add('show');
-          return;
-        }
-
         selectedFile = file;
 
         // Display file info
@@ -310,6 +301,26 @@
         return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
       }
 
+      // Set up re-encoding event listeners
+      const progressText = document.querySelector('.progress-text');
+      let isReencoding = false;
+
+      window.electron.onReencodeStart((fileSize) => {
+        isReencoding = true;
+        progressText.textContent = `Compressing large file (${fileSize.toFixed(1)}MB)...`;
+      });
+
+      window.electron.onReencodeProgress((percent) => {
+        if (isReencoding) {
+          progressText.textContent = `Compressing audio... ${percent}%`;
+        }
+      });
+
+      window.electron.onReencodeComplete((newSize) => {
+        isReencoding = false;
+        progressText.textContent = `Compression complete (${newSize.toFixed(1)}MB). Transcribing...`;
+      });
+
       // Transcribe button
       transcribeBtn.addEventListener('click', async () => {
         if (!selectedFile) return;
@@ -318,6 +329,8 @@
         progressContainer.classList.add('show');
         transcribeBtn.disabled = true;
         transcribeBtn.textContent = 'Transcribing...';
+        isReencoding = false;
+        progressText.textContent = 'Transcribing your audio... This may take a moment.';
 
         try {
           const apiKey = await window.electron.getApiKey();

@@ -20,6 +20,17 @@ contextBridge.exposeInMainWorld('electron', {
   saveTranscript: (content, format, fileName) =>
     ipcRenderer.invoke('save-transcript', content, format, fileName),
 
+  // Re-encoding events
+  onReencodeStart: (callback) => {
+    ipcRenderer.on('reencode-start', (event, fileSize) => callback(fileSize));
+  },
+  onReencodeProgress: (callback) => {
+    ipcRenderer.on('reencode-progress', (event, percent) => callback(percent));
+  },
+  onReencodeComplete: (callback) => {
+    ipcRenderer.on('reencode-complete', (event, newSize) => callback(newSize));
+  },
+
   // Clipboard
   copyToClipboard: (text) => {
     navigator.clipboard.writeText(text);
