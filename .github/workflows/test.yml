@@ -70,19 +70,23 @@ jobs:
         run: |
           echo "Checking for build artifacts..."
           dir dist
-          $setupExe = Get-ChildItem -Path "dist" -Filter "Audio Transcription Setup*.exe" -ErrorAction SilentlyContinue
+
+          # Check for Setup EXE
+          $setupExe = Get-ChildItem -Path "dist" -Filter "*Setup*.exe" -ErrorAction SilentlyContinue
           if (-not $setupExe) {
             Write-Error "Error: Setup EXE file not found!"
             exit 1
           }
-          Write-Output "✓ Setup EXE file found"
+          Write-Output "✓ Setup EXE file found: $($setupExe.Name)"
 
-          $portableExe = Get-ChildItem -Path "dist" -Filter "Audio Transcription *.exe" -Exclude "*Setup*" -ErrorAction SilentlyContinue
+          # Check for Portable EXE (must not contain "Setup" in name)
+          $allExes = Get-ChildItem -Path "dist" -Filter "*.exe" -ErrorAction SilentlyContinue
+          $portableExe = $allExes | Where-Object { $_.Name -notlike "*Setup*" }
           if (-not $portableExe) {
             Write-Error "Error: Portable EXE file not found!"
             exit 1
           }
-          Write-Output "✓ Portable EXE file found"
+          Write-Output "✓ Portable EXE file found: $($portableExe.Name)"
 
   test-summary:
     name: Test Summary
