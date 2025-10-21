@@ -1,0 +1,103 @@
+name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-macos:
+    name: Test on macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ffmpeg tests
+        run: node test-ffmpeg.js
+
+      - name: Test build process
+        run: npm run build:mac -- --publish never
+
+      - name: Verify build artifacts
+        run: |
+          echo "Checking for build artifacts..."
+          ls -la dist/
+          if [ ! -f "dist/Audio Transcription-"*.dmg ]; then
+            echo "Error: DMG file not found!"
+            exit 1
+          fi
+          echo "✓ DMG file found"
+
+          if [ ! -f "dist/Audio Transcription-"*-mac.zip ]; then
+            echo "Error: ZIP file not found!"
+            exit 1
+          fi
+          echo "✓ ZIP file found"
+
+  test-windows:
+    name: Test on Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ffmpeg tests
+        run: node test-ffmpeg.js
+
+      - name: Test build process
+        run: npm run build:win -- --publish never
+
+      - name: Verify build artifacts
+        run: |
+          echo "Checking for build artifacts..."
+          dir dist
+          $setupExe = Get-ChildItem -Path "dist" -Filter "Audio Transcription Setup*.exe" -ErrorAction SilentlyContinue
+          if (-not $setupExe) {
+            Write-Error "Error: Setup EXE file not found!"
+            exit 1
+          }
+          Write-Output "✓ Setup EXE file found"
+
+          $portableExe = Get-ChildItem -Path "dist" -Filter "Audio Transcription *.exe" -Exclude "*Setup*" -ErrorAction SilentlyContinue
+          if (-not $portableExe) {
+            Write-Error "Error: Portable EXE file not found!"
+            exit 1
+          }
+          Write-Output "✓ Portable EXE file found"
+
+  test-summary:
+    name: Test Summary
+    needs: [test-macos, test-windows]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.test-macos.result }}" != "success" ] || [ "${{ needs.test-windows.result }}" != "success" ]; then
+            echo "❌ Some tests failed!"
+            echo "macOS: ${{ needs.test-macos.result }}"
+            echo "Windows: ${{ needs.test-windows.result }}"
+            exit 1
+          fi
+          echo "✅ All tests passed!"
+          echo "macOS: ${{ needs.test-macos.result }}"
+          echo "Windows: ${{ needs.test-windows.result }}"
