@@ -319,6 +319,9 @@
         transcribeBtn.disabled = true;
         transcribeBtn.textContent = 'Transcribing...';
 
+        const progressText = document.querySelector('.progress-text');
+        const progressFill = document.querySelector('.progress-fill');
+
         try {
           // Get settings to determine mode
           const settings = await window.electron.getSettings();
@@ -329,12 +332,40 @@
 
           const mode = settings.mode || 'api';
 
-          // Update progress text based on mode
-          const progressText = document.querySelector('.progress-text');
+          // Set up progress listeners for local mode
           if (mode === 'local') {
-            progressText.textContent = 'Transcribing locally... This may take a few minutes on first run.';
+            window.electron.onModelDownloadProgress((data) => {
+              const progress = data.progress || 0;
+              progressFill.style.width = `${progress}%`;
+
+              switch (data.status) {
+                case 'loading_library':
+                  progressText.textContent = 'Loading Whisper library...';
+                  break;
+                case 'downloading_model':
+                  progressText.textContent = `Downloading Whisper model... ${Math.round(progress)}%`;
+                  if (data.file) {
+                    progressText.textContent += ` (${data.file})`;
+                  }
+                  break;
+                case 'initializing_model':
+                  progressText.textContent = 'Initializing model...';
+                  break;
+                case 'ready':
+                  progressText.textContent = 'Model ready! Starting transcription...';
+                  break;
+              }
+            });
+
+            window.electron.onTranscriptionProgress((data) => {
+              if (data.status === 'transcribing') {
+                progressText.textContent = 'Transcribing your audio...';
+                progressFill.style.width = '90%';
+              }
+            });
           } else {
             progressText.textContent = 'Transcribing your audio... This may take a moment.';
+            progressFill.style.width = '50%';
           }
 
           const result = await window.electron.transcribeAudio(
@@ -342,15 +373,31 @@
             mode
           );
 
+          // Clean up listeners
+          if (mode === 'local') {
+            window.electron.removeModelDownloadListener();
+            window.electron.removeTranscriptionListener();
+          }
+
           if (result.success) {
+            progressFill.style.width = '100%';
+            progressText.textContent = 'Transcription complete!';
+
             // Store transcript in localStorage and navigate to transcript screen
             localStorage.setItem('transcript', result.transcript);
             localStorage.setItem('fileName', selectedFile.name);
-            window.electron.navigate('transcript');
+
+            setTimeout(() => {
+              window.electron.navigate('transcript');
+            }, 500);
           } else {
             throw new Error(result.error);
           }
         } catch (error) {
+          // Clean up listeners on error
+          window.electron.removeModelDownloadListener();
+          window.electron.removeTranscriptionListener();
+
           errorMessage.textContent = error.message || 'Transcription failed';
           errorMessage.classList.add('show');
           progressContainer.classList.remove('show');
