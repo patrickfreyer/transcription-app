@@ -411,16 +411,47 @@ ipcMain.handle('save-recording', async (event, arrayBuffer) => {
 // Handle transcription
 ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
   let chunkPaths = [];
+  let convertedFilePath = null;
 
   try {
     const openai = new OpenAI({ apiKey });
-    const stats = fs.statSync(filePath);
+
+    // Check if file is WebM and needs conversion
+    let processFilePath = filePath;
+    if (filePath.toLowerCase().endsWith('.webm')) {
+      // Check if ffmpeg is available for conversion
+      if (!ffmpegAvailable) {
+        return {
+          success: false,
+          error: 'WebM recordings require FFmpeg for conversion, which could not be loaded on this system.\n\nPlease try uploading an MP3 or WAV file instead, or try re-downloading the application.',
+        };
+      }
+
+      // Send progress update for conversion
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('transcription-progress', {
+          status: 'converting',
+          message: 'Converting recording to MP3 format...',
+        });
+      }
+
+      // Convert WebM to MP3
+      convertedFilePath = await convertToMP3(filePath);
+      processFilePath = convertedFilePath;
+    }
+
+    const stats = fs.statSync(processFilePath);
     const fileSizeInMB = stats.size / (1024 * 1024);
 
     // Check if file needs to be split
     if (fileSizeInMB > 25) {
       // Check if ffmpeg is available for splitting
       if (!ffmpegAvailable) {
+        // Clean up converted file if it exists
+        if (convertedFilePath && fs.existsSync(convertedFilePath)) {
+          fs.unlinkSync(convertedFilePath);
+        }
+
         return {
           success: false,
           error: `File size is ${fileSizeInMB.toFixed(1)}MB, which exceeds the 25MB API limit.\n\nLarge file support requires FFmpeg, which could not be loaded on this system.\n\nPlease use a file smaller than 25MB, or try re-downloading the application.`,
@@ -436,7 +467,7 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
       }
 
       // Split audio into chunks
-      chunkPaths = await splitAudioIntoChunks(filePath, 20);
+      chunkPaths = await splitAudioIntoChunks(processFilePath, 20);
 
       // Get duration of each chunk for timestamp adjustment
       const chunkDurations = [];
@@ -489,6 +520,11 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
       // Clean up chunks
       cleanupChunks(chunkPaths);
 
+      // Clean up converted file if it exists
+      if (convertedFilePath && fs.existsSync(convertedFilePath)) {
+        fs.unlinkSync(convertedFilePath);
+      }
+
       return {
         success: true,
         transcript: combinedTranscript,
@@ -498,10 +534,15 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
     } else {
       // File is small enough, process normally
       const transcription = await openai.audio.transcriptions.create({
-        file: fs.createReadStream(filePath),
+        file: fs.createReadStream(processFilePath),
         model: 'whisper-1',
         response_format: 'vtt',
       });
+
+      // Clean up converted file if it exists
+      if (convertedFilePath && fs.existsSync(convertedFilePath)) {
+        fs.unlinkSync(convertedFilePath);
+      }
 
       return {
         success: true,
@@ -513,6 +554,15 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
     // Clean up chunks on error
     if (chunkPaths.length > 0) {
       cleanupChunks(chunkPaths);
+    }
+
+    // Clean up converted file on error
+    if (convertedFilePath && fs.existsSync(convertedFilePath)) {
+      try {
+        fs.unlinkSync(convertedFilePath);
+      } catch (cleanupError) {
+        console.error('Error cleaning up converted file:', cleanupError);
+      }
     }
 
     return {
