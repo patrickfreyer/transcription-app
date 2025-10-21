@@ -109,6 +109,23 @@ function getAudioDuration(filePath) {
   });
 }
 
+// Helper function to convert audio to MP3 format
+async function convertToMP3(filePath) {
+  return new Promise((resolve, reject) => {
+    const tempDir = os.tmpdir();
+    const outputPath = path.join(tempDir, `converted-${Date.now()}.mp3`);
+
+    ffmpeg(filePath)
+      .output(outputPath)
+      .audioCodec('libmp3lame')
+      .audioBitrate('192k')
+      .audioFrequency(44100)
+      .on('end', () => resolve(outputPath))
+      .on('error', (err) => reject(new Error(`Audio conversion failed: ${err.message}`)))
+      .run();
+  });
+}
+
 // Helper function to split audio into chunks
 async function splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
   try {
