@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+out/
+
+# Cache directories
+.cache/
+*.cache
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build artifacts - keep icon files
+*.dmg
+*.exe
+*.zip
+*.blockmap
+builder-debug.yml
+!build/icon.icns
+!build/icon.ico
+!build/icons/*.png
+
+# Temporary files
+*.tmp
+*.temp
+
+# Electron cache
+$RECYCLE.BIN/

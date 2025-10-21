@@ -1,0 +1,51 @@
+{
+  "name": "audio-transcription-app",
+  "version": "1.0.0",
+  "description": "Elegant audio transcription app using OpenAI Whisper API",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
+  },
+  "keywords": [
+    "electron",
+    "transcription",
+    "openai",
+    "whisper"
+  ],
+  "author": "Patrick C. Freyer <freyer.patrick@bcg.com> (https://patrickfreyer.com)",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "electron-icon-builder": "^2.0.1"
+  },
+  "dependencies": {
+    "openai": "^4.24.0"
+  },
+  "build": {
+    "appId": "com.transcription.app",
+    "productName": "Audio Transcription",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": null
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*"
+    ]
+  }
+}

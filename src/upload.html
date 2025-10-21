@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upload - Audio Transcription</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Audio Transcription</h1>
+      <p class="subtitle">Upload a file or record audio directly.</p>
+
+      <!-- Tab Switcher -->
+      <div class="tab-switcher">
+        <button class="tab-btn active" id="upload-tab" data-mode="upload">
+          Upload File
+        </button>
+        <button class="tab-btn" id="record-tab" data-mode="record">
+          Record Audio
+        </button>
+      </div>
+
+      <div class="error-message" id="error-message"></div>
+
+      <!-- Progress Bar -->
+      <div class="progress-container" id="progress-container">
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+        <div class="progress-text">Transcribing your audio... This may take a moment.</div>
+      </div>
+
+      <!-- Upload Mode -->
+      <div id="upload-mode" class="mode-container">
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-text">Drop audio file here or click to browse</div>
+          <div class="drop-subtext">Supports MP3, WAV, M4A, WEBM, MP4 (max 25MB)</div>
+          <input
+            type="file"
+            id="file-input"
+            accept=".mp3,.wav,.m4a,.webm,.mp4,.mpeg,.mpga"
+            style="display: none"
+          />
+        </div>
+
+        <div class="file-info" id="file-info">
+          <div class="file-name" id="file-name"></div>
+          <div class="file-size" id="file-size"></div>
+        </div>
+      </div>
+
+      <!-- Record Mode -->
+      <div id="record-mode" class="mode-container" style="display: none">
+        <div class="record-container">
+          <div class="record-visualizer" id="record-visualizer">
+            <div class="record-status" id="record-status">Ready to record</div>
+            <div class="record-timer" id="record-timer">00:00</div>
+          </div>
+
+          <div class="record-controls">
+            <button class="record-btn" id="start-record-btn">
+              <span class="record-dot"></span>
+              Record
+            </button>
+            <button class="record-btn secondary" id="stop-record-btn" style="display: none">
+              <span class="stop-icon"></span>
+              Stop
+            </button>
+          </div>
+        </div>
+
+        <div class="file-info" id="recording-info" style="display: none">
+          <div class="file-name" id="recording-name">Recording.webm</div>
+          <div class="file-size" id="recording-size"></div>
+        </div>
+      </div>
+
+      <button class="btn" id="transcribe-btn" style="display: none">
+        Transcribe
+      </button>
+      <button class="btn btn-secondary" id="settings-btn">Change API Key</button>
+
+      <footer class="attribution">
+        Created by <a href="https://patrickfreyer.com" target="_blank">Patrick C. Freyer</a>
+        <br>
+        <a href="mailto:freyer.patrick@bcg.com">freyer.patrick@bcg.com</a>
+      </footer>
+    </div>
+
+    <script>
+      // UI Elements
+      const uploadTab = document.getElementById('upload-tab');
+      const recordTab = document.getElementById('record-tab');
+      const uploadMode = document.getElementById('upload-mode');
+      const recordMode = document.getElementById('record-mode');
+      const dropZone = document.getElementById('drop-zone');
+      const fileInput = document.getElementById('file-input');
+      const fileInfo = document.getElementById('file-info');
+      const fileName = document.getElementById('file-name');
+      const fileSize = document.getElementById('file-size');
+      const recordingInfo = document.getElementById('recording-info');
+      const recordingName = document.getElementById('recording-name');
+      const recordingSize = document.getElementById('recording-size');
+      const startRecordBtn = document.getElementById('start-record-btn');
+      const stopRecordBtn = document.getElementById('stop-record-btn');
+      const recordStatus = document.getElementById('record-status');
+      const recordTimer = document.getElementById('record-timer');
+      const transcribeBtn = document.getElementById('transcribe-btn');
+      const settingsBtn = document.getElementById('settings-btn');
+      const errorMessage = document.getElementById('error-message');
+      const progressContainer = document.getElementById('progress-container');
+
+      let selectedFile = null;
+      let mediaRecorder = null;
+      let audioChunks = [];
+      let recordingStartTime = null;
+      let timerInterval = null;
+      let currentMode = 'upload';
+
+      // Tab Switching
+      uploadTab.addEventListener('click', () => switchMode('upload'));
+      recordTab.addEventListener('click', () => switchMode('record'));
+
+      function switchMode(mode) {
+        currentMode = mode;
+
+        // Update tabs
+        uploadTab.classList.toggle('active', mode === 'upload');
+        recordTab.classList.toggle('active', mode === 'record');
+
+        // Update containers
+        uploadMode.style.display = mode === 'upload' ? 'block' : 'none';
+        recordMode.style.display = mode === 'record' ? 'block' : 'none';
+
+        // Reset state
+        selectedFile = null;
+        transcribeBtn.style.display = 'none';
+        fileInfo.classList.remove('show');
+        recordingInfo.style.display = 'none';
+        errorMessage.classList.remove('show');
+      }
+
+      // ==================== UPLOAD MODE ====================
+
+      // Click to browse
+      dropZone.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      // File input change
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          handleFile(e.target.files[0]);
+        }
+      });
+
+      // Drag and drop events
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+      });
+
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+
+        if (e.dataTransfer.files.length > 0) {
+          handleFile(e.dataTransfer.files[0]);
+        }
+      });
+
+      function handleFile(file) {
+        errorMessage.classList.remove('show');
+
+        // Check file type
+        const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+        const acceptedExtensions = [
+          '.mp3',
+          '.wav',
+          '.m4a',
+          '.webm',
+          '.mp4',
+          '.mpeg',
+          '.mpga',
+        ];
+
+        if (!acceptedExtensions.includes(fileExtension)) {
+          errorMessage.textContent =
+            'Unsupported file type. Please use MP3, WAV, M4A, WEBM, or MP4.';
+          errorMessage.classList.add('show');
+          return;
+        }
+
+        // Check file size (25MB)
+        const maxSize = 25 * 1024 * 1024;
+        if (file.size > maxSize) {
+          errorMessage.textContent =
+            'File size exceeds 25MB limit. Please use a smaller file.';
+          errorMessage.classList.add('show');
+          return;
+        }
+
+        selectedFile = file;
+
+        // Display file info
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        fileInfo.classList.add('show');
+        transcribeBtn.style.display = 'block';
+      }
+
+      // ==================== RECORD MODE ====================
+
+      startRecordBtn.addEventListener('click', async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+          };
+
+          mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+
+            // Stop all tracks
+            stream.getTracks().forEach(track => track.stop());
+
+            // Clear timer
+            clearInterval(timerInterval);
+
+            try {
+              // Convert blob to array buffer and save to temp file
+              const arrayBuffer = await audioBlob.arrayBuffer();
+              const result = await window.electron.saveRecording(arrayBuffer);
+
+              if (result.success) {
+                // Store the temp file path as a File-like object
+                selectedFile = {
+                  path: result.filePath,
+                  name: 'recording.webm',
+                  size: audioBlob.size,
+                };
+
+                // Display recording info
+                recordingSize.textContent = formatFileSize(audioBlob.size);
+                recordingInfo.style.display = 'block';
+                transcribeBtn.style.display = 'block';
+
+                // Reset UI
+                recordStatus.textContent = 'Recording complete';
+                startRecordBtn.style.display = 'block';
+                stopRecordBtn.style.display = 'none';
+              } else {
+                throw new Error(result.error);
+              }
+            } catch (error) {
+              errorMessage.textContent = 'Failed to save recording: ' + error.message;
+              errorMessage.classList.add('show');
+              recordStatus.textContent = 'Ready to record';
+              startRecordBtn.style.display = 'block';
+              stopRecordBtn.style.display = 'none';
+            }
+          };
+
+          mediaRecorder.start();
+          recordingStartTime = Date.now();
+
+          // Update UI
+          recordStatus.textContent = 'Recording...';
+          startRecordBtn.style.display = 'none';
+          stopRecordBtn.style.display = 'block';
+          recordingInfo.style.display = 'none';
+          transcribeBtn.style.display = 'none';
+
+          // Start timer
+          timerInterval = setInterval(updateTimer, 1000);
+
+        } catch (error) {
+          errorMessage.textContent = 'Microphone access denied. Please enable microphone permissions.';
+          errorMessage.classList.add('show');
+        }
+      });
+
+      stopRecordBtn.addEventListener('click', () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+      });
+
+      function updateTimer() {
+        const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+        const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+        const seconds = (elapsed % 60).toString().padStart(2, '0');
+        recordTimer.textContent = `${minutes}:${seconds}`;
+      }
+
+      // ==================== SHARED ====================
+
+      function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+      }
+
+      // Transcribe button
+      transcribeBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
+
+        errorMessage.classList.remove('show');
+        progressContainer.classList.add('show');
+        transcribeBtn.disabled = true;
+        transcribeBtn.textContent = 'Transcribing...';
+
+        try {
+          const apiKey = await window.electron.getApiKey();
+
+          if (!apiKey) {
+            throw new Error('API key not found. Please set up your API key first.');
+          }
+
+          const result = await window.electron.transcribeAudio(
+            selectedFile.path,
+            apiKey
+          );
+
+          if (result.success) {
+            // Store transcript in localStorage and navigate to transcript screen
+            localStorage.setItem('transcript', result.transcript);
+            localStorage.setItem('fileName', selectedFile.name);
+            window.electron.navigate('transcript');
+          } else {
+            throw new Error(result.error);
+          }
+        } catch (error) {
+          errorMessage.textContent = error.message || 'Transcription failed';
+          errorMessage.classList.add('show');
+          progressContainer.classList.remove('show');
+          transcribeBtn.disabled = false;
+          transcribeBtn.textContent = 'Transcribe';
+        }
+      });
+
+      // Settings button
+      settingsBtn.addEventListener('click', () => {
+        window.electron.navigate('setup');
+      });
+    </script>
+  </body>
+</html>
