@@ -569,3 +569,79 @@ input[type='password']:focus {
 .attribution a:hover {
   color: #007aff;
 }
+
+/* Mode Selector */
+.mode-selector {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.mode-option {
+  flex: 1;
+  cursor: pointer;
+}
+
+.mode-option input[type="radio"] {
+  display: none;
+}
+
+.mode-card {
+  border: 2px solid #e8e8ed;
+  border-radius: 12px;
+  padding: 20px;
+  background: #fbfbfd;
+  transition: all 0.2s ease;
+  height: 100%;
+}
+
+.mode-option input[type="radio"]:checked + .mode-card {
+  border-color: #007aff;
+  background: rgba(0, 122, 255, 0.05);
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
+}
+
+.mode-card:hover {
+  border-color: #d2d2d7;
+  background: white;
+}
+
+.mode-option input[type="radio"]:checked + .mode-card:hover {
+  border-color: #007aff;
+  background: rgba(0, 122, 255, 0.05);
+}
+
+.mode-title {
+  color: #1d1d1f;
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.mode-description {
+  color: #6e6e73;
+  font-size: 14px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.mode-features {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feature {
+  color: #6e6e73;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+}
+
+.mode-option input[type="radio"]:checked + .mode-card .mode-title {
+  color: #007aff;
+}
+
+.mode-option input[type="radio"]:checked + .mode-card .feature {
+  color: #007aff;
+}
