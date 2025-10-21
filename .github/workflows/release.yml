@@ -27,7 +27,7 @@ jobs:
         run: npm ci
 
       - name: Build macOS app
-        run: npm run build:mac
+        run: npm run build:mac -- --publish never
 
       - name: List build artifacts
         run: ls -la dist/
