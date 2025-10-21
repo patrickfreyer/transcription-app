@@ -7,16 +7,44 @@ const os = require('os');
 // Import Transformers.js for local Whisper
 let pipeline;
 let localTranscriber = null;
+let modelDownloading = false;
 
 // Lazy load the pipeline to avoid slowing down app startup
-async function getLocalTranscriber() {
-  if (!localTranscriber) {
-    if (!pipeline) {
-      const { pipeline: importedPipeline } = await import('@xenova/transformers');
-      pipeline = importedPipeline;
+async function getLocalTranscriber(progressCallback) {
+  if (!localTranscriber && !modelDownloading) {
+    modelDownloading = true;
+    try {
+      if (!pipeline) {
+        if (progressCallback) progressCallback({ status: 'loading_library', progress: 0 });
+
+        // Use dynamic import with proper error handling
+        const transformers = await import('@xenova/transformers').catch(err => {
+          throw new Error(`Failed to load transformers library: ${err.message}`);
+        });
+        pipeline = transformers.pipeline;
+
+        if (progressCallback) progressCallback({ status: 'downloading_model', progress: 25 });
+      }
+
+      // Use Whisper small model for good balance of size and quality
+      // First time this runs, it will download the model (~150MB)
+      if (progressCallback) progressCallback({ status: 'initializing_model', progress: 50 });
+
+      localTranscriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small', {
+        progress_callback: (progress) => {
+          if (progressCallback && progress.status === 'progress') {
+            const percentage = 50 + (progress.progress * 40); // Scale to 50-90%
+            progressCallback({ status: 'downloading_model', progress: percentage, ...progress });
+          }
+        }
+      });
+
+      if (progressCallback) progressCallback({ status: 'ready', progress: 100 });
+      modelDownloading = false;
+    } catch (error) {
+      modelDownloading = false;
+      throw error;
     }
-    // Use Whisper small model for good balance of size and quality
-    localTranscriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small');
   }
   return localTranscriber;
 }
