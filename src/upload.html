@@ -302,12 +302,29 @@
         return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
       }
 
+      // Listen for progress updates
+      const progressText = document.querySelector('.progress-text');
+      window.electron.onTranscriptionProgress((data) => {
+        if (data.status === 'splitting') {
+          progressText.textContent = data.message || 'Splitting large audio file...';
+        } else if (data.status === 'transcribing') {
+          if (data.current && data.total) {
+            progressText.textContent = `${data.message} (${data.current}/${data.total})`;
+          } else {
+            progressText.textContent = data.message || 'Transcribing...';
+          }
+        } else if (data.status === 'combining') {
+          progressText.textContent = data.message || 'Combining transcripts...';
+        }
+      });
+
       // Transcribe button
       transcribeBtn.addEventListener('click', async () => {
         if (!selectedFile) return;
 
         errorMessage.classList.remove('show');
         progressContainer.classList.add('show');
+        progressText.textContent = 'Transcribing your audio... This may take a moment.';
         transcribeBtn.disabled = true;
         transcribeBtn.textContent = 'Transcribing...';
 
@@ -327,6 +344,9 @@
             // Store transcript in localStorage and navigate to transcript screen
             localStorage.setItem('transcript', result.transcript);
             localStorage.setItem('fileName', selectedFile.name);
+            if (result.chunked) {
+              localStorage.setItem('transcriptInfo', `Processed in ${result.totalChunks} chunks`);
+            }
             window.electron.navigate('transcript');
           } else {
             throw new Error(result.error);
