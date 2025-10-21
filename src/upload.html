@@ -35,7 +35,7 @@
       <div id="upload-mode" class="mode-container">
         <div class="drop-zone" id="drop-zone">
           <div class="drop-text">Drop audio file here or click to browse</div>
-          <div class="drop-subtext">Supports MP3, WAV, M4A, WEBM, MP4 (max 25MB)</div>
+          <div class="drop-subtext">Supports MP3, WAV, M4A, WEBM, MP4 • Large files supported</div>
           <input
             type="file"
             id="file-input"
@@ -196,15 +196,7 @@
           return;
         }
 
-        // Check file size (25MB)
-        const maxSize = 25 * 1024 * 1024;
-        if (file.size > maxSize) {
-          errorMessage.textContent =
-            'File size exceeds 25MB limit. Please use a smaller file.';
-          errorMessage.classList.add('show');
-          return;
-        }
-
+        // Note: No file size limit check - large files are now supported via chunking
         selectedFile = file;
 
         // Display file info
@@ -310,12 +302,29 @@
         return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
       }
 
+      // Listen for progress updates
+      const progressText = document.querySelector('.progress-text');
+      window.electron.onTranscriptionProgress((data) => {
+        if (data.status === 'splitting') {
+          progressText.textContent = data.message || 'Splitting large audio file...';
+        } else if (data.status === 'transcribing') {
+          if (data.current && data.total) {
+            progressText.textContent = `${data.message} (${data.current}/${data.total})`;
+          } else {
+            progressText.textContent = data.message || 'Transcribing...';
+          }
+        } else if (data.status === 'combining') {
+          progressText.textContent = data.message || 'Combining transcripts...';
+        }
+      });
+
       // Transcribe button
       transcribeBtn.addEventListener('click', async () => {
         if (!selectedFile) return;
 
         errorMessage.classList.remove('show');
         progressContainer.classList.add('show');
+        progressText.textContent = 'Transcribing your audio... This may take a moment.';
         transcribeBtn.disabled = true;
         transcribeBtn.textContent = 'Transcribing...';
 
@@ -335,6 +344,9 @@
             // Store transcript in localStorage and navigate to transcript screen
             localStorage.setItem('transcript', result.transcript);
             localStorage.setItem('fileName', selectedFile.name);
+            if (result.chunked) {
+              localStorage.setItem('transcriptInfo', `Processed in ${result.totalChunks} chunks`);
+            }
             window.electron.navigate('transcript');
           } else {
             throw new Error(result.error);

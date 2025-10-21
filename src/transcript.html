@@ -146,7 +146,13 @@
       }
 
       if (fileName) {
-        fileNameSubtitle.textContent = `File: ${fileName}`;
+        const transcriptInfo = localStorage.getItem('transcriptInfo');
+        if (transcriptInfo) {
+          fileNameSubtitle.textContent = `File: ${fileName} • ${transcriptInfo}`;
+          localStorage.removeItem('transcriptInfo'); // Clean up after displaying
+        } else {
+          fileNameSubtitle.textContent = `File: ${fileName}`;
+        }
       }
 
       // Update display based on toggle state
