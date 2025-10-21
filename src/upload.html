@@ -305,7 +305,9 @@
       // Listen for progress updates
       const progressText = document.querySelector('.progress-text');
       window.electron.onTranscriptionProgress((data) => {
-        if (data.status === 'splitting') {
+        if (data.status === 'converting') {
+          progressText.textContent = data.message || 'Converting audio format...';
+        } else if (data.status === 'splitting') {
           progressText.textContent = data.message || 'Splitting large audio file...';
         } else if (data.status === 'transcribing') {
           if (data.current && data.total) {
