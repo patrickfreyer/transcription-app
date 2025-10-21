@@ -11,20 +11,60 @@ process.on('uncaughtException', (error) => {
 });
 
 let ffmpeg, ffmpegPath, ffprobePath;
+let ffmpegAvailable = false;
+
 try {
+  console.log('=== FFmpeg Loading Debug Info ===');
+  console.log('Platform:', process.platform);
+  console.log('Architecture:', process.arch);
+  console.log('App path:', app.getAppPath());
+  console.log('Resource path:', process.resourcesPath);
+
   ffmpeg = require('fluent-ffmpeg');
-  ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
-  ffprobePath = require('@ffprobe-installer/ffprobe').path;
+  console.log('✓ fluent-ffmpeg loaded');
+
+  try {
+    const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+    ffmpegPath = ffmpegInstaller.path;
+    console.log('✓ ffmpeg-installer loaded');
+    console.log('FFmpeg path:', ffmpegPath);
+    console.log('FFmpeg exists:', fs.existsSync(ffmpegPath));
+  } catch (e) {
+    console.error('✗ Error loading ffmpeg-installer:', e.message);
+    throw e;
+  }
+
+  try {
+    const ffprobeInstaller = require('@ffprobe-installer/ffprobe');
+    ffprobePath = ffprobeInstaller.path;
+    console.log('✓ ffprobe-installer loaded');
+    console.log('FFprobe path:', ffprobePath);
+    console.log('FFprobe exists:', fs.existsSync(ffprobePath));
+  } catch (e) {
+    console.error('✗ Error loading ffprobe-installer:', e.message);
+    throw e;
+  }
 
   // Set ffmpeg and ffprobe paths
   ffmpeg.setFfmpegPath(ffmpegPath);
   ffmpeg.setFfprobePath(ffprobePath);
 
-  console.log('FFmpeg path:', ffmpegPath);
-  console.log('FFprobe path:', ffprobePath);
+  ffmpegAvailable = true;
+  console.log('✓ FFmpeg fully configured and available');
+  console.log('=================================');
 } catch (error) {
-  console.error('Error loading ffmpeg:', error);
-  // App can still run without ffmpeg for files under 25MB
+  console.error('=== FFmpeg Loading Failed ===');
+  console.error('Error:', error.message);
+  console.error('Stack:', error.stack);
+  console.error('============================');
+
+  // Show error dialog on Windows
+  if (process.platform === 'win32') {
+    dialog.showErrorBox(
+      'Large File Support Unavailable',
+      `FFmpeg could not be loaded. Large file support (>25MB) will not work.\n\nError: ${error.message}\n\nFiles under 25MB will still work normally.`
+    );
+  }
 }
 
 // Set the app name for dock and menu bar
