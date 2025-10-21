@@ -28,8 +28,6 @@ jobs:
 
       - name: Build macOS app
         run: npm run build:mac
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: List build artifacts
         run: ls -la dist/
