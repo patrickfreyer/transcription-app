@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.invoke('transcribe-audio', filePath, apiKey),
   saveTranscript: (content, format, fileName) =>
     ipcRenderer.invoke('save-transcript', content, format, fileName),
+  onTranscriptionProgress: (callback) => {
+    ipcRenderer.on('transcription-progress', (event, data) => callback(data));
+  },
 
   // Clipboard
   copyToClipboard: (text) => {
