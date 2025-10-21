@@ -27,4 +27,18 @@ contextBridge.exposeInMainWorld('electron', {
   copyToClipboard: (text) => {
     navigator.clipboard.writeText(text);
   },
+
+  // Progress listeners for model download and transcription
+  onModelDownloadProgress: (callback) => {
+    ipcRenderer.on('model-download-progress', (event, data) => callback(data));
+  },
+  onTranscriptionProgress: (callback) => {
+    ipcRenderer.on('transcription-progress', (event, data) => callback(data));
+  },
+  removeModelDownloadListener: () => {
+    ipcRenderer.removeAllListeners('model-download-progress');
+  },
+  removeTranscriptionListener: () => {
+    ipcRenderer.removeAllListeners('transcription-progress');
+  },
 });
