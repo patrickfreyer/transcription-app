@@ -1,0 +1,147 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.1.1)'
+        required: true
+        type: string
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS app
+        run: npm run build:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List build artifacts
+        run: ls -la dist/
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-builds
+          path: |
+            dist/*.dmg
+            dist/*.zip
+          retention-days: 5
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows app
+        run: npm run build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List build artifacts
+        run: dir dist
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-builds
+          path: |
+            dist/*.exe
+          retention-days: 5
+
+  create-release:
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-builds
+          path: ./artifacts/macos
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-builds
+          path: ./artifacts/windows
+
+      - name: List all artifacts
+        run: |
+          echo "macOS artifacts:"
+          ls -la ./artifacts/macos/
+          echo "Windows artifacts:"
+          ls -la ./artifacts/windows/
+
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: Audio Transcription App ${{ steps.version.outputs.VERSION }}
+          body: |
+            ## Audio Transcription App
+
+            Elegant desktop application for transcribing audio using OpenAI's Whisper API.
+
+            ### Features
+            - 🎤 Record audio directly or upload files
+            - 📝 Accurate transcription with timestamps
+            - 💾 Export as plain text, VTT, or SRT
+            - 📦 Support for large files (automatic chunking)
+            - 🔒 Your API key stays local - never stored on servers
+
+            ### Installation
+            - **macOS**: Download the `.dmg` file
+            - **Windows**: Download the portable `.exe` (no installation required)
+
+            ### Requirements
+            - OpenAI API key (get one at https://platform.openai.com/api-keys)
+
+            ---
+
+            **Privacy**: All transcription happens through OpenAI's API. Your API key is stored locally on your device only. Audio files are temporarily uploaded to OpenAI for transcription and are not stored permanently.
+          files: |
+            ./artifacts/macos/*.dmg
+            ./artifacts/macos/*.zip
+            ./artifacts/windows/*.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
