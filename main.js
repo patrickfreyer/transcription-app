@@ -378,6 +378,14 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
 
     // Check if file needs to be split
     if (fileSizeInMB > 25) {
+      // Check if ffmpeg is available for splitting
+      if (!ffmpegAvailable) {
+        return {
+          success: false,
+          error: `File size is ${fileSizeInMB.toFixed(1)}MB, which exceeds the 25MB API limit.\n\nLarge file support requires FFmpeg, which could not be loaded on this system.\n\nPlease use a file smaller than 25MB, or try re-downloading the application.`,
+        };
+      }
+
       // Send progress update for splitting
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('transcription-progress', {
