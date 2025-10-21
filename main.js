@@ -26,9 +26,21 @@ try {
   try {
     const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
     ffmpegPath = ffmpegInstaller.path;
+
+    // Fix path for packaged app with asar.unpacked
+    if (ffmpegPath.includes('app.asar') && !ffmpegPath.includes('.asar.unpacked')) {
+      ffmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked');
+    }
+
     console.log('✓ ffmpeg-installer loaded');
     console.log('FFmpeg path:', ffmpegPath);
     console.log('FFmpeg exists:', fs.existsSync(ffmpegPath));
+
+    if (fs.existsSync(ffmpegPath)) {
+      const stat = fs.statSync(ffmpegPath);
+      console.log('FFmpeg is file:', stat.isFile());
+      console.log('FFmpeg is directory:', stat.isDirectory());
+    }
   } catch (e) {
     console.error('✗ Error loading ffmpeg-installer:', e.message);
     throw e;
@@ -37,9 +49,21 @@ try {
   try {
     const ffprobeInstaller = require('@ffprobe-installer/ffprobe');
     ffprobePath = ffprobeInstaller.path;
+
+    // Fix path for packaged app with asar.unpacked
+    if (ffprobePath.includes('app.asar') && !ffprobePath.includes('.asar.unpacked')) {
+      ffprobePath = ffprobePath.replace('app.asar', 'app.asar.unpacked');
+    }
+
     console.log('✓ ffprobe-installer loaded');
     console.log('FFprobe path:', ffprobePath);
     console.log('FFprobe exists:', fs.existsSync(ffprobePath));
+
+    if (fs.existsSync(ffprobePath)) {
+      const stat = fs.statSync(ffprobePath);
+      console.log('FFprobe is file:', stat.isFile());
+      console.log('FFprobe is directory:', stat.isDirectory());
+    }
   } catch (e) {
     console.error('✗ Error loading ffprobe-installer:', e.message);
     throw e;
