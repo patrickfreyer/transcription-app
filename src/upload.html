@@ -149,8 +149,18 @@
       const settingsBtn = document.getElementById('settings-btn');
       const errorMessage = document.getElementById('error-message');
       const progressContainer = document.getElementById('progress-container');
+      const promptSection = document.getElementById('prompt-section');
+      const promptHeader = document.getElementById('prompt-header');
+      const promptBody = document.getElementById('prompt-body');
+      const promptChevron = document.getElementById('prompt-chevron');
+      const promptTextarea = document.getElementById('prompt-textarea');
+      const promptCounter = document.getElementById('prompt-counter');
+      const showExamplesLink = document.getElementById('show-examples');
+      const promptExamples = document.getElementById('prompt-examples');
+      const promptExampleElements = document.querySelectorAll('.prompt-example');
 
       let selectedFile = null;
+      let isPromptExpanded = false;
       let mediaRecorder = null;
       let audioChunks = [];
       let recordingStartTime = null;
