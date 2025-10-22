@@ -269,8 +269,8 @@ input[type='password']:focus {
 .speaker-text {
   color: #1d1d1f;
   font-size: 15px;
-  line-height: 1.5;
-  margin-top: 4px;
+  line-height: 1.4;
+  margin-top: 2px;
 }
 
 .transcript-content::-webkit-scrollbar {
