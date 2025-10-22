@@ -573,8 +573,8 @@ input[type='password']:focus {
 
 /* Format Selector */
 .format-selector {
-  margin-bottom: 32px;
-  padding: 20px;
+  margin-bottom: 20px;
+  padding: 16px;
   background: #f5f5f7;
   border-radius: 10px;
 }
