@@ -156,9 +156,48 @@
         }
       }
 
+      // Format diarized transcript with enhanced styling
+      function formatDiarizedDisplay(text) {
+        if (!isDiarized) {
+          return text;
+        }
+
+        // Split by speaker segments (looking for [Speaker Name] pattern)
+        const segments = text.split(/\n\n+/);
+        let html = '';
+
+        for (const segment of segments) {
+          const match = segment.match(/^\[([^\]]+)\]\s*(.+)/s);
+          if (match) {
+            const speaker = match[1];
+            const content = match[2];
+            html += `
+              <div class="speaker-segment">
+                <span class="speaker-label">${speaker}</span>
+                <div class="speaker-text">${content}</div>
+              </div>
+            `;
+          } else if (segment.trim()) {
+            html += `<div class="speaker-segment"><div class="speaker-text">${segment}</div></div>`;
+          }
+        }
+
+        return html;
+      }
+
       // Update display based on toggle state
       function updateDisplay() {
-        transcriptContent.textContent = showTimestamps ? timestampedText : plainText;
+        const textToDisplay = showTimestamps ? timestampedText : plainText;
+
+        if (isDiarized && !showTimestamps) {
+          // Use enhanced formatting for diarized plain text
+          transcriptContent.classList.add('diarized');
+          transcriptContent.innerHTML = formatDiarizedDisplay(textToDisplay);
+        } else {
+          // Use plain text display
+          transcriptContent.classList.remove('diarized');
+          transcriptContent.textContent = textToDisplay;
+        }
 
         // Update toggle UI
         if (showTimestamps) {
