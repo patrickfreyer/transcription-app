@@ -615,20 +615,35 @@
             throw new Error('API key not found. Please set up your API key first.');
           }
 
-          const prompt = promptTextarea.value.trim() || null;
+          // Get selected model
+          const selectedModel = document.querySelector('input[name="model"]:checked').value;
+
+          // Get prompt (only for non-diarize models)
+          const prompt = selectedModel === 'gpt-4o-transcribe' ? (promptTextarea.value.trim() || null) : null;
+
+          // Get speaker references (only for diarize model)
+          const speakers = selectedModel === 'gpt-4o-transcribe-diarize' ? speakerReferences : null;
 
           const result = await window.electron.transcribeAudio(
             selectedFile.path,
             apiKey,
-            prompt
+            {
+              model: selectedModel,
+              prompt: prompt,
+              speakers: speakers
+            }
           );
 
           if (result.success) {
             // Store transcript in localStorage and navigate to transcript screen
             localStorage.setItem('transcript', result.transcript);
             localStorage.setItem('fileName', selectedFile.name);
+            localStorage.setItem('transcriptModel', selectedModel);
             if (result.chunked) {
               localStorage.setItem('transcriptInfo', `Processed in ${result.totalChunks} chunks`);
+            }
+            if (result.isDiarized) {
+              localStorage.setItem('isDiarized', 'true');
             }
             window.electron.navigate('transcript');
           } else {
