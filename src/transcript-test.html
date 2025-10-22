@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transcript Test - Audio Transcription</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Transcription Complete</h1>
+      <p class="subtitle">File: sample_meeting.mp3 • Speaker Diarization Test</p>
+
+      <!-- Timestamp Toggle -->
+      <div class="toggle-container">
+        <span class="toggle-label active" id="plain-label">Plain Text</span>
+        <div class="toggle-switch" id="toggle-switch">
+          <div class="toggle-slider"></div>
+        </div>
+        <span class="toggle-label" id="timestamp-label">With Timestamps</span>
+      </div>
+
+      <div class="transcript-content diarized" id="transcript-content">
+        <div class="speaker-segment">
+          <span class="speaker-label">Patrick</span>
+          <div class="speaker-text">Hey everyone, thanks for joining today's meeting.</div>
+        </div>
+        <div class="speaker-segment">
+          <span class="speaker-label">Sarah</span>
+          <div class="speaker-text">Thanks for having me. I'm excited to discuss the new project.</div>
+        </div>
+        <div class="speaker-segment">
+          <span class="speaker-label">Patrick</span>
+          <div class="speaker-text">Great! So let's start with the timeline. I'm thinking we can launch in about three months.</div>
+        </div>
+        <div class="speaker-segment">
+          <span class="speaker-label">Michael</span>
+          <div class="speaker-text">Three months seems tight. We'll need to prioritize features carefully.</div>
+        </div>
+        <div class="speaker-segment">
+          <span class="speaker-label">Sarah</span>
+          <div class="speaker-text">I agree with Michael. What if we break it into phases? We could launch an MVP first.</div>
+        </div>
+        <div class="speaker-segment">
+          <span class="speaker-label">Patrick</span>
+          <div class="speaker-text">That's a smart approach. Let's focus on core functionality for the initial release.</div>
+        </div>
+        <div class="speaker-segment">
+          <span class="speaker-label">Michael</span>
+          <div class="speaker-text">Perfect. I can draft a feature priority list by end of week.</div>
+        </div>
+        <div class="speaker-segment">
+          <span class="speaker-label">Sarah</span>
+          <div class="speaker-text">Sounds good. I'll work on the user research to validate our assumptions.</div>
+        </div>
+        <div class="speaker-segment">
+          <span class="speaker-label">Patrick</span>
+          <div class="speaker-text">Excellent. Let's reconvene next Tuesday to review everything.</div>
+        </div>
+      </div>
+
+      <!-- Format Selection -->
+      <div class="format-selector">
+        <label class="format-label">Export format:</label>
+        <div class="format-options">
+          <button class="format-btn active" data-format="txt">Plain Text (.txt)</button>
+          <button class="format-btn" data-format="vtt">WebVTT (.vtt)</button>
+          <button class="format-btn" data-format="srt">SubRip (.srt)</button>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn" id="save-btn">Save As...</button>
+        <button class="btn" id="copy-btn">Copy</button>
+        <button class="btn btn-secondary" id="new-transcription-btn">
+          New
+        </button>
+      </div>
+
+      <div
+        style="
+          text-align: center;
+          margin-top: 20px;
+          color: #48bb78;
+          font-size: 14px;
+          font-weight: 600;
+          display: none;
+        "
+        id="copy-success"
+      >
+        ✓ Copied to clipboard!
+      </div>
+
+      <footer class="attribution">
+        Created by <a href="https://patrickfreyer.com" target="_blank">Patrick C. Freyer</a>
+        <br>
+        <a href="mailto:freyer.patrick@bcg.com">freyer.patrick@bcg.com</a>
+      </footer>
+    </div>
+
+    <script>
+      const transcriptContent = document.getElementById('transcript-content');
+      const toggleSwitch = document.getElementById('toggle-switch');
+      const plainLabel = document.getElementById('plain-label');
+      const timestampLabel = document.getElementById('timestamp-label');
+      const copyBtn = document.getElementById('copy-btn');
+      const copySuccess = document.getElementById('copy-success');
+
+      let showTimestamps = false;
+
+      const plainText = `[Patrick] Hey everyone, thanks for joining today's meeting.
+
+[Sarah] Thanks for having me. I'm excited to discuss the new project.
+
+[Patrick] Great! So let's start with the timeline. I'm thinking we can launch in about three months.
+
+[Michael] Three months seems tight. We'll need to prioritize features carefully.
+
+[Sarah] I agree with Michael. What if we break it into phases? We could launch an MVP first.
+
+[Patrick] That's a smart approach. Let's focus on core functionality for the initial release.
+
+[Michael] Perfect. I can draft a feature priority list by end of week.
+
+[Sarah] Sounds good. I'll work on the user research to validate our assumptions.
+
+[Patrick] Excellent. Let's reconvene next Tuesday to review everything.`;
+
+      const timestampedText = `[00:00:00.000]
+[Patrick] Hey everyone, thanks for joining today's meeting.
+
+[00:00:03.500]
+[Sarah] Thanks for having me. I'm excited to discuss the new project.
+
+[00:00:07.200]
+[Patrick] Great! So let's start with the timeline. I'm thinking we can launch in about three months.
+
+[00:00:12.800]
+[Michael] Three months seems tight. We'll need to prioritize features carefully.
+
+[00:00:18.500]
+[Sarah] I agree with Michael. What if we break it into phases? We could launch an MVP first.
+
+[00:00:23.700]
+[Patrick] That's a smart approach. Let's focus on core functionality for the initial release.
+
+[00:00:29.200]
+[Michael] Perfect. I can draft a feature priority list by end of week.
+
+[00:00:34.800]
+[Sarah] Sounds good. I'll work on the user research to validate our assumptions.
+
+[00:00:38.500]
+[Patrick] Excellent. Let's reconvene next Tuesday to review everything.`;
+
+      function updateDisplay() {
+        if (showTimestamps) {
+          transcriptContent.classList.remove('diarized');
+          transcriptContent.textContent = timestampedText;
+          toggleSwitch.classList.add('active');
+          plainLabel.classList.remove('active');
+          timestampLabel.classList.add('active');
+        } else {
+          // Show diarized view
+          transcriptContent.classList.add('diarized');
+          transcriptContent.innerHTML = `
+            <div class="speaker-segment">
+              <span class="speaker-label">Patrick</span>
+              <div class="speaker-text">Hey everyone, thanks for joining today's meeting.</div>
+            </div>
+            <div class="speaker-segment">
+              <span class="speaker-label">Sarah</span>
+              <div class="speaker-text">Thanks for having me. I'm excited to discuss the new project.</div>
+            </div>
+            <div class="speaker-segment">
+              <span class="speaker-label">Patrick</span>
+              <div class="speaker-text">Great! So let's start with the timeline. I'm thinking we can launch in about three months.</div>
+            </div>
+            <div class="speaker-segment">
+              <span class="speaker-label">Michael</span>
+              <div class="speaker-text">Three months seems tight. We'll need to prioritize features carefully.</div>
+            </div>
+            <div class="speaker-segment">
+              <span class="speaker-label">Sarah</span>
+              <div class="speaker-text">I agree with Michael. What if we break it into phases? We could launch an MVP first.</div>
+            </div>
+            <div class="speaker-segment">
+              <span class="speaker-label">Patrick</span>
+              <div class="speaker-text">That's a smart approach. Let's focus on core functionality for the initial release.</div>
+            </div>
+            <div class="speaker-segment">
+              <span class="speaker-label">Michael</span>
+              <div class="speaker-text">Perfect. I can draft a feature priority list by end of week.</div>
+            </div>
+            <div class="speaker-segment">
+              <span class="speaker-label">Sarah</span>
+              <div class="speaker-text">Sounds good. I'll work on the user research to validate our assumptions.</div>
+            </div>
+            <div class="speaker-segment">
+              <span class="speaker-label">Patrick</span>
+              <div class="speaker-text">Excellent. Let's reconvene next Tuesday to review everything.</div>
+            </div>
+          `;
+          toggleSwitch.classList.remove('active');
+          plainLabel.classList.add('active');
+          timestampLabel.classList.remove('active');
+        }
+      }
+
+      // Toggle switch
+      toggleSwitch.addEventListener('click', () => {
+        showTimestamps = !showTimestamps;
+        updateDisplay();
+      });
+
+      // Copy to clipboard
+      copyBtn.addEventListener('click', async () => {
+        try {
+          const textToCopy = showTimestamps ? timestampedText : plainText;
+          await navigator.clipboard.writeText(textToCopy);
+          copySuccess.style.display = 'block';
+
+          setTimeout(() => {
+            copySuccess.style.display = 'none';
+          }, 2000);
+        } catch (error) {
+          console.error('Failed to copy:', error);
+        }
+      });
+    </script>
+  </body>
+</html>
