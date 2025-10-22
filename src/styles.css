@@ -19,8 +19,8 @@ body {
 
 .container {
   background: white;
-  padding: 0 40px 40px 40px;
-  max-width: 650px;
+  padding: 0 40px 32px 40px;
+  max-width: 700px;
   width: 100%;
   animation: fadeIn 0.4s ease-out;
 }
