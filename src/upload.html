@@ -76,6 +76,45 @@
         </div>
       </div>
 
+      <!-- Prompt Section -->
+      <div class="prompt-section" id="prompt-section" style="display: none">
+        <div class="prompt-header" id="prompt-header">
+          <div class="prompt-header-content">
+            <span class="prompt-title">Improve transcription</span>
+            <span class="prompt-subtitle">Optional</span>
+          </div>
+          <span class="prompt-chevron" id="prompt-chevron">▼</span>
+        </div>
+        <div class="prompt-body" id="prompt-body">
+          <div class="prompt-examples" id="prompt-examples">
+            <div class="prompt-examples-title">Example prompts:</div>
+            <div class="prompt-example" data-prompt="Names: Patrick Freyer, Sarah Johnson, Michael Chen&#10;Companies: Boston Consulting Group (BCG), Microsoft, OpenAI&#10;Topics: Digital transformation, AI strategy, cloud migration">
+              <div class="prompt-example-label">Business Meeting</div>
+              <div class="prompt-example-text">Names, companies, and meeting topics</div>
+            </div>
+            <div class="prompt-example" data-prompt="Technical terms: API, REST, GraphQL, microservices, Kubernetes, Docker&#10;Languages: Python, TypeScript, JavaScript&#10;Frameworks: React, Node.js, FastAPI">
+              <div class="prompt-example-label">Technical Presentation</div>
+              <div class="prompt-example-text">Programming terms and frameworks</div>
+            </div>
+            <div class="prompt-example" data-prompt="Medical terms: computed tomography (CT), magnetic resonance imaging (MRI)&#10;Medications: ibuprofen, acetaminophen, lisinopril&#10;Specialists: Dr. Smith, cardiologist, endocrinologist">
+              <div class="prompt-example-label">Medical Discussion</div>
+              <div class="prompt-example-text">Medical terminology and names</div>
+            </div>
+          </div>
+          <textarea
+            class="prompt-textarea"
+            id="prompt-textarea"
+            placeholder="Add names, technical terms, or context to help Whisper understand your audio better...&#10;&#10;Example:&#10;Names: Patrick Freyer, John Smith&#10;Terms: API, ML, transcription&#10;Context: Product strategy meeting"
+          ></textarea>
+          <div class="prompt-footer">
+            <div class="prompt-hint">
+              💡 <a class="prompt-examples-link" id="show-examples">Show examples</a>
+            </div>
+            <div class="prompt-counter" id="prompt-counter">0 / ~560 chars</div>
+          </div>
+        </div>
+      </div>
+
       <button class="btn" id="transcribe-btn" style="display: none">
         Transcribe
       </button>
