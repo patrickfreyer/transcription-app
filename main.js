@@ -629,16 +629,57 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
       // File is small enough, process normally
       const transcriptionParams = {
         file: fs.createReadStream(processFilePath),
-        model: 'whisper-1',
-        response_format: 'vtt',
+        model: model,
       };
 
-      // Add prompt if provided
-      if (prompt) {
-        transcriptionParams.prompt = prompt;
+      // Set response format based on model
+      if (model === 'whisper-1') {
+        transcriptionParams.response_format = 'vtt';
+        // Add prompt if provided
+        if (prompt) {
+          transcriptionParams.prompt = prompt;
+        }
+      } else if (model === 'gpt-4o-transcribe') {
+        transcriptionParams.response_format = 'json';
+        // Add prompt if provided
+        if (prompt) {
+          transcriptionParams.prompt = prompt;
+        }
+      } else if (model === 'gpt-4o-transcribe-diarize') {
+        transcriptionParams.response_format = 'diarized_json';
+        transcriptionParams.chunking_strategy = 'auto';
+
+        // Add speaker references if provided
+        if (speakers && speakers.length > 0) {
+          const speakerNames = [];
+          const speakerReferences = [];
+
+          for (const speaker of speakers) {
+            speakerNames.push(speaker.name);
+            // Convert speaker reference file to data URL
+            const dataURL = fileToDataURL(speaker.path);
+            speakerReferences.push(dataURL);
+          }
+
+          transcriptionParams.known_speaker_names = speakerNames;
+          transcriptionParams.known_speaker_references = speakerReferences;
+        }
       }
 
       const transcription = await openai.audio.transcriptions.create(transcriptionParams);
+
+      // Convert response to VTT format if needed
+      let finalTranscript;
+      let isDiarized = false;
+
+      if (model === 'whisper-1') {
+        finalTranscript = transcription;
+      } else if (model === 'gpt-4o-transcribe') {
+        finalTranscript = jsonToVTT(transcription);
+      } else if (model === 'gpt-4o-transcribe-diarize') {
+        finalTranscript = diarizedJsonToVTT(transcription);
+        isDiarized = true;
+      }
 
       // Clean up converted file if it exists
       if (convertedFilePath && fs.existsSync(convertedFilePath)) {
@@ -647,8 +688,9 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
 
       return {
         success: true,
-        transcript: transcription,
+        transcript: finalTranscript,
         chunked: false,
+        isDiarized: isDiarized,
       };
     }
   } catch (error) {
