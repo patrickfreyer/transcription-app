@@ -76,6 +76,45 @@
         </div>
       </div>
 
+      <!-- Model Selection Section -->
+      <div class="model-section" id="model-section" style="display: none">
+        <div class="model-options">
+          <label class="model-option">
+            <input type="radio" name="model" value="gpt-4o-transcribe" checked />
+            <div class="model-option-content">
+              <div class="model-option-title">Standard Transcription</div>
+              <div class="model-option-description">High-quality text transcription with timestamps</div>
+            </div>
+          </label>
+          <label class="model-option">
+            <input type="radio" name="model" value="gpt-4o-transcribe-diarize" />
+            <div class="model-option-content">
+              <div class="model-option-title">Speaker Identification</div>
+              <div class="model-option-description">Identifies who is speaking with labeled segments</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Speaker References Section (only shown when diarize is selected) -->
+      <div class="speaker-section" id="speaker-section" style="display: none">
+        <div class="speaker-header" id="speaker-header">
+          <div class="speaker-header-content">
+            <span class="speaker-title">Known Speakers</span>
+            <span class="speaker-subtitle">Optional - Upload 2-10 second clips</span>
+          </div>
+          <span class="speaker-chevron" id="speaker-chevron">▼</span>
+        </div>
+        <div class="speaker-body" id="speaker-body">
+          <div class="speaker-list" id="speaker-list">
+            <!-- Speaker reference items will be added here dynamically -->
+          </div>
+          <button class="btn-add-speaker" id="add-speaker-btn">+ Add Speaker</button>
+          <div class="speaker-hint">Upload short audio clips (2-10 seconds) to identify specific speakers by name</div>
+          <input type="file" id="speaker-input" accept=".mp3,.wav,.m4a,.webm,.mp4,.mpeg,.mpga" style="display: none" />
+        </div>
+      </div>
+
       <!-- Prompt Section -->
       <div class="prompt-section" id="prompt-section" style="display: none">
         <div class="prompt-header" id="prompt-header">
