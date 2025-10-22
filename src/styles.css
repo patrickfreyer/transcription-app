@@ -243,12 +243,12 @@ input[type='password']:focus {
 .speaker-label {
   color: #007aff;
   font-weight: 600;
-  font-size: 13px;
-  margin-bottom: 4px;
+  font-size: 12px;
+  margin-bottom: 2px;
   display: inline-block;
-  padding: 2px 8px;
+  padding: 1px 6px;
   background: rgba(0, 122, 255, 0.08);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 .speaker-segment:nth-child(even) .speaker-label {
