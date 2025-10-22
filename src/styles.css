@@ -247,11 +247,11 @@ input[type='password']:focus {
   color: #007aff;
   font-weight: 600;
   font-size: 12px;
-  margin-bottom: 2px;
-  display: inline-block;
-  padding: 1px 6px;
+  padding: 1px 5px;
   background: rgba(0, 122, 255, 0.08);
   border-radius: 3px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .speaker-segment:nth-child(even) .speaker-label {
@@ -271,9 +271,9 @@ input[type='password']:focus {
 
 .speaker-text {
   color: #1d1d1f;
-  font-size: 15px;
-  line-height: 1.4;
-  margin-top: 2px;
+  font-size: 14px;
+  line-height: 1.3;
+  flex: 1;
 }
 
 .transcript-content::-webkit-scrollbar {
