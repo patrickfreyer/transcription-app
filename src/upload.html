@@ -76,6 +76,45 @@
         </div>
       </div>
 
+      <!-- Prompt Section -->
+      <div class="prompt-section" id="prompt-section" style="display: none">
+        <div class="prompt-header" id="prompt-header">
+          <div class="prompt-header-content">
+            <span class="prompt-title">Improve transcription</span>
+            <span class="prompt-subtitle">Optional</span>
+          </div>
+          <span class="prompt-chevron" id="prompt-chevron">▼</span>
+        </div>
+        <div class="prompt-body" id="prompt-body">
+          <div class="prompt-examples" id="prompt-examples">
+            <div class="prompt-examples-title">Example prompts:</div>
+            <div class="prompt-example" data-prompt="Names: Patrick Freyer, Sarah Johnson, Michael Chen&#10;Companies: Boston Consulting Group (BCG), Microsoft, OpenAI&#10;Topics: Digital transformation, AI strategy, cloud migration">
+              <div class="prompt-example-label">Business Meeting</div>
+              <div class="prompt-example-text">Names, companies, and meeting topics</div>
+            </div>
+            <div class="prompt-example" data-prompt="Technical terms: API, REST, GraphQL, microservices, Kubernetes, Docker&#10;Languages: Python, TypeScript, JavaScript&#10;Frameworks: React, Node.js, FastAPI">
+              <div class="prompt-example-label">Technical Presentation</div>
+              <div class="prompt-example-text">Programming terms and frameworks</div>
+            </div>
+            <div class="prompt-example" data-prompt="Medical terms: computed tomography (CT), magnetic resonance imaging (MRI)&#10;Medications: ibuprofen, acetaminophen, lisinopril&#10;Specialists: Dr. Smith, cardiologist, endocrinologist">
+              <div class="prompt-example-label">Medical Discussion</div>
+              <div class="prompt-example-text">Medical terminology and names</div>
+            </div>
+          </div>
+          <textarea
+            class="prompt-textarea"
+            id="prompt-textarea"
+            placeholder="Add names, technical terms, or context to help Whisper understand your audio better...&#10;&#10;Example:&#10;Names: Patrick Freyer, John Smith&#10;Terms: API, ML, transcription&#10;Context: Product strategy meeting"
+          ></textarea>
+          <div class="prompt-footer">
+            <div class="prompt-hint">
+              💡 <a class="prompt-examples-link" id="show-examples">Show examples</a>
+            </div>
+            <div class="prompt-counter" id="prompt-counter">0 / ~560 chars</div>
+          </div>
+        </div>
+      </div>
+
       <button class="btn" id="transcribe-btn" style="display: none">
         Transcribe
       </button>
@@ -110,8 +149,18 @@
       const settingsBtn = document.getElementById('settings-btn');
       const errorMessage = document.getElementById('error-message');
       const progressContainer = document.getElementById('progress-container');
+      const promptSection = document.getElementById('prompt-section');
+      const promptHeader = document.getElementById('prompt-header');
+      const promptBody = document.getElementById('prompt-body');
+      const promptChevron = document.getElementById('prompt-chevron');
+      const promptTextarea = document.getElementById('prompt-textarea');
+      const promptCounter = document.getElementById('prompt-counter');
+      const showExamplesLink = document.getElementById('show-examples');
+      const promptExamples = document.getElementById('prompt-examples');
+      const promptExampleElements = document.querySelectorAll('.prompt-example');
 
       let selectedFile = null;
+      let isPromptExpanded = false;
       let mediaRecorder = null;
       let audioChunks = [];
       let recordingStartTime = null;
@@ -139,6 +188,9 @@
         fileInfo.classList.remove('show');
         recordingInfo.style.display = 'none';
         errorMessage.classList.remove('show');
+        promptSection.style.display = 'none';
+        promptTextarea.value = '';
+        updatePromptCounter();
       }
 
       // ==================== UPLOAD MODE ====================
@@ -203,6 +255,7 @@
         fileName.textContent = file.name;
         fileSize.textContent = formatFileSize(file.size);
         fileInfo.classList.add('show');
+        promptSection.style.display = 'block';
         transcribeBtn.style.display = 'block';
       }
 
@@ -244,6 +297,7 @@
                 // Display recording info
                 recordingSize.textContent = formatFileSize(audioBlob.size);
                 recordingInfo.style.display = 'block';
+                promptSection.style.display = 'block';
                 transcribeBtn.style.display = 'block';
 
                 // Reset UI
@@ -302,6 +356,52 @@
         return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
       }
 
+      // ==================== PROMPT SECTION ====================
+
+      // Toggle prompt section
+      promptHeader.addEventListener('click', () => {
+        isPromptExpanded = !isPromptExpanded;
+        promptBody.classList.toggle('expanded', isPromptExpanded);
+        promptChevron.classList.toggle('expanded', isPromptExpanded);
+      });
+
+      // Update character counter
+      function updatePromptCounter() {
+        const length = promptTextarea.value.length;
+        const maxChars = 560; // Approximate for 224 tokens
+        const warningThreshold = 500;
+
+        promptCounter.textContent = `${length} / ~${maxChars} chars`;
+
+        promptCounter.classList.remove('warning', 'error');
+        if (length > maxChars) {
+          promptCounter.classList.add('error');
+        } else if (length > warningThreshold) {
+          promptCounter.classList.add('warning');
+        }
+      }
+
+      promptTextarea.addEventListener('input', updatePromptCounter);
+
+      // Show/hide examples
+      showExamplesLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        const isVisible = promptExamples.classList.contains('show');
+        promptExamples.classList.toggle('show', !isVisible);
+        showExamplesLink.textContent = isVisible ? 'Show examples' : 'Hide examples';
+      });
+
+      // Use example prompts
+      promptExampleElements.forEach(example => {
+        example.addEventListener('click', () => {
+          const promptText = example.getAttribute('data-prompt').replace(/&#10;/g, '\n');
+          promptTextarea.value = promptText;
+          updatePromptCounter();
+          promptExamples.classList.remove('show');
+          showExamplesLink.textContent = 'Show examples';
+        });
+      });
+
       // Listen for progress updates
       const progressText = document.querySelector('.progress-text');
       window.electron.onTranscriptionProgress((data) => {
@@ -337,9 +437,12 @@
             throw new Error('API key not found. Please set up your API key first.');
           }
 
+          const prompt = promptTextarea.value.trim() || null;
+
           const result = await window.electron.transcribeAudio(
             selectedFile.path,
-            apiKey
+            apiKey,
+            prompt
           );
 
           if (result.success) {

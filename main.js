@@ -409,7 +409,7 @@ ipcMain.handle('save-recording', async (event, arrayBuffer) => {
 });
 
 // Handle transcription
-ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
+ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, prompt) => {
   let chunkPaths = [];
   let convertedFilePath = null;
 
@@ -491,13 +491,47 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
           });
         }
 
+        // Build prompt for this chunk
+        let chunkPrompt = null;
+        if (i === 0 && prompt) {
+          // First chunk: use user's prompt
+          chunkPrompt = prompt;
+        } else if (i > 0 && transcripts[i - 1]) {
+          // Subsequent chunks: use last portion of previous transcript for context
+          const prevTranscript = transcripts[i - 1];
+          // Extract plain text from VTT (remove timestamps and headers)
+          const plainText = prevTranscript
+            .split('\n')
+            .filter(line => !line.includes('-->') && !line.startsWith('WEBVTT') && line.trim() !== '' && !/^\d+$/.test(line.trim()))
+            .join(' ')
+            .trim();
+
+          // Use last ~200 characters for context (stays well under 224 token limit)
+          const contextLength = 200;
+          const contextText = plainText.slice(-contextLength);
+
+          // Combine user prompt (if any) with previous context
+          if (prompt) {
+            chunkPrompt = `${prompt}\n\nPrevious context: ${contextText}`;
+          } else {
+            chunkPrompt = contextText;
+          }
+        }
+
         // Transcribe chunk
         try {
-          const transcription = await openai.audio.transcriptions.create({
+          const transcriptionParams = {
             file: fs.createReadStream(chunkPath),
             model: 'whisper-1',
             response_format: 'vtt',
-          });
+          };
+
+          // Add prompt if we have one for this chunk
+          if (chunkPrompt) {
+            transcriptionParams.prompt = chunkPrompt;
+          }
+
+          const transcription = await openai.audio.transcriptions.create(transcriptionParams);
           transcripts.push(transcription);
         } catch (error) {
           console.error(`Error transcribing chunk ${i + 1}:`, error);
@@ -533,11 +567,18 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
       };
     } else {
       // File is small enough, process normally
-      const transcription = await openai.audio.transcriptions.create({
+      const transcriptionParams = {
         file: fs.createReadStream(processFilePath),
         model: 'whisper-1',
         response_format: 'vtt',
-      });
+      };
+
+      // Add prompt if provided
+      if (prompt) {
+        transcriptionParams.prompt = prompt;
+      }
+
+      const transcription = await openai.audio.transcriptions.create(transcriptionParams);
 
       // Clean up converted file if it exists
       if (convertedFilePath && fs.existsSync(convertedFilePath)) {
