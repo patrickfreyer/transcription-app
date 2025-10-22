@@ -38,19 +38,19 @@ body {
 
 h1 {
   color: #1d1d1f;
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   text-align: center;
   letter-spacing: -0.5px;
 }
 
 .subtitle {
   color: #6e6e73;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 400;
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 28px;
   line-height: 1.4;
 }
 
