@@ -582,13 +582,39 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         try {
           const transcriptionParams = {
             file: fs.createReadStream(chunkPath),
-            model: 'whisper-1',
-            response_format: 'vtt',
+            model: model,
           };
 
-          // Add prompt if we have one for this chunk
-          if (chunkPrompt) {
-            transcriptionParams.prompt = chunkPrompt;
+          // Set response format and parameters based on model
+          if (model === 'whisper-1') {
+            transcriptionParams.response_format = 'vtt';
+            if (chunkPrompt) {
+              transcriptionParams.prompt = chunkPrompt;
+            }
+          } else if (model === 'gpt-4o-transcribe') {
+            transcriptionParams.response_format = 'json';
+            if (chunkPrompt) {
+              transcriptionParams.prompt = chunkPrompt;
+            }
+          } else if (model === 'gpt-4o-transcribe-diarize') {
+            transcriptionParams.response_format = 'diarized_json';
+            transcriptionParams.chunking_strategy = 'auto';
+
+            // Add speaker references if provided
+            if (speakers && speakers.length > 0 && i === 0) {
+              // Only add speaker references for the first chunk
+              const speakerNames = [];
+              const speakerReferences = [];
+
+              for (const speaker of speakers) {
+                speakerNames.push(speaker.name);
+                const dataURL = fileToDataURL(speaker.path);
+                speakerReferences.push(dataURL);
+              }
+
+              transcriptionParams.known_speaker_names = speakerNames;
+              transcriptionParams.known_speaker_references = speakerReferences;
+            }
           }
 
           const transcription = await openai.audio.transcriptions.create(transcriptionParams);
@@ -596,7 +622,7 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         } catch (error) {
           console.error(`Error transcribing chunk ${i + 1}:`, error);
           // Add empty transcript for failed chunk
-          transcripts.push('');
+          transcripts.push(model === 'whisper-1' ? '' : { text: '' });
         }
       }
 
@@ -608,8 +634,39 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         });
       }
 
-      // Combine transcripts
-      const combinedTranscript = combineVTTTranscripts(transcripts, chunkDurations);
+      // Combine transcripts based on model
+      let combinedTranscript;
+      let isDiarized = false;
+
+      if (model === 'whisper-1') {
+        combinedTranscript = combineVTTTranscripts(transcripts, chunkDurations);
+      } else if (model === 'gpt-4o-transcribe') {
+        // Combine JSON transcripts
+        const combinedText = transcripts.map(t => t.text || '').join(' ');
+        combinedTranscript = jsonToVTT({ text: combinedText });
+      } else if (model === 'gpt-4o-transcribe-diarize') {
+        // Combine diarized transcripts with time offset
+        let allSegments = [];
+        let timeOffset = 0;
+
+        for (let i = 0; i < transcripts.length; i++) {
+          const transcript = transcripts[i];
+          if (transcript.segments) {
+            const offsetSegments = transcript.segments.map(seg => ({
+              ...seg,
+              start: seg.start + timeOffset,
+              end: seg.end + timeOffset
+            }));
+            allSegments = allSegments.concat(offsetSegments);
+          }
+          if (i < chunkDurations.length) {
+            timeOffset += chunkDurations[i];
+          }
+        }
+
+        combinedTranscript = diarizedJsonToVTT({ segments: allSegments });
+        isDiarized = true;
+      }
 
       // Clean up chunks
       cleanupChunks(chunkPaths);
@@ -624,6 +681,7 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         transcript: combinedTranscript,
         chunked: true,
         totalChunks: chunkPaths.length,
+        isDiarized: isDiarized,
       };
     } else {
       // File is small enough, process normally
