@@ -232,11 +232,11 @@
             html += `
               <div class="speaker-segment">
                 <span class="speaker-label">${speaker}</span>
-                <div class="speaker-text">${content}</div>
+                <span class="speaker-text">${content}</span>
               </div>
             `;
           } else if (segment.trim()) {
-            html += `<div class="speaker-segment"><div class="speaker-text">${segment}</div></div>`;
+            html += `<div class="speaker-segment"><span class="speaker-text">${segment}</span></div>`;
           }
         }
 
