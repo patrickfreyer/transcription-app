@@ -208,8 +208,8 @@ input[type='password']:focus {
 /* Diarized transcript formatting */
 .transcript-content.diarized {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
-  line-height: 1.7;
-  padding: 16px;
+  line-height: 1.5;
+  padding: 12px;
   background: white;
 }
 
