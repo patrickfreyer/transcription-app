@@ -215,7 +215,7 @@ input[type='password']:focus {
 
 .speaker-segment {
   margin-bottom: 0;
-  padding: 3px 8px;
+  padding: 1px 8px;
   background: #fbfbfd;
   border-radius: 0;
   border-left: 2px solid #007aff;
