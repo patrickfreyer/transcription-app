@@ -240,8 +240,121 @@
         recordingInfo.style.display = 'none';
         errorMessage.classList.remove('show');
         promptSection.style.display = 'none';
+        modelSection.style.display = 'none';
+        speakerSection.style.display = 'none';
         promptTextarea.value = '';
+        speakerReferences = [];
         updatePromptCounter();
+        updateSpeakerList();
+      }
+
+      // ==================== MODEL SELECTION ====================
+
+      // Handle model selection change
+      modelRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          const isDiarize = e.target.value === 'gpt-4o-transcribe-diarize';
+
+          // Show/hide speaker section based on model
+          speakerSection.style.display = isDiarize ? 'block' : 'none';
+
+          // Update prompt section note for diarize model
+          if (isDiarize) {
+            promptSection.style.display = 'none'; // Diarize doesn't support prompts
+          } else {
+            promptSection.style.display = 'block';
+          }
+        });
+      });
+
+      // Toggle speaker section
+      speakerHeader.addEventListener('click', () => {
+        isSpeakerExpanded = !isSpeakerExpanded;
+        speakerBody.classList.toggle('expanded', isSpeakerExpanded);
+        speakerChevron.classList.toggle('expanded', isSpeakerExpanded);
+      });
+
+      // Add speaker reference
+      addSpeakerBtn.addEventListener('click', () => {
+        if (speakerReferences.length >= 4) {
+          errorMessage.textContent = 'Maximum 4 speaker references allowed';
+          errorMessage.classList.add('show');
+          return;
+        }
+        speakerInput.click();
+      });
+
+      // Handle speaker file selection
+      speakerInput.addEventListener('change', async (e) => {
+        if (e.target.files.length > 0) {
+          const file = e.target.files[0];
+
+          // Check file size (2-10 seconds ~ 0.2-2MB for typical audio)
+          const fileSizeInMB = file.size / (1024 * 1024);
+          if (fileSizeInMB > 5) {
+            errorMessage.textContent = 'Speaker reference files should be short (2-10 seconds)';
+            errorMessage.classList.add('show');
+            speakerInput.value = '';
+            return;
+          }
+
+          // Prompt for speaker name
+          const speakerName = await promptSpeakerName();
+          if (!speakerName) {
+            speakerInput.value = '';
+            return;
+          }
+
+          // Save the file temporarily and get the path
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await window.electron.saveRecording(arrayBuffer);
+
+          if (result.success) {
+            speakerReferences.push({
+              name: speakerName,
+              path: result.filePath,
+              originalName: file.name
+            });
+            updateSpeakerList();
+            speakerInput.value = '';
+            errorMessage.classList.remove('show');
+          }
+        }
+      });
+
+      function promptSpeakerName() {
+        return new Promise((resolve) => {
+          const name = prompt('Enter speaker name:');
+          resolve(name ? name.trim() : null);
+        });
+      }
+
+      function updateSpeakerList() {
+        speakerList.innerHTML = '';
+
+        speakerReferences.forEach((speaker, index) => {
+          const item = document.createElement('div');
+          item.className = 'speaker-item';
+          item.innerHTML = `
+            <div class="speaker-item-content">
+              <div class="speaker-item-name">${speaker.name}</div>
+              <div class="speaker-item-file">${speaker.originalName}</div>
+            </div>
+            <button class="speaker-item-remove" data-index="${index}">×</button>
+          `;
+          speakerList.appendChild(item);
+        });
+
+        // Add remove handlers
+        document.querySelectorAll('.speaker-item-remove').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const index = parseInt(e.target.getAttribute('data-index'));
+            speakerReferences.splice(index, 1);
+            updateSpeakerList();
+          });
+        });
+
+        addSpeakerBtn.disabled = speakerReferences.length >= 4;
       }
 
       // ==================== UPLOAD MODE ====================
