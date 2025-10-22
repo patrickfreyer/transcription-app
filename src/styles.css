@@ -1011,8 +1011,8 @@ input[type='password']:focus {
 /* Attribution Footer */
 .attribution {
   text-align: center;
-  margin-top: 48px;
-  padding-top: 24px;
+  margin-top: 32px;
+  padding-top: 20px;
   border-top: 1px solid #e8e8ed;
   color: #86868b;
   font-size: 13px;
