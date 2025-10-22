@@ -408,10 +408,70 @@ ipcMain.handle('save-recording', async (event, arrayBuffer) => {
   }
 });
 
+// Helper function to convert file to base64 data URL
+function fileToDataURL(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  const base64 = buffer.toString('base64');
+  const ext = path.extname(filePath).toLowerCase();
+
+  // Map extensions to MIME types
+  const mimeTypes = {
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.m4a': 'audio/mp4',
+    '.webm': 'audio/webm',
+    '.mp4': 'audio/mp4',
+    '.mpeg': 'audio/mpeg',
+    '.mpga': 'audio/mpeg'
+  };
+
+  const mimeType = mimeTypes[ext] || 'audio/mpeg';
+  return `data:${mimeType};base64,${base64}`;
+}
+
+// Helper function to convert JSON transcript to VTT-like format
+function jsonToVTT(jsonTranscript) {
+  if (!jsonTranscript || !jsonTranscript.text) {
+    return 'WEBVTT\n\n' + (jsonTranscript?.text || '');
+  }
+  // For simple JSON responses without segments, just return the text as VTT
+  return 'WEBVTT\n\n' + jsonTranscript.text;
+}
+
+// Helper function to convert diarized JSON to VTT-like format with speakers
+function diarizedJsonToVTT(diarizedTranscript) {
+  if (!diarizedTranscript || !diarizedTranscript.segments) {
+    return 'WEBVTT\n\n';
+  }
+
+  let vtt = 'WEBVTT\n\n';
+  let cueNumber = 1;
+
+  for (const segment of diarizedTranscript.segments) {
+    const start = formatVTTTimestamp(segment.start);
+    const end = formatVTTTimestamp(segment.end);
+    const speaker = segment.speaker || 'Unknown';
+    const text = segment.text || '';
+
+    vtt += `${cueNumber}\n`;
+    vtt += `${start} --> ${end}\n`;
+    vtt += `[${speaker}] ${text}\n\n`;
+    cueNumber++;
+  }
+
+  return vtt;
+}
+
 // Handle transcription
-ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, prompt) => {
+ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
   let chunkPaths = [];
   let convertedFilePath = null;
+
+  // Parse options (backward compatibility: if options is a string, treat it as prompt)
+  const isLegacyCall = typeof options === 'string';
+  const model = isLegacyCall ? 'whisper-1' : (options?.model || 'gpt-4o-transcribe');
+  const prompt = isLegacyCall ? options : (options?.prompt || null);
+  const speakers = isLegacyCall ? null : (options?.speakers || null);
 
   try {
     const openai = new OpenAI({ apiKey });
