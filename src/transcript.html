@@ -238,6 +238,9 @@
         // Clear localStorage
         localStorage.removeItem('transcript');
         localStorage.removeItem('fileName');
+        localStorage.removeItem('isDiarized');
+        localStorage.removeItem('transcriptModel');
+        localStorage.removeItem('transcriptInfo');
 
         // Navigate back to upload screen
         window.electron.navigate('upload');
