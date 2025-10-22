@@ -409,7 +409,7 @@ ipcMain.handle('save-recording', async (event, arrayBuffer) => {
 });
 
 // Handle transcription
-ipcMain.handle('transcribe-audio', async (event, filePath, apiKey) => {
+ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, prompt) => {
   let chunkPaths = [];
   let convertedFilePath = null;
 
