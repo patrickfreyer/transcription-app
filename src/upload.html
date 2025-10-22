@@ -76,6 +76,45 @@
         </div>
       </div>
 
+      <!-- Model Selection Section -->
+      <div class="model-section" id="model-section" style="display: none">
+        <div class="model-options">
+          <label class="model-option">
+            <input type="radio" name="model" value="gpt-4o-transcribe" checked />
+            <div class="model-option-content">
+              <div class="model-option-title">Standard Transcription</div>
+              <div class="model-option-description">High-quality text transcription with timestamps</div>
+            </div>
+          </label>
+          <label class="model-option">
+            <input type="radio" name="model" value="gpt-4o-transcribe-diarize" />
+            <div class="model-option-content">
+              <div class="model-option-title">Speaker Identification</div>
+              <div class="model-option-description">Identifies who is speaking with labeled segments</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Speaker References Section (only shown when diarize is selected) -->
+      <div class="speaker-section" id="speaker-section" style="display: none">
+        <div class="speaker-header" id="speaker-header">
+          <div class="speaker-header-content">
+            <span class="speaker-title">Known Speakers</span>
+            <span class="speaker-subtitle">Optional - Upload 2-10 second clips</span>
+          </div>
+          <span class="speaker-chevron" id="speaker-chevron">▼</span>
+        </div>
+        <div class="speaker-body" id="speaker-body">
+          <div class="speaker-list" id="speaker-list">
+            <!-- Speaker reference items will be added here dynamically -->
+          </div>
+          <button class="btn-add-speaker" id="add-speaker-btn">+ Add Speaker</button>
+          <div class="speaker-hint">Upload short audio clips (2-10 seconds) to identify specific speakers by name</div>
+          <input type="file" id="speaker-input" accept=".mp3,.wav,.m4a,.webm,.mp4,.mpeg,.mpga" style="display: none" />
+        </div>
+      </div>
+
       <!-- Prompt Section -->
       <div class="prompt-section" id="prompt-section" style="display: none">
         <div class="prompt-header" id="prompt-header">
@@ -158,14 +197,26 @@
       const showExamplesLink = document.getElementById('show-examples');
       const promptExamples = document.getElementById('prompt-examples');
       const promptExampleElements = document.querySelectorAll('.prompt-example');
+      const modelSection = document.getElementById('model-section');
+      const modelRadios = document.querySelectorAll('input[name="model"]');
+      const speakerSection = document.getElementById('speaker-section');
+      const speakerHeader = document.getElementById('speaker-header');
+      const speakerBody = document.getElementById('speaker-body');
+      const speakerChevron = document.getElementById('speaker-chevron');
+      const speakerList = document.getElementById('speaker-list');
+      const addSpeakerBtn = document.getElementById('add-speaker-btn');
+      const speakerInput = document.getElementById('speaker-input');
 
       let selectedFile = null;
       let isPromptExpanded = false;
+      let isSpeakerExpanded = false;
       let mediaRecorder = null;
       let audioChunks = [];
       let recordingStartTime = null;
       let timerInterval = null;
       let currentMode = 'upload';
+      let speakerReferences = []; // { name: string, file: File }
+      let currentSpeakerIndex = null;
 
       // Tab Switching
       uploadTab.addEventListener('click', () => switchMode('upload'));
@@ -189,8 +240,121 @@
         recordingInfo.style.display = 'none';
         errorMessage.classList.remove('show');
         promptSection.style.display = 'none';
+        modelSection.style.display = 'none';
+        speakerSection.style.display = 'none';
         promptTextarea.value = '';
+        speakerReferences = [];
         updatePromptCounter();
+        updateSpeakerList();
+      }
+
+      // ==================== MODEL SELECTION ====================
+
+      // Handle model selection change
+      modelRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          const isDiarize = e.target.value === 'gpt-4o-transcribe-diarize';
+
+          // Show/hide speaker section based on model
+          speakerSection.style.display = isDiarize ? 'block' : 'none';
+
+          // Update prompt section note for diarize model
+          if (isDiarize) {
+            promptSection.style.display = 'none'; // Diarize doesn't support prompts
+          } else {
+            promptSection.style.display = 'block';
+          }
+        });
+      });
+
+      // Toggle speaker section
+      speakerHeader.addEventListener('click', () => {
+        isSpeakerExpanded = !isSpeakerExpanded;
+        speakerBody.classList.toggle('expanded', isSpeakerExpanded);
+        speakerChevron.classList.toggle('expanded', isSpeakerExpanded);
+      });
+
+      // Add speaker reference
+      addSpeakerBtn.addEventListener('click', () => {
+        if (speakerReferences.length >= 4) {
+          errorMessage.textContent = 'Maximum 4 speaker references allowed';
+          errorMessage.classList.add('show');
+          return;
+        }
+        speakerInput.click();
+      });
+
+      // Handle speaker file selection
+      speakerInput.addEventListener('change', async (e) => {
+        if (e.target.files.length > 0) {
+          const file = e.target.files[0];
+
+          // Check file size (2-10 seconds ~ 0.2-2MB for typical audio)
+          const fileSizeInMB = file.size / (1024 * 1024);
+          if (fileSizeInMB > 5) {
+            errorMessage.textContent = 'Speaker reference files should be short (2-10 seconds)';
+            errorMessage.classList.add('show');
+            speakerInput.value = '';
+            return;
+          }
+
+          // Prompt for speaker name
+          const speakerName = await promptSpeakerName();
+          if (!speakerName) {
+            speakerInput.value = '';
+            return;
+          }
+
+          // Save the file temporarily and get the path
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await window.electron.saveRecording(arrayBuffer);
+
+          if (result.success) {
+            speakerReferences.push({
+              name: speakerName,
+              path: result.filePath,
+              originalName: file.name
+            });
+            updateSpeakerList();
+            speakerInput.value = '';
+            errorMessage.classList.remove('show');
+          }
+        }
+      });
+
+      function promptSpeakerName() {
+        return new Promise((resolve) => {
+          const name = prompt('Enter speaker name:');
+          resolve(name ? name.trim() : null);
+        });
+      }
+
+      function updateSpeakerList() {
+        speakerList.innerHTML = '';
+
+        speakerReferences.forEach((speaker, index) => {
+          const item = document.createElement('div');
+          item.className = 'speaker-item';
+          item.innerHTML = `
+            <div class="speaker-item-content">
+              <div class="speaker-item-name">${speaker.name}</div>
+              <div class="speaker-item-file">${speaker.originalName}</div>
+            </div>
+            <button class="speaker-item-remove" data-index="${index}">×</button>
+          `;
+          speakerList.appendChild(item);
+        });
+
+        // Add remove handlers
+        document.querySelectorAll('.speaker-item-remove').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const index = parseInt(e.target.getAttribute('data-index'));
+            speakerReferences.splice(index, 1);
+            updateSpeakerList();
+          });
+        });
+
+        addSpeakerBtn.disabled = speakerReferences.length >= 4;
       }
 
       // ==================== UPLOAD MODE ====================
@@ -255,7 +419,14 @@
         fileName.textContent = file.name;
         fileSize.textContent = formatFileSize(file.size);
         fileInfo.classList.add('show');
-        promptSection.style.display = 'block';
+        modelSection.style.display = 'block';
+
+        // Show prompt section only if standard model is selected
+        const selectedModel = document.querySelector('input[name="model"]:checked').value;
+        if (selectedModel === 'gpt-4o-transcribe') {
+          promptSection.style.display = 'block';
+        }
+
         transcribeBtn.style.display = 'block';
       }
 
@@ -297,7 +468,14 @@
                 // Display recording info
                 recordingSize.textContent = formatFileSize(audioBlob.size);
                 recordingInfo.style.display = 'block';
-                promptSection.style.display = 'block';
+                modelSection.style.display = 'block';
+
+                // Show prompt section only if standard model is selected
+                const selectedModel = document.querySelector('input[name="model"]:checked').value;
+                if (selectedModel === 'gpt-4o-transcribe') {
+                  promptSection.style.display = 'block';
+                }
+
                 transcribeBtn.style.display = 'block';
 
                 // Reset UI
@@ -437,20 +615,35 @@
             throw new Error('API key not found. Please set up your API key first.');
           }
 
-          const prompt = promptTextarea.value.trim() || null;
+          // Get selected model
+          const selectedModel = document.querySelector('input[name="model"]:checked').value;
+
+          // Get prompt (only for non-diarize models)
+          const prompt = selectedModel === 'gpt-4o-transcribe' ? (promptTextarea.value.trim() || null) : null;
+
+          // Get speaker references (only for diarize model)
+          const speakers = selectedModel === 'gpt-4o-transcribe-diarize' ? speakerReferences : null;
 
           const result = await window.electron.transcribeAudio(
             selectedFile.path,
             apiKey,
-            prompt
+            {
+              model: selectedModel,
+              prompt: prompt,
+              speakers: speakers
+            }
           );
 
           if (result.success) {
             // Store transcript in localStorage and navigate to transcript screen
             localStorage.setItem('transcript', result.transcript);
             localStorage.setItem('fileName', selectedFile.name);
+            localStorage.setItem('transcriptModel', selectedModel);
             if (result.chunked) {
               localStorage.setItem('transcriptInfo', `Processed in ${result.totalChunks} chunks`);
+            }
+            if (result.isDiarized) {
+              localStorage.setItem('isDiarized', 'true');
             }
             window.electron.navigate('transcript');
           } else {

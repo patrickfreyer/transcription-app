@@ -408,10 +408,70 @@ ipcMain.handle('save-recording', async (event, arrayBuffer) => {
   }
 });
 
+// Helper function to convert file to base64 data URL
+function fileToDataURL(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  const base64 = buffer.toString('base64');
+  const ext = path.extname(filePath).toLowerCase();
+
+  // Map extensions to MIME types
+  const mimeTypes = {
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.m4a': 'audio/mp4',
+    '.webm': 'audio/webm',
+    '.mp4': 'audio/mp4',
+    '.mpeg': 'audio/mpeg',
+    '.mpga': 'audio/mpeg'
+  };
+
+  const mimeType = mimeTypes[ext] || 'audio/mpeg';
+  return `data:${mimeType};base64,${base64}`;
+}
+
+// Helper function to convert JSON transcript to VTT-like format
+function jsonToVTT(jsonTranscript) {
+  if (!jsonTranscript || !jsonTranscript.text) {
+    return 'WEBVTT\n\n' + (jsonTranscript?.text || '');
+  }
+  // For simple JSON responses without segments, just return the text as VTT
+  return 'WEBVTT\n\n' + jsonTranscript.text;
+}
+
+// Helper function to convert diarized JSON to VTT-like format with speakers
+function diarizedJsonToVTT(diarizedTranscript) {
+  if (!diarizedTranscript || !diarizedTranscript.segments) {
+    return 'WEBVTT\n\n';
+  }
+
+  let vtt = 'WEBVTT\n\n';
+  let cueNumber = 1;
+
+  for (const segment of diarizedTranscript.segments) {
+    const start = formatVTTTimestamp(segment.start);
+    const end = formatVTTTimestamp(segment.end);
+    const speaker = segment.speaker || 'Unknown';
+    const text = segment.text || '';
+
+    vtt += `${cueNumber}\n`;
+    vtt += `${start} --> ${end}\n`;
+    vtt += `[${speaker}] ${text}\n\n`;
+    cueNumber++;
+  }
+
+  return vtt;
+}
+
 // Handle transcription
-ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, prompt) => {
+ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
   let chunkPaths = [];
   let convertedFilePath = null;
+
+  // Parse options (backward compatibility: if options is a string, treat it as prompt)
+  const isLegacyCall = typeof options === 'string';
+  const model = isLegacyCall ? 'whisper-1' : (options?.model || 'gpt-4o-transcribe');
+  const prompt = isLegacyCall ? options : (options?.prompt || null);
+  const speakers = isLegacyCall ? null : (options?.speakers || null);
 
   try {
     const openai = new OpenAI({ apiKey });
@@ -522,13 +582,39 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, prompt) => {
         try {
           const transcriptionParams = {
             file: fs.createReadStream(chunkPath),
-            model: 'whisper-1',
-            response_format: 'vtt',
+            model: model,
           };
 
-          // Add prompt if we have one for this chunk
-          if (chunkPrompt) {
-            transcriptionParams.prompt = chunkPrompt;
+          // Set response format and parameters based on model
+          if (model === 'whisper-1') {
+            transcriptionParams.response_format = 'vtt';
+            if (chunkPrompt) {
+              transcriptionParams.prompt = chunkPrompt;
+            }
+          } else if (model === 'gpt-4o-transcribe') {
+            transcriptionParams.response_format = 'json';
+            if (chunkPrompt) {
+              transcriptionParams.prompt = chunkPrompt;
+            }
+          } else if (model === 'gpt-4o-transcribe-diarize') {
+            transcriptionParams.response_format = 'diarized_json';
+            transcriptionParams.chunking_strategy = 'auto';
+
+            // Add speaker references if provided
+            if (speakers && speakers.length > 0 && i === 0) {
+              // Only add speaker references for the first chunk
+              const speakerNames = [];
+              const speakerReferences = [];
+
+              for (const speaker of speakers) {
+                speakerNames.push(speaker.name);
+                const dataURL = fileToDataURL(speaker.path);
+                speakerReferences.push(dataURL);
+              }
+
+              transcriptionParams.known_speaker_names = speakerNames;
+              transcriptionParams.known_speaker_references = speakerReferences;
+            }
           }
 
           const transcription = await openai.audio.transcriptions.create(transcriptionParams);
@@ -536,7 +622,7 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, prompt) => {
         } catch (error) {
           console.error(`Error transcribing chunk ${i + 1}:`, error);
           // Add empty transcript for failed chunk
-          transcripts.push('');
+          transcripts.push(model === 'whisper-1' ? '' : { text: '' });
         }
       }
 
@@ -548,8 +634,39 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, prompt) => {
         });
       }
 
-      // Combine transcripts
-      const combinedTranscript = combineVTTTranscripts(transcripts, chunkDurations);
+      // Combine transcripts based on model
+      let combinedTranscript;
+      let isDiarized = false;
+
+      if (model === 'whisper-1') {
+        combinedTranscript = combineVTTTranscripts(transcripts, chunkDurations);
+      } else if (model === 'gpt-4o-transcribe') {
+        // Combine JSON transcripts
+        const combinedText = transcripts.map(t => t.text || '').join(' ');
+        combinedTranscript = jsonToVTT({ text: combinedText });
+      } else if (model === 'gpt-4o-transcribe-diarize') {
+        // Combine diarized transcripts with time offset
+        let allSegments = [];
+        let timeOffset = 0;
+
+        for (let i = 0; i < transcripts.length; i++) {
+          const transcript = transcripts[i];
+          if (transcript.segments) {
+            const offsetSegments = transcript.segments.map(seg => ({
+              ...seg,
+              start: seg.start + timeOffset,
+              end: seg.end + timeOffset
+            }));
+            allSegments = allSegments.concat(offsetSegments);
+          }
+          if (i < chunkDurations.length) {
+            timeOffset += chunkDurations[i];
+          }
+        }
+
+        combinedTranscript = diarizedJsonToVTT({ segments: allSegments });
+        isDiarized = true;
+      }
 
       // Clean up chunks
       cleanupChunks(chunkPaths);
@@ -564,21 +681,63 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, prompt) => {
         transcript: combinedTranscript,
         chunked: true,
         totalChunks: chunkPaths.length,
+        isDiarized: isDiarized,
       };
     } else {
       // File is small enough, process normally
       const transcriptionParams = {
         file: fs.createReadStream(processFilePath),
-        model: 'whisper-1',
-        response_format: 'vtt',
+        model: model,
       };
 
-      // Add prompt if provided
-      if (prompt) {
-        transcriptionParams.prompt = prompt;
+      // Set response format based on model
+      if (model === 'whisper-1') {
+        transcriptionParams.response_format = 'vtt';
+        // Add prompt if provided
+        if (prompt) {
+          transcriptionParams.prompt = prompt;
+        }
+      } else if (model === 'gpt-4o-transcribe') {
+        transcriptionParams.response_format = 'json';
+        // Add prompt if provided
+        if (prompt) {
+          transcriptionParams.prompt = prompt;
+        }
+      } else if (model === 'gpt-4o-transcribe-diarize') {
+        transcriptionParams.response_format = 'diarized_json';
+        transcriptionParams.chunking_strategy = 'auto';
+
+        // Add speaker references if provided
+        if (speakers && speakers.length > 0) {
+          const speakerNames = [];
+          const speakerReferences = [];
+
+          for (const speaker of speakers) {
+            speakerNames.push(speaker.name);
+            // Convert speaker reference file to data URL
+            const dataURL = fileToDataURL(speaker.path);
+            speakerReferences.push(dataURL);
+          }
+
+          transcriptionParams.known_speaker_names = speakerNames;
+          transcriptionParams.known_speaker_references = speakerReferences;
+        }
       }
 
       const transcription = await openai.audio.transcriptions.create(transcriptionParams);
+
+      // Convert response to VTT format if needed
+      let finalTranscript;
+      let isDiarized = false;
+
+      if (model === 'whisper-1') {
+        finalTranscript = transcription;
+      } else if (model === 'gpt-4o-transcribe') {
+        finalTranscript = jsonToVTT(transcription);
+      } else if (model === 'gpt-4o-transcribe-diarize') {
+        finalTranscript = diarizedJsonToVTT(transcription);
+        isDiarized = true;
+      }
 
       // Clean up converted file if it exists
       if (convertedFilePath && fs.existsSync(convertedFilePath)) {
@@ -587,8 +746,9 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, prompt) => {
 
       return {
         success: true,
-        transcript: transcription,
+        transcript: finalTranscript,
         chunked: false,
+        isDiarized: isDiarized,
       };
     }
   } catch (error) {
