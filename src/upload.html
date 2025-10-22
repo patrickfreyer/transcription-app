@@ -188,6 +188,9 @@
         fileInfo.classList.remove('show');
         recordingInfo.style.display = 'none';
         errorMessage.classList.remove('show');
+        promptSection.style.display = 'none';
+        promptTextarea.value = '';
+        updatePromptCounter();
       }
 
       // ==================== UPLOAD MODE ====================
