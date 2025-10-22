@@ -197,14 +197,26 @@
       const showExamplesLink = document.getElementById('show-examples');
       const promptExamples = document.getElementById('prompt-examples');
       const promptExampleElements = document.querySelectorAll('.prompt-example');
+      const modelSection = document.getElementById('model-section');
+      const modelRadios = document.querySelectorAll('input[name="model"]');
+      const speakerSection = document.getElementById('speaker-section');
+      const speakerHeader = document.getElementById('speaker-header');
+      const speakerBody = document.getElementById('speaker-body');
+      const speakerChevron = document.getElementById('speaker-chevron');
+      const speakerList = document.getElementById('speaker-list');
+      const addSpeakerBtn = document.getElementById('add-speaker-btn');
+      const speakerInput = document.getElementById('speaker-input');
 
       let selectedFile = null;
       let isPromptExpanded = false;
+      let isSpeakerExpanded = false;
       let mediaRecorder = null;
       let audioChunks = [];
       let recordingStartTime = null;
       let timerInterval = null;
       let currentMode = 'upload';
+      let speakerReferences = []; // { name: string, file: File }
+      let currentSpeakerIndex = null;
 
       // Tab Switching
       uploadTab.addEventListener('click', () => switchMode('upload'));
