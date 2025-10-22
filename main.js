@@ -533,11 +533,18 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, prompt) => {
       };
     } else {
       // File is small enough, process normally
-      const transcription = await openai.audio.transcriptions.create({
+      const transcriptionParams = {
         file: fs.createReadStream(processFilePath),
         model: 'whisper-1',
         response_format: 'vtt',
-      });
+      };
+
+      // Add prompt if provided
+      if (prompt) {
+        transcriptionParams.prompt = prompt;
+      }
+
+      const transcription = await openai.audio.transcriptions.create(transcriptionParams);
 
       // Clean up converted file if it exists
       if (convertedFilePath && fs.existsSync(convertedFilePath)) {
