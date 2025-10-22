@@ -130,9 +130,64 @@
         };
       }
 
+      // Check for test mode
+      const isTestMode = window.location.search.includes('test=true');
+
       // Initialize transcript
-      if (rawTranscript) {
-        const parsed = parseVTT(rawTranscript);
+      if (rawTranscript || isTestMode) {
+        let transcriptToUse = rawTranscript;
+
+        // Use sample data if in test mode
+        if (isTestMode && !rawTranscript) {
+          transcriptToUse = `WEBVTT
+
+1
+00:00:00.000 --> 00:00:03.500
+[Patrick] Hey everyone, thanks for joining today's meeting.
+
+2
+00:00:03.500 --> 00:00:07.200
+[Sarah] Thanks for having me. I'm excited to discuss the new project.
+
+3
+00:00:07.200 --> 00:00:12.800
+[Patrick] Great! So let's start with the timeline. I'm thinking we can launch in about three months.
+
+4
+00:00:12.800 --> 00:00:18.500
+[Michael] Three months seems tight. We'll need to prioritize features carefully.
+
+5
+00:00:18.500 --> 00:00:23.700
+[Sarah] I agree with Michael. What if we break it into phases? We could launch an MVP first.
+
+6
+00:00:23.700 --> 00:00:29.200
+[Patrick] That's a smart approach. Let's focus on core functionality for the initial release.
+
+7
+00:00:29.200 --> 00:00:34.800
+[Michael] Perfect. I can draft a feature priority list by end of week.
+
+8
+00:00:34.800 --> 00:00:38.500
+[Sarah] Sounds good. I'll work on the user research to validate our assumptions.
+
+9
+00:00:38.500 --> 00:00:43.200
+[Patrick] Excellent. Let's reconvene next Tuesday to review everything.`;
+
+          localStorage.setItem('transcript', transcriptToUse);
+          localStorage.setItem('fileName', 'sample_meeting.mp3');
+          localStorage.setItem('isDiarized', 'true');
+          localStorage.setItem('transcriptModel', 'gpt-4o-transcribe-diarize');
+
+          // Reload to show the test data
+          window.location.href = window.location.pathname;
+          return;
+        }
+
+        const parsed = parseVTT(transcriptToUse);
         plainText = parsed.plain;
         timestampedText = parsed.timestamped;
 
@@ -142,8 +197,11 @@
         // Display initial view
         updateDisplay();
       } else {
-        transcriptContent.textContent =
-          'No transcript available. Please go back and transcribe an audio file.';
+        transcriptContent.innerHTML = `
+          No transcript available. Please go back and transcribe an audio file.
+          <br><br>
+          <a href="?test=true" style="color: #007aff; text-decoration: none; font-size: 13px;">Load test data for UI preview</a>
+        `;
       }
 
       if (fileName) {
