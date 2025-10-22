@@ -437,9 +437,12 @@
             throw new Error('API key not found. Please set up your API key first.');
           }
 
+          const prompt = promptTextarea.value.trim() || null;
+
           const result = await window.electron.transcribeAudio(
             selectedFile.path,
-            apiKey
+            apiKey,
+            prompt
           );
 
           if (result.success) {
