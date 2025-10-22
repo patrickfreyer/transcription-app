@@ -78,6 +78,7 @@
       // Load transcript from localStorage
       const rawTranscript = localStorage.getItem('transcript');
       const fileName = localStorage.getItem('fileName');
+      const isDiarized = localStorage.getItem('isDiarized') === 'true';
 
       let plainText = '';
       let timestampedText = '';
