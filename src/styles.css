@@ -193,9 +193,9 @@ input[type='password']:focus {
   background: #f5f5f7;
   border: 1px solid #e8e8ed;
   border-radius: 10px;
-  padding: 24px;
-  margin-bottom: 32px;
-  max-height: 400px;
+  padding: 20px;
+  margin-bottom: 24px;
+  max-height: 500px;
   overflow-y: auto;
   font-size: 15px;
   line-height: 1.6;
@@ -208,28 +208,69 @@ input[type='password']:focus {
 /* Diarized transcript formatting */
 .transcript-content.diarized {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
-  line-height: 1.8;
+  line-height: 1.7;
+  padding: 16px;
+  background: white;
 }
 
 .speaker-segment {
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: white;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: #fbfbfd;
   border-radius: 8px;
   border-left: 3px solid #007aff;
+  transition: all 0.2s ease;
+}
+
+.speaker-segment:hover {
+  background: #f5f5f7;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Alternate colors for different speakers */
+.speaker-segment:nth-child(even) {
+  border-left-color: #34c759;
+}
+
+.speaker-segment:nth-child(3n) {
+  border-left-color: #ff9500;
+}
+
+.speaker-segment:nth-child(4n) {
+  border-left-color: #af52de;
 }
 
 .speaker-label {
   color: #007aff;
   font-weight: 600;
-  font-size: 14px;
-  margin-bottom: 6px;
-  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(0, 122, 255, 0.08);
+  border-radius: 4px;
+}
+
+.speaker-segment:nth-child(even) .speaker-label {
+  color: #34c759;
+  background: rgba(52, 199, 89, 0.08);
+}
+
+.speaker-segment:nth-child(3n) .speaker-label {
+  color: #ff9500;
+  background: rgba(255, 149, 0, 0.08);
+}
+
+.speaker-segment:nth-child(4n) .speaker-label {
+  color: #af52de;
+  background: rgba(175, 82, 222, 0.08);
 }
 
 .speaker-text {
   color: #1d1d1f;
   font-size: 15px;
+  line-height: 1.6;
+  margin-top: 6px;
 }
 
 .transcript-content::-webkit-scrollbar {
