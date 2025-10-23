@@ -557,33 +557,6 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
           });
         }
 
-        // Build prompt for this chunk
-        let chunkPrompt = null;
-        if (i === 0 && prompt) {
-          // First chunk: use user's prompt
-          chunkPrompt = prompt;
-        } else if (i > 0 && transcripts[i - 1]) {
-          // Subsequent chunks: use last portion of previous transcript for context
-          const prevTranscript = transcripts[i - 1];
-          // Extract plain text from VTT (remove timestamps and headers)
-          const plainText = prevTranscript
-            .split('\n')
-            .filter(line => !line.includes('-->') && !line.startsWith('WEBVTT') && line.trim() !== '' && !/^\d+$/.test(line.trim()))
-            .join(' ')
-            .trim();
-
-          // Use last ~200 characters for context (stays well under 224 token limit)
-          const contextLength = 200;
-          const contextText = plainText.slice(-contextLength);
-
-          // Combine user prompt (if any) with previous context
-          if (prompt) {
-            chunkPrompt = `${prompt}\n\nPrevious context: ${contextText}`;
-          } else {
-            chunkPrompt = contextText;
-          }
-        }
-
         // Transcribe chunk
         try {
           console.log(`[Transcription] Starting chunk ${i + 1}/${chunkPaths.length} with model: ${model}`);
