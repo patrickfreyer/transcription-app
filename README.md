@@ -73,13 +73,74 @@ Download and run `Audio Transcription Setup 1.0.0.exe` or use the portable versi
 ## Technical Details
 
 - Built with Electron 28
-- Powered by OpenAI Whisper API
-- VTT format with automatic SRT conversion
-- File size limit: 25MB
+- Powered by OpenAI GPT-4o Transcribe and GPT-4o
+- Models: `gpt-4o-transcribe`, `gpt-4o-transcribe-diarize`, `gpt-4o`
+- Large file support with automatic chunking (no file size limit)
+- FFmpeg integration for audio conversion and processing
+- Markdown rendering with Marked.js
+- Diagram generation with Mermaid.js
+
+## Development
+
+### Prerequisites
+- Node.js 20+
+- OpenAI API key
+
+### Setup
+```bash
+# Install dependencies
+npm install
+
+# Run in development mode
+npm start
+
+# Run tests
+export OPENAI_API_KEY=your-api-key-here
+npm test
+
+# Build for macOS
+npm run build:mac
+
+# Build for Windows
+npm run build:win
+```
+
+### Testing
+
+The project includes comprehensive tests for transcription and summary generation:
+
+#### Local Testing
+```bash
+# Set your OpenAI API key
+export OPENAI_API_KEY=your-api-key-here
+
+# Run all tests (uses local test_audio.mp3)
+npm test
+
+# Run only transcription tests
+npm run test:transcription
+
+# Run only FFmpeg tests
+npm run test:ffmpeg
+```
+
+#### CI/CD Testing
+The GitHub Actions workflow automatically:
+- Downloads test audio from [Planetary Radio podcast](https://omny.fm/shows/planetary-radio-space-exploration-astronomy-and-sc/elon-musk-of-spacex)
+- Tests transcription and summary generation
+- Validates build artifacts for macOS and Windows
+
+**Note:** You must add `OPENAI_API_KEY` as a repository secret for CI/CD tests to run.
+
+### Test Files
+- `test_audio.mp3` - Local test file (26MB, included in repo)
+- Remote test URL: Used automatically in CI/CD (see `CREDITS.md`)
 
 ## Credits
 
 Created by [Patrick C. Freyer](https://patrickfreyer.com)
+
+See [CREDITS.md](CREDITS.md) for audio attribution and third-party library acknowledgments.
 
 ## License
 
