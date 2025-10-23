@@ -313,14 +313,20 @@
           if (result.success) {
             await displaySummary(result.summary);
 
-            // Save to history
-            await window.electron.saveTranscriptionHistory({
+            // Save to history (update existing or create new)
+            const saveResult = await window.electron.saveTranscriptionHistory({
+              id: transcriptId, // Pass ID to update existing entry
               fileName,
               transcript: rawTranscript,
               summary: result.summary,
               isDiarized,
               model: localStorage.getItem('transcriptModel') || 'gpt-4o-transcribe',
             });
+
+            // Store the ID for future updates
+            if (saveResult.success && !transcriptId) {
+              transcriptId = saveResult.id;
+            }
           } else {
             throw new Error(result.error);
           }
