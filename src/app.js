@@ -556,6 +556,15 @@ settingsForm.addEventListener('submit', async (e) => {
 
 // Check if API key exists on startup
 async function initializeApp() {
+  // Check if there's a specific view to open (e.g., from back button)
+  const openView = localStorage.getItem('openView');
+
+  if (openView) {
+    localStorage.removeItem('openView');
+    switchView(openView);
+    return;
+  }
+
   const apiKey = await window.electron.getApiKey();
 
   if (!apiKey) {
