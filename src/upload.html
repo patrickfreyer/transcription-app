@@ -76,6 +76,30 @@
         </div>
       </div>
 
+      <!-- Model Selection -->
+      <div class="model-selection" id="model-selection" style="display: none">
+        <div class="model-option">
+          <input type="radio" id="model-fast" name="model" value="gpt-4o-transcribe" checked />
+          <label for="model-fast">
+            <div class="model-label">
+              <span class="model-title">⚡ Fast Transcription</span>
+              <span class="model-speed">~15 seconds per 10 minutes</span>
+            </div>
+            <div class="model-description">High-quality transcription without speaker identification</div>
+          </label>
+        </div>
+        <div class="model-option">
+          <input type="radio" id="model-diarize" name="model" value="gpt-4o-transcribe-diarize" />
+          <label for="model-diarize">
+            <div class="model-label">
+              <span class="model-title">🎤 Speaker Identification</span>
+              <span class="model-speed">Takes 10-20 minutes for large files</span>
+            </div>
+            <div class="model-description">Identifies who is speaking with diarization (slower processing)</div>
+          </label>
+        </div>
+      </div>
+
       <!-- Speaker References Section -->
       <div class="speaker-section" id="speaker-section" style="display: none">
         <div class="speaker-header" id="speaker-header">
