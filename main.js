@@ -804,3 +804,137 @@ ipcMain.handle('save-transcript', async (event, content, format, fileName) => {
     };
   }
 });
+
+// Handle meeting summary generation
+ipcMain.handle('generate-meeting-summary', async (event, transcript, fileName, apiKey) => {
+  try {
+    const openai = new OpenAI({ apiKey });
+
+    // Extract plain text from VTT format
+    const plainText = transcript
+      .split('\n')
+      .filter(line => !line.includes('-->') && !line.startsWith('WEBVTT') && line.trim() !== '' && !/^\d+$/.test(line.trim()))
+      .join('\n')
+      .trim();
+
+    // System prompt for generating structured meeting summary
+    const systemPrompt = `You are an expert meeting analyst for Boston Consulting Group (BCG). Your task is to analyze meeting transcripts and create comprehensive, professional markdown summaries with embedded mermaid.js diagrams where appropriate.
+
+Structure your output with these sections:
+
+# [Meeting Title] - Meeting Summary
+
+## Overview & Context
+- Brief description of the meeting purpose, participants, and background
+- Date and duration if evident
+
+## Key Topics & Decisions
+- Main discussion points organized by topic
+- Key decisions made
+- Important insights or conclusions
+
+## Process Flow / Diagrams
+[Include mermaid.js flowcharts, decision trees, or sequence diagrams ONLY where they add value]
+- Use \`\`\`mermaid blocks for diagrams
+- Choose appropriate diagram types (flowchart, sequence, gantt, etc.)
+- Keep diagrams focused and relevant
+
+## Action Items & Next Steps
+- Clear, actionable tasks
+- Assigned owners if mentioned
+- Deadlines or timeframes
+- Follow-up items
+
+## BCG-Style Email Summary
+Write a concise 2-3 paragraph executive summary suitable for a BCG email:
+- Professional, direct tone
+- Highlight key decisions and action items
+- Use bullet points where appropriate
+- Focus on outcomes and next steps
+
+Guidelines:
+- Use professional, clear language
+- Be concise but comprehensive
+- Only include mermaid diagrams if they genuinely add value (not required)
+- Format with proper markdown (headers, lists, emphasis)
+- Include timestamps from transcript where relevant for reference`;
+
+    const userPrompt = `Please analyze this meeting transcript and create a comprehensive markdown summary following the structure provided:\n\n${plainText}`;
+
+    // Send progress update
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('summary-progress', {
+        status: 'generating',
+        message: 'Generating meeting summary...',
+      });
+    }
+
+    // Call GPT-4o to generate summary
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 4000,
+    });
+
+    const summary = completion.choices[0].message.content;
+
+    return {
+      success: true,
+      summary: summary,
+    };
+  } catch (error) {
+    console.error('Error generating summary:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to generate summary',
+    };
+  }
+});
+
+// Handle save summary
+ipcMain.handle('save-summary', async (event, content, fileName, openInTypora = false) => {
+  try {
+    // Show save dialog
+    const baseName = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'meeting-summary';
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save Meeting Summary',
+      defaultPath: `${baseName}.md`,
+      filters: [
+        { name: 'Markdown', extensions: ['md'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled) {
+      return { success: false, canceled: true };
+    }
+
+    // Write file
+    fs.writeFileSync(result.filePath, content, 'utf8');
+
+    // Open in Typora if requested
+    if (openInTypora) {
+      try {
+        const { exec } = require('child_process');
+        exec(`open -a Typora "${result.filePath}"`);
+      } catch (error) {
+        console.error('Error opening in Typora:', error);
+        // Don't fail the entire operation if Typora fails
+      }
+    }
+
+    return {
+      success: true,
+      filePath: result.filePath
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to save summary'
+    };
+  }
+});
