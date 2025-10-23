@@ -351,7 +351,6 @@ Keep it concise (max 300 words).`;
         file: fs.createReadStream(testFile),
         model: 'gpt-4o-transcribe-diarize',
         response_format: 'diarized_json',
-        chunking_strategy: 'auto',
       });
 
       if (!transcription || !transcription.segments) {
