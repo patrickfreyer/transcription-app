@@ -722,30 +722,44 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         });
       }
 
-      // Combine diarized transcripts with time offset
-      let allSegments = [];
-      let timeOffset = 0;
+      // Combine transcripts based on model type
+      let combinedTranscript;
 
-      for (let i = 0; i < transcripts.length; i++) {
-        const transcript = transcripts[i];
-        if (transcript.segments) {
-          const offsetSegments = transcript.segments.map(seg => ({
-            ...seg,
-            start: seg.start + timeOffset,
-            end: seg.end + timeOffset
-          }));
-          allSegments = allSegments.concat(offsetSegments);
+      if (isDiarizeModel) {
+        // Combine diarized transcripts with time offset
+        let allSegments = [];
+        let timeOffset = 0;
+
+        for (let i = 0; i < transcripts.length; i++) {
+          const transcript = transcripts[i];
+          if (transcript.segments) {
+            const offsetSegments = transcript.segments.map(seg => ({
+              ...seg,
+              start: seg.start + timeOffset,
+              end: seg.end + timeOffset
+            }));
+            allSegments = allSegments.concat(offsetSegments);
+          }
+          if (i < chunkDurations.length) {
+            timeOffset += chunkDurations[i];
+          }
         }
-        if (i < chunkDurations.length) {
-          timeOffset += chunkDurations[i];
+
+        combinedTranscript = diarizedJsonToVTT({ segments: allSegments });
+
+        // Check if we have any actual content
+        if (allSegments.length === 0) {
+          throw new Error('All chunks failed to transcribe. Please check your audio file and try again.');
         }
-      }
+      } else {
+        // Combine non-diarized transcripts (simple text concatenation)
+        const allText = transcripts.map(t => t.text || '').join(' ');
 
-      const combinedTranscript = diarizedJsonToVTT({ segments: allSegments });
+        if (!allText.trim()) {
+          throw new Error('All chunks failed to transcribe. Please check your audio file and try again.');
+        }
 
-      // Check if we have any actual content
-      if (allSegments.length === 0) {
-        throw new Error('All chunks failed to transcribe. Please check your audio file and try again.');
+        combinedTranscript = jsonToVTT({ text: allText });
       }
 
       // Clean up chunks
