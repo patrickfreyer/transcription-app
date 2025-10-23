@@ -8,7 +8,9 @@
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
-    "test": "node test-ffmpeg.js && node test-transcription.js",
+    "test": "jest",
+    "test:unit": "jest",
+    "test:integration": "node test-ffmpeg.js && node test-transcription.js",
     "test:transcription": "node test-transcription.js",
     "test:ffmpeg": "node test-ffmpeg.js"
   },
@@ -23,7 +25,8 @@
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
-    "electron-icon-builder": "^2.0.1"
+    "electron-icon-builder": "^2.0.1",
+    "jest": "^30.2.0"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
