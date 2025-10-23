@@ -592,11 +592,22 @@
         localStorage.removeItem('transcriptInfo');
         localStorage.removeItem('meetingSummary');
         localStorage.removeItem('loadTranscriptionId');
-        window.electron.navigate('upload');
+        window.electron.navigate('app');
       });
 
       // Initialize
       initialize();
+
+      // Sidebar toggle functionality
+      const sidebar = document.getElementById('sidebar');
+      const sidebarToggle = document.getElementById('sidebar-toggle');
+
+      sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+      });
     </script>
+      </div><!-- Close container -->
+    </div><!-- Close main-content -->
+  </div><!-- Close app-container -->
   </body>
 </html>
