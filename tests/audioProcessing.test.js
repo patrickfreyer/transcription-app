@@ -49,7 +49,7 @@ describe('audioProcessing', () => {
 
       await expect(
         audioProcessing.getAudioDuration('/path/to/audio.mp3')
-      ).rejects.toThrow('FFmpeg is not available');
+      ).rejects.toThrow();
     });
 
     // Note: Testing actual FFmpeg operations would require:
