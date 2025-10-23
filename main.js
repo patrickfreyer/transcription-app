@@ -782,12 +782,16 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
       const transcriptionParams = {
         file: fs.createReadStream(processFilePath),
         model: model,
-        response_format: 'diarized_json',
-        chunking_strategy: 'auto',
+        response_format: isDiarizeModel ? 'diarized_json' : 'json',
       };
 
-      // Add speaker references if provided
-      if (speakers && speakers.length > 0) {
+      // Add chunking_strategy for diarized model
+      if (isDiarizeModel) {
+        transcriptionParams.chunking_strategy = 'auto';
+      }
+
+      // Add speaker references if provided (only for diarized model)
+      if (isDiarizeModel && speakers && speakers.length > 0) {
         const speakerNames = [];
         const speakerReferences = [];
 
@@ -804,8 +808,10 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
 
       const transcription = await openai.audio.transcriptions.create(transcriptionParams);
 
-      // Convert diarized response to VTT format
-      const finalTranscript = diarizedJsonToVTT(transcription);
+      // Convert response to VTT format based on model
+      const finalTranscript = isDiarizeModel
+        ? diarizedJsonToVTT(transcription)
+        : jsonToVTT(transcription);
 
       // Clean up converted file if it exists
       if (convertedFilePath && fs.existsSync(convertedFilePath)) {
@@ -816,7 +822,7 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         success: true,
         transcript: finalTranscript,
         chunked: false,
-        isDiarized: true,
+        isDiarized: isDiarizeModel,
       };
     }
   } catch (error) {
