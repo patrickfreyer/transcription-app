@@ -631,12 +631,16 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
           const transcriptionParams = {
             file: fs.createReadStream(chunkPath),
             model: model,
-            response_format: 'diarized_json',
-            chunking_strategy: 'auto',
+            response_format: isDiarizeModel ? 'diarized_json' : 'json',
           };
 
-          // Add speaker references if provided (only for first chunk)
-          if (speakers && speakers.length > 0 && i === 0) {
+          // Add chunking_strategy for diarized model
+          if (isDiarizeModel) {
+            transcriptionParams.chunking_strategy = 'auto';
+          }
+
+          // Add speaker references if provided (only for first chunk and diarized model)
+          if (isDiarizeModel && speakers && speakers.length > 0 && i === 0) {
             console.log(`[Transcription] Adding speaker references for chunk 1`);
             const speakerNames = [];
             const speakerReferences = [];
