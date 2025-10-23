@@ -53,5 +53,9 @@ builder-debug.yml
 *.temp
 temp_test_audio.mp3
 
+# Test audio files (should not be committed)
+test_audio.mp3
+test_audio.md
+
 # Electron cache
 $RECYCLE.BIN/
