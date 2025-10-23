@@ -271,7 +271,6 @@ async function testTranscription(apiKey, testFile) {
           file: fs.createReadStream(chunkPath),
           model: 'gpt-4o-transcribe-diarize',
           response_format: 'diarized_json',
-          chunking_strategy: 'auto',
         });
 
         transcripts.push(transcription);
