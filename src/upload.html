@@ -532,8 +532,8 @@
             throw new Error('API key not found. Please set up your API key first.');
           }
 
-          // Always use diarized model
-          const model = 'gpt-4o-transcribe-diarize';
+          // Get selected model
+          const model = modelDiarize.checked ? 'gpt-4o-transcribe-diarize' : 'gpt-4o-transcribe';
 
           const result = await window.electron.transcribeAudio(
             selectedFile.path,
