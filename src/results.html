@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Results - Audio Transcription</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Load marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Load mermaid.js for diagram rendering -->
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        themeVariables: {
+          primaryColor: '#007aff',
+          primaryTextColor: '#1d1d1f',
+          primaryBorderColor: '#d2d2d7',
+          lineColor: '#6e6e73',
+          secondaryColor: '#f5f5f7',
+          tertiaryColor: '#fbfbfd'
+        }
+      });
+      window.mermaid = mermaid;
+    </script>
+  </head>
+  <body>
+    <div class="container results-container">
+      <h1>Transcription Results</h1>
+      <p class="subtitle" id="file-name-subtitle"></p>
+
+      <!-- View Tabs -->
+      <div class="results-tabs">
+        <button class="results-tab active" id="summary-tab">Meeting Summary</button>
+        <button class="results-tab" id="transcript-tab">Full Transcript</button>
+      </div>
+
+      <!-- Summary View -->
+      <div class="results-view" id="summary-view">
+        <div class="loading-state" id="summary-loading" style="display: none">
+          <div class="loading-spinner"></div>
+          <p class="loading-text">Generating meeting summary...</p>
+        </div>
+
+        <div class="summary-content" id="summary-content"></div>
+
+        <div class="button-group" id="summary-actions" style="display: none">
+          <button class="btn" id="save-summary-btn">Save as Markdown</button>
+          <button class="btn btn-typora" id="save-typora-btn">Open in Typora</button>
+        </div>
+      </div>
+
+      <!-- Transcript View -->
+      <div class="results-view" id="transcript-view" style="display: none">
+        <!-- Timestamp Toggle -->
+        <div class="toggle-container">
+          <span class="toggle-label active" id="plain-label">Plain Text</span>
+          <div class="toggle-switch" id="toggle-switch">
+            <div class="toggle-slider"></div>
+          </div>
+          <span class="toggle-label" id="timestamp-label">With Timestamps</span>
+        </div>
+
+        <div class="transcript-content" id="transcript-content"></div>
+
+        <!-- Format Selection -->
+        <div class="format-selector">
+          <label class="format-label">Export format:</label>
+          <div class="format-options">
+            <button class="format-btn active" data-format="txt">Plain Text (.txt)</button>
+            <button class="format-btn" data-format="vtt">WebVTT (.vtt)</button>
+            <button class="format-btn" data-format="srt">SubRip (.srt)</button>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn" id="save-transcript-btn">Save As...</button>
+          <button class="btn" id="copy-btn">Copy</button>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="button-group">
+        <button class="btn btn-secondary" id="new-transcription-btn">New Transcription</button>
+      </div>
+
+      <div
+        style="
+          text-align: center;
+          margin-top: 20px;
+          color: #48bb78;
+          font-size: 14px;
+          font-weight: 600;
+          display: none;
+        "
+        id="save-success"
+      >
+        ✓ Saved successfully!
+      </div>
+
+      <footer class="attribution">
+        Created by <a href="https://patrickfreyer.com" target="_blank">Patrick C. Freyer</a>
+        <br>
+        <a href="mailto:freyer.patrick@bcg.com">freyer.patrick@bcg.com</a>
+      </footer>
+    </div>
+
+    <script>
+      // UI Elements
+      const summaryTab = document.getElementById('summary-tab');
+      const transcriptTab = document.getElementById('transcript-tab');
+      const summaryView = document.getElementById('summary-view');
+      const transcriptView = document.getElementById('transcript-view');
+      const summaryContent = document.getElementById('summary-content');
+      const transcriptContent = document.getElementById('transcript-content');
+      const fileNameSubtitle = document.getElementById('file-name-subtitle');
+      const summaryLoading = document.getElementById('summary-loading');
+      const summaryActions = document.getElementById('summary-actions');
+      const saveSummaryBtn = document.getElementById('save-summary-btn');
+      const saveTyporaBtn = document.getElementById('save-typora-btn');
+      const saveTranscriptBtn = document.getElementById('save-transcript-btn');
+      const copyBtn = document.getElementById('copy-btn');
+      const newTranscriptionBtn = document.getElementById('new-transcription-btn');
+      const saveSuccess = document.getElementById('save-success');
+      const toggleSwitch = document.getElementById('toggle-switch');
+      const plainLabel = document.getElementById('plain-label');
+      const timestampLabel = document.getElementById('timestamp-label');
+      const formatBtns = document.querySelectorAll('.format-btn');
+
+      let currentSummaryMarkdown = '';
+      let fileName = '';
+      let rawTranscript = '';
+      let plainText = '';
+      let timestampedText = '';
+      let showTimestamps = false;
+      let selectedFormat = 'txt';
+      let isDiarized = false;
+
+      // Tab switching
+      summaryTab.addEventListener('click', () => {
+        summaryTab.classList.add('active');
+        transcriptTab.classList.remove('active');
+        summaryView.style.display = 'block';
+        transcriptView.style.display = 'none';
+      });
+
+      transcriptTab.addEventListener('click', () => {
+        transcriptTab.classList.add('active');
+        summaryTab.classList.remove('active');
+        summaryView.style.display = 'none';
+        transcriptView.style.display = 'block';
+      });
+
+      // Parse VTT format for transcript
+      function parseVTT(vttText) {
+        if (!vttText) return { plain: '', timestamped: '' };
+
+        const lines = vttText.split('\n');
+        let plain = [];
+        let timestamped = [];
+        let i = 0;
+
+        while (i < lines.length && !lines[i].includes('-->')) {
+          i++;
+        }
+
+        while (i < lines.length) {
+          const line = lines[i].trim();
+
+          if (line.includes('-->')) {
+            const timestamp = line;
+            i++;
+
+            let textLines = [];
+            while (i < lines.length && lines[i].trim() !== '' && !lines[i].includes('-->')) {
+              textLines.push(lines[i].trim());
+              i++;
+            }
+
+            const text = textLines.join(' ');
+
+            if (text) {
+              plain.push(text);
+              timestamped.push(`[${timestamp.split(' --> ')[0]}]\n${text}`);
+            }
+          } else {
+            i++;
+          }
+        }
+
+        return {
+          plain: plain.join('\n\n'),
+          timestamped: timestamped.join('\n\n')
+        };
+      }
+
+      // Format diarized transcript
+      function formatDiarizedDisplay(text) {
+        if (!isDiarized) return text;
+
+        const segments = text.split(/\n\n+/);
+        let html = '';
+
+        for (const segment of segments) {
+          const match = segment.match(/^\[([^\]]+)\]\s*(.+)/s);
+          if (match) {
+            const speaker = match[1];
+            const content = match[2];
+            html += `
+              <div class="speaker-segment">
+                <span class="speaker-label">${speaker}</span>
+                <span class="speaker-text">${content}</span>
+              </div>
+            `;
+          } else if (segment.trim()) {
+            html += `<div class="speaker-segment"><span class="speaker-text">${segment}</span></div>`;
+          }
+        }
+
+        return html;
+      }
+
+      // Update transcript display
+      function updateTranscriptDisplay() {
+        const textToDisplay = showTimestamps ? timestampedText : plainText;
+
+        if (isDiarized && !showTimestamps) {
+          transcriptContent.classList.add('diarized');
+          transcriptContent.innerHTML = formatDiarizedDisplay(textToDisplay);
+        } else {
+          transcriptContent.classList.remove('diarized');
+          transcriptContent.textContent = textToDisplay;
+        }
+
+        if (showTimestamps) {
+          toggleSwitch.classList.add('active');
+          plainLabel.classList.remove('active');
+          timestampLabel.classList.add('active');
+        } else {
+          toggleSwitch.classList.remove('active');
+          plainLabel.classList.add('active');
+          timestampLabel.classList.remove('active');
+        }
+      }
+
+      // Display summary with markdown and mermaid rendering
+      async function displaySummary(markdown) {
+        currentSummaryMarkdown = markdown;
+        summaryLoading.style.display = 'none';
+        summaryActions.style.display = 'flex';
+
+        const htmlContent = marked.parse(markdown);
+        summaryContent.innerHTML = htmlContent;
+
+        if (window.mermaid) {
+          try {
+            const mermaidBlocks = summaryContent.querySelectorAll('pre code.language-mermaid');
+
+            for (let i = 0; i < mermaidBlocks.length; i++) {
+              const block = mermaidBlocks[i];
+              const code = block.textContent;
+
+              const container = document.createElement('div');
+              container.className = 'mermaid-container';
+              container.id = `mermaid-${i}`;
+
+              block.parentElement.replaceWith(container);
+
+              const { svg } = await window.mermaid.render(`mermaid-diagram-${i}`, code);
+              container.innerHTML = svg;
+            }
+          } catch (error) {
+            console.error('Error rendering mermaid diagrams:', error);
+          }
+        }
+      }
+
+      // Generate summary
+      async function generateSummary() {
+        try {
+          summaryLoading.style.display = 'block';
+          summaryContent.style.display = 'none';
+          summaryActions.style.display = 'none';
+
+          const apiKey = await window.electron.getApiKey();
+          if (!apiKey) {
+            throw new Error('API key not found');
+          }
+
+          const result = await window.electron.generateMeetingSummary(
+            rawTranscript,
+            fileName,
+            apiKey
+          );
+
+          if (result.success) {
+            await displaySummary(result.summary);
+
+            // Save to history
+            await window.electron.saveTranscriptionHistory({
+              fileName,
+              transcript: rawTranscript,
+              summary: result.summary,
+              isDiarized,
+              model: localStorage.getItem('transcriptModel') || 'gpt-4o-transcribe',
+            });
+          } else {
+            throw new Error(result.error);
+          }
+        } catch (error) {
+          summaryLoading.style.display = 'none';
+          summaryContent.style.display = 'block';
+          summaryContent.innerHTML = `
+            <div style="text-align: center; color: #ff3b30; padding: 40px 0;">
+              <strong>Failed to generate summary</strong><br>
+              <span style="font-size: 14px;">${error.message}</span>
+            </div>
+          `;
+        }
+      }
+
+      // Initialize from localStorage or loaded data
+      async function initialize() {
+        const transcriptId = localStorage.getItem('loadTranscriptionId');
+
+        if (transcriptId) {
+          // Load from history
+          localStorage.removeItem('loadTranscriptionId');
+
+          const result = await window.electron.loadTranscription(transcriptId);
+          if (result.success) {
+            const data = result.data;
+            fileName = data.fileName;
+            rawTranscript = data.transcript;
+            isDiarized = data.isDiarized || false;
+
+            const parsed = parseVTT(rawTranscript);
+            plainText = parsed.plain;
+            timestampedText = parsed.timestamped;
+
+            if (data.summary) {
+              await displaySummary(data.summary);
+            }
+          }
+        } else {
+          // Load from new transcription
+          rawTranscript = localStorage.getItem('transcript');
+          fileName = localStorage.getItem('fileName');
+          isDiarized = localStorage.getItem('isDiarized') === 'true';
+
+          const parsed = parseVTT(rawTranscript);
+          plainText = parsed.plain;
+          timestampedText = parsed.timestamped;
+
+          // Generate summary automatically
+          await generateSummary();
+        }
+
+        if (fileName) {
+          fileNameSubtitle.textContent = `File: ${fileName}`;
+        }
+
+        updateTranscriptDisplay();
+      }
+
+      // Toggle timestamp
+      toggleSwitch.addEventListener('click', () => {
+        showTimestamps = !showTimestamps;
+        updateTranscriptDisplay();
+      });
+
+      // Copy transcript
+      copyBtn.addEventListener('click', async () => {
+        try {
+          const textToCopy = showTimestamps ? timestampedText : plainText;
+          await navigator.clipboard.writeText(textToCopy);
+          saveSuccess.textContent = '✓ Copied to clipboard!';
+          saveSuccess.style.display = 'block';
+          setTimeout(() => {
+            saveSuccess.style.display = 'none';
+          }, 2000);
+        } catch (error) {
+          console.error('Failed to copy:', error);
+        }
+      });
+
+      // Format selection
+      formatBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          formatBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          selectedFormat = btn.dataset.format;
+        });
+      });
+
+      // Convert VTT to SRT
+      function convertVTTtoSRT(vttText) {
+        if (!vttText) return '';
+
+        const lines = vttText.split('\n');
+        let srtContent = [];
+        let counter = 1;
+        let i = 0;
+
+        while (i < lines.length && !lines[i].includes('-->')) {
+          i++;
+        }
+
+        while (i < lines.length) {
+          const line = lines[i].trim();
+
+          if (line.includes('-->')) {
+            const timestamp = line.replace(/\./g, ',');
+            i++;
+
+            let textLines = [];
+            while (i < lines.length && lines[i].trim() !== '' && !lines[i].includes('-->')) {
+              textLines.push(lines[i].trim());
+              i++;
+            }
+
+            const text = textLines.join('\n');
+
+            if (text) {
+              srtContent.push(`${counter}\n${timestamp}\n${text}\n`);
+              counter++;
+            }
+          } else {
+            i++;
+          }
+        }
+
+        return srtContent.join('\n');
+      }
+
+      // Save transcript
+      saveTranscriptBtn.addEventListener('click', async () => {
+        try {
+          let content = '';
+          let baseName = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'transcript';
+
+          if (selectedFormat === 'txt') {
+            content = showTimestamps ? timestampedText : plainText;
+          } else if (selectedFormat === 'vtt') {
+            content = rawTranscript;
+          } else if (selectedFormat === 'srt') {
+            content = convertVTTtoSRT(rawTranscript);
+          }
+
+          const result = await window.electron.saveTranscript(content, selectedFormat, baseName);
+
+          if (result.success) {
+            saveSuccess.textContent = '✓ Saved successfully!';
+            saveSuccess.style.display = 'block';
+            setTimeout(() => {
+              saveSuccess.style.display = 'none';
+            }, 2000);
+          }
+        } catch (error) {
+          console.error('Failed to save:', error);
+        }
+      });
+
+      // Save summary
+      saveSummaryBtn.addEventListener('click', async () => {
+        try {
+          const result = await window.electron.saveSummary(currentSummaryMarkdown, fileName, false);
+          if (result.success) {
+            saveSuccess.textContent = '✓ Saved successfully!';
+            saveSuccess.style.display = 'block';
+            setTimeout(() => {
+              saveSuccess.style.display = 'none';
+            }, 2000);
+          }
+        } catch (error) {
+          console.error('Failed to save:', error);
+        }
+      });
+
+      // Save and open in Typora
+      saveTyporaBtn.addEventListener('click', async () => {
+        try {
+          const result = await window.electron.saveSummary(currentSummaryMarkdown, fileName, true);
+          if (result.success) {
+            saveSuccess.textContent = '✓ Opened in Typora!';
+            saveSuccess.style.display = 'block';
+            setTimeout(() => {
+              saveSuccess.style.display = 'none';
+            }, 2000);
+          }
+        } catch (error) {
+          console.error('Failed to save:', error);
+        }
+      });
+
+      // New transcription
+      newTranscriptionBtn.addEventListener('click', () => {
+        localStorage.removeItem('transcript');
+        localStorage.removeItem('fileName');
+        localStorage.removeItem('isDiarized');
+        localStorage.removeItem('transcriptModel');
+        localStorage.removeItem('transcriptInfo');
+        localStorage.removeItem('meetingSummary');
+        localStorage.removeItem('loadTranscriptionId');
+        window.electron.navigate('upload');
+      });
+
+      // Initialize
+      initialize();
+    </script>
+  </body>
+</html>
