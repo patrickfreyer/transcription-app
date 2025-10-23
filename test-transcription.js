@@ -346,21 +346,24 @@ Keep it concise (max 300 words).`;
 
     } else {
       // Small file - process normally
-      info('Test 1: Standard transcription (file under 25MB)');
+      info('Test 1: Diarized transcription (file under 25MB)');
 
       const transcription = await openai.audio.transcriptions.create({
         file: fs.createReadStream(testFile),
-        model: 'gpt-4o-transcribe',
-        response_format: 'json',
+        model: 'gpt-4o-transcribe-diarize',
+        response_format: 'diarized_json',
+        chunking_strategy: 'auto',
       });
 
-      if (!transcription || !transcription.text) {
+      if (!transcription || !transcription.segments) {
         throw new Error('Transcription returned empty result');
       }
 
-      const wordCount = transcription.text.split(/\s+/).length;
+      // Extract text from segments
+      const transcriptionText = transcription.segments.map(seg => seg.text || '').join(' ');
+      const wordCount = transcriptionText.split(/\s+/).length;
       success(`  Transcribed ${wordCount} words`);
-      info(`  Sample text: "${transcription.text.substring(0, 100)}..."`);
+      info(`  Sample text: "${transcriptionText.substring(0, 100)}..."`);
 
       // Generate summary
       info('Test 2: Generate meeting summary with GPT-4o');
@@ -371,7 +374,7 @@ Keep it concise (max 300 words).`;
         model: 'gpt-4o',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Summarize:\n\n${transcription.text.substring(0, 2000)}` }
+          { role: 'user', content: `Summarize:\n\n${transcriptionText.substring(0, 2000)}` }
         ],
         temperature: 0.7,
         max_tokens: 500,
@@ -380,7 +383,7 @@ Keep it concise (max 300 words).`;
       const summary = completion.choices[0].message.content;
       success(`  Generated summary (${summary.length} characters)`);
 
-      return { transcription: transcription.text, summary, chunked: false };
+      return { transcription: transcriptionText, summary, chunked: false };
     }
   } catch (err) {
     error(`Transcription test failed: ${err.message}`);
