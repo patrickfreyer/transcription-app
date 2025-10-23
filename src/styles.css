@@ -187,9 +187,6 @@ body.app-body {
   flex: 1;
   overflow-y: auto;
   background: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 40px 20px;
 }
 
@@ -198,6 +195,7 @@ body.app-body {
   animation: fadeIn 0.3s ease-out;
   width: 100%;
   max-width: 700px;
+  margin: 0 auto;
 }
 
 .view.active {
@@ -206,6 +204,11 @@ body.app-body {
 
 .view-container {
   width: 100%;
+}
+
+/* History view needs more width */
+#history-view {
+  max-width: 1000px;
 }
 
 /* About View Specific Styles */
