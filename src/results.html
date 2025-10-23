@@ -349,19 +349,38 @@
           fileName = localStorage.getItem('fileName');
           isDiarized = localStorage.getItem('isDiarized') === 'true';
 
+          // Ensure transcript exists before proceeding
+          if (!rawTranscript) {
+            summaryLoading.style.display = 'none';
+            summaryContent.style.display = 'block';
+            summaryContent.innerHTML = `
+              <div style="text-align: center; color: #ff3b30; padding: 40px 0;">
+                <strong>No transcript found</strong><br>
+                <span style="font-size: 14px;">Please transcribe an audio file first.</span>
+              </div>
+            `;
+            return;
+          }
+
           const parsed = parseVTT(rawTranscript);
           plainText = parsed.plain;
           timestampedText = parsed.timestamped;
-
-          // Generate summary automatically
-          await generateSummary();
         }
 
         if (fileName) {
           fileNameSubtitle.textContent = `File: ${fileName}`;
         }
 
+        // Display transcript first
         updateTranscriptDisplay();
+
+        // Then generate summary if this is a new transcription (not loaded from history)
+        if (!localStorage.getItem('loadTranscriptionId')) {
+          // Small delay to ensure UI is updated
+          setTimeout(() => {
+            generateSummary();
+          }, 100);
+        }
       }
 
       // Toggle timestamp
