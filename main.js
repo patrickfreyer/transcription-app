@@ -564,38 +564,23 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
           const transcriptionParams = {
             file: fs.createReadStream(chunkPath),
             model: model,
+            response_format: 'diarized_json',
+            chunking_strategy: 'auto',
           };
 
-          // Set response format and parameters based on model
-          if (model === 'whisper-1') {
-            transcriptionParams.response_format = 'vtt';
-            if (chunkPrompt) {
-              transcriptionParams.prompt = chunkPrompt;
-            }
-          } else if (model === 'gpt-4o-transcribe') {
-            transcriptionParams.response_format = 'json';
-            if (chunkPrompt) {
-              transcriptionParams.prompt = chunkPrompt;
-            }
-          } else if (model === 'gpt-4o-transcribe-diarize') {
-            transcriptionParams.response_format = 'diarized_json';
-            transcriptionParams.chunking_strategy = 'auto';
+          // Add speaker references if provided (only for first chunk)
+          if (speakers && speakers.length > 0 && i === 0) {
+            const speakerNames = [];
+            const speakerReferences = [];
 
-            // Add speaker references if provided
-            if (speakers && speakers.length > 0 && i === 0) {
-              // Only add speaker references for the first chunk
-              const speakerNames = [];
-              const speakerReferences = [];
-
-              for (const speaker of speakers) {
-                speakerNames.push(speaker.name);
-                const dataURL = fileToDataURL(speaker.path);
-                speakerReferences.push(dataURL);
-              }
-
-              transcriptionParams.known_speaker_names = speakerNames;
-              transcriptionParams.known_speaker_references = speakerReferences;
+            for (const speaker of speakers) {
+              speakerNames.push(speaker.name);
+              const dataURL = fileToDataURL(speaker.path);
+              speakerReferences.push(dataURL);
             }
+
+            transcriptionParams.known_speaker_names = speakerNames;
+            transcriptionParams.known_speaker_references = speakerReferences;
           }
 
           console.log(`[Transcription] Calling OpenAI API for chunk ${i + 1}...`);
