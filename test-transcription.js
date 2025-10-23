@@ -259,8 +259,8 @@ async function testTranscription(apiKey, testFile) {
         chunkDurations.push(duration);
       }
 
-      // Process each chunk with gpt-4o-transcribe
-      info('  Transcribing chunks with gpt-4o-transcribe...');
+      // Process each chunk with gpt-4o-transcribe-diarize
+      info('  Transcribing chunks with gpt-4o-transcribe-diarize...');
       const transcripts = [];
 
       for (let i = 0; i < chunkPaths.length; i++) {
@@ -269,17 +269,23 @@ async function testTranscription(apiKey, testFile) {
 
         const transcription = await openai.audio.transcriptions.create({
           file: fs.createReadStream(chunkPath),
-          model: 'gpt-4o-transcribe',
-          response_format: 'json',
+          model: 'gpt-4o-transcribe-diarize',
+          response_format: 'diarized_json',
+          chunking_strategy: 'auto',
         });
 
         transcripts.push(transcription);
       }
       console.log(''); // New line after progress
 
-      // Combine results
-      const combinedText = transcripts.map(t => t.text || '').join(' ');
-      const wordCount = combinedText.split(/\s+/).length;
+      // Combine results - extract text from segments
+      let combinedText = '';
+      for (const transcript of transcripts) {
+        if (transcript.segments) {
+          combinedText += transcript.segments.map(seg => seg.text || '').join(' ') + ' ';
+        }
+      }
+      const wordCount = combinedText.trim().split(/\s+/).length;
 
       success(`  Transcribed ${wordCount} words from ${chunkPaths.length} chunks`);
       info(`  Sample text: "${combinedText.substring(0, 100)}..."`);
