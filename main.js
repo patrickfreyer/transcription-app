@@ -644,6 +644,7 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         file: fs.createReadStream(processFilePath),
         model: model,
         response_format: 'diarized_json',
+        chunking_strategy: 'auto',
       };
 
       // Add speaker references if provided
