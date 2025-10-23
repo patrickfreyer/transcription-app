@@ -49,13 +49,24 @@ Download and run `Audio Transcription Setup 1.0.0.exe` or use the portable versi
    - Click to browse for a file, or
    - Switch to Record tab to record audio directly
 
-2. **Transcribe**
+2. **Choose Model & Options**
+   - Select between Standard Transcription or Speaker Identification
+   - Optionally add speaker reference clips (for speaker diarization)
+   - Add custom prompts for better accuracy on technical terms
+
+3. **Transcribe**
    - Click the "Transcribe" button
    - Wait for OpenAI to process your audio
+   - Automatically generates a meeting summary
 
-3. **View & Export**
-   - Toggle timestamps on/off
-   - Select export format (TXT, VTT, or SRT)
+4. **View Summary**
+   - Review AI-generated meeting summary with diagrams
+   - Save as markdown or open in Typora
+   - Switch to transcript view for detailed text
+
+5. **Export**
+   - Toggle timestamps on/off in transcript view
+   - Select export format (TXT, VTT, SRT, or MD)
    - Click "Save As..." to export
    - Or click "Copy" to copy to clipboard
 
