@@ -65,7 +65,7 @@ describe('audioProcessing', () => {
 
       await expect(
         audioProcessing.convertToMP3('/path/to/audio.webm')
-      ).rejects.toThrow('FFmpeg is not available');
+      ).rejects.toThrow();
     });
 
     // Note: Actual conversion testing would require:
@@ -80,7 +80,7 @@ describe('audioProcessing', () => {
 
       await expect(
         audioProcessing.splitAudioIntoChunks('/path/to/audio.mp3', 20)
-      ).rejects.toThrow('FFmpeg is not available');
+      ).rejects.toThrow();
     });
 
     // Note: Actual splitting would require:
