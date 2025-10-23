@@ -6,11 +6,25 @@ A simple, sleek, and beautifully elegant desktop application for transcribing au
 
 ## Features
 
+### Transcription
 - **Drag-and-drop audio file upload** - Support for MP3, WAV, M4A, WEBM, MP4 formats
 - **Direct audio recording** - Record audio directly in the app
-- **OpenAI Whisper API integration** - High-quality transcription powered by OpenAI
+- **Multiple transcription models** - Choose between standard transcription or speaker identification
+- **Speaker diarization** - Automatically identify and label different speakers
+- **Large file support** - Automatically chunks and processes files larger than 25MB
+- **Context-aware transcription** - Add custom prompts to improve accuracy for technical terms, names, and industry jargon
+
+### Meeting Summaries (NEW!)
+- **Automatic summary generation** - AI-powered meeting summaries using GPT-4o
+- **Mermaid.js diagrams** - Automatically generates flowcharts and process diagrams where relevant
+- **BCG-style formatting** - Professional, concise summaries perfect for business contexts
+- **Multiple sections** - Overview, Key Topics, Action Items, and Executive Summary
+- **Markdown export** - Save summaries as beautifully formatted markdown files
+- **Typora integration** - One-click save and open in Typora
+
+### Export & Display
 - **Timestamp toggle** - View transcripts with or without timestamps
-- **Multiple export formats** - Save as Plain Text (.txt), WebVTT (.vtt), or SubRip (.srt)
+- **Multiple export formats** - Save as Plain Text (.txt), WebVTT (.vtt), SubRip (.srt), or Markdown (.md)
 - **Apple-inspired design** - Flat, minimal, and elegant interface
 - **Cross-platform** - Works on macOS and Windows
 
