@@ -141,9 +141,9 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 700,
-    minWidth: 700,
+    width: 1200,
+    height: 800,
+    minWidth: 900,
     minHeight: 600,
     title: 'Audio Transcription',
     webPreferences: {
@@ -152,16 +152,11 @@ function createWindow() {
       contextIsolation: true,
     },
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fbfbfd',
   });
 
-  // Check if API key exists, otherwise show setup
-  const apiKey = global.apiKey || null;
-  if (!apiKey) {
-    mainWindow.loadFile('src/setup.html');
-  } else {
-    mainWindow.loadFile('src/upload.html');
-  }
+  // Load the new app with sidebar
+  mainWindow.loadFile('src/app.html');
 
   // Open DevTools in development
   // mainWindow.webContents.openDevTools();
