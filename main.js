@@ -113,6 +113,9 @@ try {
   ffmpeg.setFfmpegPath(ffmpegPath);
   ffmpeg.setFfprobePath(ffprobePath);
 
+  // Initialize audio processing service with FFmpeg paths
+  audioProcessing.initializeFFmpeg({ ffmpegPath, ffprobePath });
+
   ffmpegAvailable = true;
   console.log('✓ FFmpeg fully configured and available');
   console.log('=================================');
