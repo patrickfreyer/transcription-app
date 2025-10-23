@@ -252,14 +252,20 @@
 
         const htmlContent = marked.parse(markdown);
         summaryContent.innerHTML = htmlContent;
+        summaryContent.style.display = 'block';
 
         if (window.mermaid) {
           try {
-            const mermaidBlocks = summaryContent.querySelectorAll('pre code.language-mermaid');
+            // Look for mermaid code blocks with various class names
+            const mermaidBlocks = summaryContent.querySelectorAll('pre code.language-mermaid, pre code[class*="mermaid"]');
+
+            console.log(`Found ${mermaidBlocks.length} mermaid blocks`);
 
             for (let i = 0; i < mermaidBlocks.length; i++) {
               const block = mermaidBlocks[i];
               const code = block.textContent;
+
+              console.log(`Rendering mermaid diagram ${i + 1}:`, code.substring(0, 50));
 
               const container = document.createElement('div');
               container.className = 'mermaid-container';
@@ -267,11 +273,20 @@
 
               block.parentElement.replaceWith(container);
 
-              const { svg } = await window.mermaid.render(`mermaid-diagram-${i}`, code);
-              container.innerHTML = svg;
+              try {
+                const { svg } = await window.mermaid.render(`mermaid-diagram-${i}`, code);
+                container.innerHTML = svg;
+              } catch (renderError) {
+                console.error(`Error rendering mermaid diagram ${i}:`, renderError);
+                // Show the code block if rendering fails
+                container.innerHTML = `<pre><code>${code}</code></pre>`;
+                container.style.background = '#fff3cd';
+                container.style.padding = '10px';
+                container.style.borderRadius = '5px';
+              }
             }
           } catch (error) {
-            console.error('Error rendering mermaid diagrams:', error);
+            console.error('Error in mermaid rendering:', error);
           }
         }
       }
