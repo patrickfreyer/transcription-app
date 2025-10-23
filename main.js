@@ -165,22 +165,30 @@ async function convertToMP3(filePath) {
 // Helper function to split audio into chunks
 async function splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
   try {
+    console.log('[Chunking] Starting audio split process...');
     const stats = fs.statSync(filePath);
     const fileSizeInMB = stats.size / (1024 * 1024);
+    console.log(`[Chunking] File size: ${fileSizeInMB.toFixed(2)}MB`);
 
     // If file is small enough, return the original file
     if (fileSizeInMB <= 25) {
+      console.log('[Chunking] File is small enough, no splitting needed');
       return [filePath];
     }
 
+    console.log('[Chunking] Getting audio duration...');
     const duration = await getAudioDuration(filePath);
+    console.log(`[Chunking] Audio duration: ${duration.toFixed(2)}s`);
+
     const tempDir = os.tmpdir();
     const chunksDir = path.join(tempDir, `chunks-${Date.now()}`);
     fs.mkdirSync(chunksDir, { recursive: true });
+    console.log(`[Chunking] Created chunks directory: ${chunksDir}`);
 
     // Calculate chunk duration based on file size and desired chunk size
     const chunkDuration = Math.floor((duration * chunkSizeInMB) / fileSizeInMB);
     const numChunks = Math.ceil(duration / chunkDuration);
+    console.log(`[Chunking] Will create ${numChunks} chunks of ~${chunkDuration}s each`);
 
     const chunkPaths = [];
 
@@ -188,6 +196,7 @@ async function splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
     for (let i = 0; i < numChunks; i++) {
       const startTime = i * chunkDuration;
       const chunkPath = path.join(chunksDir, `chunk-${i}.mp3`);
+      console.log(`[Chunking] Creating chunk ${i + 1}/${numChunks} starting at ${startTime}s...`);
 
       await new Promise((resolve, reject) => {
         ffmpeg(filePath)
@@ -196,16 +205,25 @@ async function splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
           .output(chunkPath)
           .audioCodec('libmp3lame')
           .audioBitrate('128k')
-          .on('end', () => resolve())
-          .on('error', (err) => reject(err))
+          .on('end', () => {
+            const chunkStats = fs.statSync(chunkPath);
+            console.log(`[Chunking] Chunk ${i + 1} created: ${(chunkStats.size / (1024 * 1024)).toFixed(2)}MB`);
+            resolve();
+          })
+          .on('error', (err) => {
+            console.error(`[Chunking] Error creating chunk ${i + 1}:`, err);
+            reject(err);
+          })
           .run();
       });
 
       chunkPaths.push(chunkPath);
     }
 
+    console.log(`[Chunking] Successfully created ${chunkPaths.length} chunks`);
     return chunkPaths;
   } catch (error) {
+    console.error('[Chunking] Failed to split audio:', error);
     throw new Error(`Failed to split audio: ${error.message}`);
   }
 }
