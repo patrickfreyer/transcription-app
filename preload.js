@@ -23,6 +23,15 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('transcription-progress', (event, data) => callback(data));
   },
 
+  // Meeting Summary
+  generateMeetingSummary: (transcript, fileName, apiKey) =>
+    ipcRenderer.invoke('generate-meeting-summary', transcript, fileName, apiKey),
+  saveSummary: (content, fileName, openInTypora) =>
+    ipcRenderer.invoke('save-summary', content, fileName, openInTypora),
+  onSummaryProgress: (callback) => {
+    ipcRenderer.on('summary-progress', (event, data) => callback(data));
+  },
+
   // Clipboard
   copyToClipboard: (text) => {
     navigator.clipboard.writeText(text);
