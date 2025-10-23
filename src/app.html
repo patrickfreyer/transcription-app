@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Audio Transcription</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="app-body">
+    <!-- App Container with Sidebar -->
+    <div class="app-container">
+      <!-- Sidebar -->
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2 class="sidebar-title">Audio Transcription</h2>
+          <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+            <span class="toggle-icon"></span>
+          </button>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="sidebar-item active" data-view="transcribe">
+            <span class="sidebar-icon">🎤</span>
+            <span class="sidebar-label">Transcribe</span>
+          </button>
+          <button class="sidebar-item" data-view="history">
+            <span class="sidebar-icon">📝</span>
+            <span class="sidebar-label">History</span>
+          </button>
+          <button class="sidebar-item" data-view="settings">
+            <span class="sidebar-icon">⚙️</span>
+            <span class="sidebar-label">Settings</span>
+          </button>
+          <button class="sidebar-item" data-view="about">
+            <span class="sidebar-icon">ℹ️</span>
+            <span class="sidebar-label">About</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="main-content" id="main-content">
+        <!-- Transcribe View -->
+        <div class="view active" id="transcribe-view">
+          <div class="view-container">
+            <h1>Audio Transcription</h1>
+            <p class="subtitle">Upload a file or record audio directly.</p>
+
+            <!-- Tab Switcher -->
+            <div class="tab-switcher">
+              <button class="tab-btn active" id="upload-tab" data-mode="upload">
+                Upload File
+              </button>
+              <button class="tab-btn" id="record-tab" data-mode="record">
+                Record Audio
+              </button>
+            </div>
+
+            <div class="error-message" id="error-message"></div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container" id="progress-container">
+              <div class="progress-bar">
+                <div class="progress-fill"></div>
+              </div>
+              <div class="progress-text">Transcribing your audio... This may take a moment.</div>
+            </div>
+
+            <!-- Upload Mode -->
+            <div id="upload-mode" class="mode-container">
+              <div class="drop-zone" id="drop-zone">
+                <div class="drop-text">Drop audio file here or click to browse</div>
+                <div class="drop-subtext">Supports MP3, WAV, M4A, WEBM, MP4 • Large files supported</div>
+                <input
+                  type="file"
+                  id="file-input"
+                  accept=".mp3,.wav,.m4a,.webm,.mp4,.mpeg,.mpga"
+                  style="display: none"
+                />
+              </div>
+
+              <div class="file-info" id="file-info">
+                <div class="file-name" id="file-name"></div>
+                <div class="file-size" id="file-size"></div>
+              </div>
+            </div>
+
+            <!-- Record Mode -->
+            <div id="record-mode" class="mode-container" style="display: none">
+              <div class="record-container">
+                <div class="record-visualizer" id="record-visualizer">
+                  <div class="record-status" id="record-status">Ready to record</div>
+                  <div class="record-timer" id="record-timer">00:00</div>
+                </div>
+
+                <div class="record-controls">
+                  <button class="record-btn" id="start-record-btn">
+                    <span class="record-dot"></span>
+                    Record
+                  </button>
+                  <button class="record-btn secondary" id="stop-record-btn" style="display: none">
+                    <span class="stop-icon"></span>
+                    Stop
+                  </button>
+                </div>
+              </div>
+
+              <div class="file-info" id="recording-info" style="display: none">
+                <div class="file-name" id="recording-name">Recording.webm</div>
+                <div class="file-size" id="recording-size"></div>
+              </div>
+            </div>
+
+            <!-- Model Selection -->
+            <div class="model-selection" id="model-selection" style="display: none">
+              <div class="model-option">
+                <input type="radio" id="model-fast" name="model" value="gpt-4o-transcribe" checked />
+                <label for="model-fast">
+                  <div class="model-label">
+                    <span class="model-title">⚡ Fast Transcription</span>
+                    <span class="model-speed">~15 seconds per 10 minutes</span>
+                  </div>
+                  <div class="model-description">High-quality transcription without speaker identification</div>
+                </label>
+              </div>
+              <div class="model-option">
+                <input type="radio" id="model-diarize" name="model" value="gpt-4o-transcribe-diarize" />
+                <label for="model-diarize">
+                  <div class="model-label">
+                    <span class="model-title">🎤 Speaker Identification</span>
+                    <span class="model-speed">Takes 10-20 minutes for large files</span>
+                  </div>
+                  <div class="model-description">Identifies who is speaking with diarization (slower processing)</div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Speaker References Section -->
+            <div class="speaker-section" id="speaker-section" style="display: none">
+              <div class="speaker-header" id="speaker-header">
+                <div class="speaker-header-content">
+                  <span class="speaker-title">Known Speakers</span>
+                  <span class="speaker-subtitle">Optional - Upload 2-10 second clips</span>
+                </div>
+                <span class="speaker-chevron" id="speaker-chevron">▼</span>
+              </div>
+              <div class="speaker-body" id="speaker-body">
+                <div class="speaker-list" id="speaker-list">
+                  <!-- Speaker reference items will be added here dynamically -->
+                </div>
+                <button class="btn-add-speaker" id="add-speaker-btn">+ Add Speaker</button>
+                <div class="speaker-hint">Upload short audio clips (2-10 seconds) to identify specific speakers by name</div>
+                <input type="file" id="speaker-input" accept=".mp3,.wav,.m4a,.webm,.mp4,.mpeg,.mpga" style="display: none" />
+              </div>
+            </div>
+
+            <button class="btn" id="transcribe-btn" style="display: none">
+              Transcribe
+            </button>
+          </div>
+        </div>
+
+        <!-- History View -->
+        <div class="view" id="history-view" style="display: none">
+          <div class="view-container">
+            <h1>Transcription History</h1>
+            <p class="subtitle">View and manage your past transcriptions.</p>
+
+            <div class="history-section" id="history-section-main">
+              <div class="history-gallery" id="history-gallery-main">
+                <!-- History cards will be inserted here -->
+              </div>
+              <div class="history-empty" id="history-empty-main">
+                <div class="history-empty-icon">📝</div>
+                <div class="history-empty-text">No transcriptions yet</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings View -->
+        <div class="view" id="settings-view" style="display: none">
+          <div class="view-container">
+            <h1>Settings</h1>
+            <p class="subtitle">Manage your API key and preferences.</p>
+
+            <div class="error-message" id="settings-error-message"></div>
+            <div class="loading" id="settings-loading">Validating API key...</div>
+
+            <form id="settings-form">
+              <div class="input-group">
+                <label for="settings-api-key">OpenAI API Key</label>
+                <input
+                  type="password"
+                  id="settings-api-key"
+                  placeholder="sk-..."
+                  required
+                  autocomplete="off"
+                />
+              </div>
+
+              <button type="submit" class="btn" id="settings-submit-btn">Save Changes</button>
+            </form>
+
+            <p style="text-align: center; margin-top: 20px; color: #86868b; font-size: 13px;">
+              Your API key is stored locally and never shared.
+            </p>
+          </div>
+        </div>
+
+        <!-- About View -->
+        <div class="view" id="about-view" style="display: none">
+          <div class="view-container">
+            <h1>About</h1>
+            <p class="subtitle">Audio transcription app using OpenAI Whisper API</p>
+
+            <div class="about-content">
+              <div class="about-section">
+                <h3>Features</h3>
+                <ul class="about-list">
+                  <li>✨ High-quality transcription using OpenAI's Whisper model</li>
+                  <li>🎤 Record audio directly or upload files</li>
+                  <li>👥 Speaker identification (diarization) support</li>
+                  <li>📊 Automatic meeting summaries with AI</li>
+                  <li>💾 Transcription history and management</li>
+                  <li>📦 Support for large audio files (>25MB)</li>
+                  <li>📝 Export in multiple formats (TXT, VTT, SRT)</li>
+                </ul>
+              </div>
+
+              <div class="about-section">
+                <h3>Version</h3>
+                <p class="about-version">v1.4.0</p>
+              </div>
+
+              <div class="about-section">
+                <h3>Supported Formats</h3>
+                <p class="about-text">MP3, WAV, M4A, WEBM, MP4, MPEG, MPGA</p>
+              </div>
+
+              <div class="about-section">
+                <h3>Technology</h3>
+                <p class="about-text">
+                  Built with Electron and powered by OpenAI's Whisper API.
+                  Uses FFmpeg for audio processing and supports multiple transcription models.
+                </p>
+              </div>
+            </div>
+
+            <footer class="attribution">
+              Created by <a href="https://patrickfreyer.com" target="_blank">Patrick C. Freyer</a>
+              <br>
+              <a href="mailto:freyer.patrick@bcg.com">freyer.patrick@bcg.com</a>
+            </footer>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
