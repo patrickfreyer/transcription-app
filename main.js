@@ -588,6 +588,8 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
 
         // Transcribe chunk
         try {
+          console.log(`[Transcription] Starting chunk ${i + 1}/${chunkPaths.length} with model: ${model}`);
+
           const transcriptionParams = {
             file: fs.createReadStream(chunkPath),
             model: model,
@@ -625,10 +627,12 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
             }
           }
 
+          console.log(`[Transcription] Calling OpenAI API for chunk ${i + 1}...`);
           const transcription = await openai.audio.transcriptions.create(transcriptionParams);
+          console.log(`[Transcription] Chunk ${i + 1} completed successfully`);
           transcripts.push(transcription);
         } catch (error) {
-          console.error(`Error transcribing chunk ${i + 1}:`, error);
+          console.error(`[Transcription] Error transcribing chunk ${i + 1}:`, error);
           // Add empty transcript for failed chunk
           transcripts.push(model === 'whisper-1' ? '' : { text: '' });
         }
