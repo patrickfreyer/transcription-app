@@ -436,7 +436,8 @@
                 // Display recording info
                 recordingSize.textContent = formatFileSize(audioBlob.size);
                 recordingInfo.style.display = 'block';
-                speakerSection.style.display = 'block';
+                modelSelection.style.display = 'flex';
+                updateModelDisplay();
                 transcribeBtn.style.display = 'block';
 
                 // Reset UI
