@@ -660,9 +660,21 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
           });
 
           console.log(`[Transcription] Calling OpenAI API for chunk ${i + 1}...`);
+          console.log(`[Transcription] Note: Diarization can take 10-30 minutes for long audio`);
           const startTime = Date.now();
 
-          const transcription = await openai.audio.transcriptions.create(transcriptionParams);
+          // Add a keepalive timer to show progress
+          const keepAliveInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            console.log(`[Transcription] Still waiting for API response... ${elapsed}s elapsed`);
+          }, 10000); // Log every 10 seconds
+
+          let transcription;
+          try {
+            transcription = await openai.audio.transcriptions.create(transcriptionParams);
+          } finally {
+            clearInterval(keepAliveInterval);
+          }
 
           const duration = ((Date.now() - startTime) / 1000).toFixed(2);
           console.log(`[Transcription] API call completed in ${duration}s`);
