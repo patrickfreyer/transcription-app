@@ -49,6 +49,7 @@ body.app-body {
 
 .sidebar-header {
   padding: 20px;
+  padding-top: 52px; /* Space for macOS traffic lights */
   border-bottom: 1px solid #d2d2d7;
   display: flex;
   align-items: center;
