@@ -374,7 +374,8 @@
         fileName.textContent = file.name;
         fileSize.textContent = formatFileSize(file.size);
         fileInfo.classList.add('show');
-        speakerSection.style.display = 'block';
+        modelSelection.style.display = 'flex';
+        updateModelDisplay();
         transcribeBtn.style.display = 'block';
       }
 
