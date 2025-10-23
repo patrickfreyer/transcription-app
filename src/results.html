@@ -588,6 +588,19 @@
         }
       });
 
+      // Back to history
+      backToHistoryBtn.addEventListener('click', () => {
+        localStorage.removeItem('transcript');
+        localStorage.removeItem('fileName');
+        localStorage.removeItem('isDiarized');
+        localStorage.removeItem('transcriptModel');
+        localStorage.removeItem('transcriptInfo');
+        localStorage.removeItem('meetingSummary');
+        localStorage.removeItem('loadTranscriptionId');
+        localStorage.setItem('openView', 'history');
+        window.electron.navigate('app');
+      });
+
       // New transcription
       newTranscriptionBtn.addEventListener('click', () => {
         localStorage.removeItem('transcript');
