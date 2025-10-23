@@ -1018,39 +1018,57 @@ ipcMain.handle('save-summary', async (event, content, fileName, openInTypora = f
 // Save transcription and summary to app data
 ipcMain.handle('save-transcription-history', async (event, data) => {
   try {
-    const { fileName, transcript, summary, isDiarized, model } = data;
+    const { id, fileName, transcript, summary, isDiarized, model } = data;
 
-    // Create unique ID based on timestamp
-    const timestamp = Date.now();
-    const id = `${timestamp}`;
+    // Use existing ID or create new one
+    const transcriptionId = id || `${Date.now()}`;
+    const transcriptionDir = path.join(APP_DATA_DIR, transcriptionId);
 
-    // Create directory for this transcription
-    const transcriptionDir = path.join(APP_DATA_DIR, id);
-    fs.mkdirSync(transcriptionDir, { recursive: true });
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(transcriptionDir)) {
+      fs.mkdirSync(transcriptionDir, { recursive: true });
+    }
 
-    // Save metadata
-    const metadata = {
-      id,
-      fileName,
-      timestamp,
-      date: new Date(timestamp).toISOString(),
-      isDiarized,
-      model,
-      transcriptPreview: transcript.substring(0, 200),
-    };
+    // Load existing metadata if updating, otherwise create new
+    let metadata;
+    const metadataPath = path.join(transcriptionDir, 'metadata.json');
+
+    if (fs.existsSync(metadataPath)) {
+      // Updating existing transcription
+      metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+      // Update fields that may have changed
+      if (summary !== undefined) {
+        metadata.hasSummary = true;
+      }
+    } else {
+      // Creating new transcription
+      const timestamp = Date.now();
+      metadata = {
+        id: transcriptionId,
+        fileName,
+        timestamp,
+        date: new Date(timestamp).toISOString(),
+        isDiarized,
+        model,
+        transcriptPreview: transcript.substring(0, 200),
+        hasSummary: !!summary,
+      };
+    }
 
     fs.writeFileSync(
-      path.join(transcriptionDir, 'metadata.json'),
+      metadataPath,
       JSON.stringify(metadata, null, 2),
       'utf8'
     );
 
-    // Save transcript
-    fs.writeFileSync(
-      path.join(transcriptionDir, 'transcript.txt'),
-      transcript,
-      'utf8'
-    );
+    // Save transcript if provided
+    if (transcript) {
+      fs.writeFileSync(
+        path.join(transcriptionDir, 'transcript.txt'),
+        transcript,
+        'utf8'
+      );
+    }
 
     // Save summary if provided
     if (summary) {
@@ -1063,7 +1081,7 @@ ipcMain.handle('save-transcription-history', async (event, data) => {
 
     return {
       success: true,
-      id,
+      id: transcriptionId,
     };
   } catch (error) {
     console.error('Error saving transcription history:', error);
