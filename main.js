@@ -602,39 +602,26 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         });
       }
 
-      // Combine transcripts based on model
-      let combinedTranscript;
-      let isDiarized = false;
+      // Combine diarized transcripts with time offset
+      let allSegments = [];
+      let timeOffset = 0;
 
-      if (model === 'whisper-1') {
-        combinedTranscript = combineVTTTranscripts(transcripts, chunkDurations);
-      } else if (model === 'gpt-4o-transcribe') {
-        // Combine JSON transcripts
-        const combinedText = transcripts.map(t => t.text || '').join(' ');
-        combinedTranscript = jsonToVTT({ text: combinedText });
-      } else if (model === 'gpt-4o-transcribe-diarize') {
-        // Combine diarized transcripts with time offset
-        let allSegments = [];
-        let timeOffset = 0;
-
-        for (let i = 0; i < transcripts.length; i++) {
-          const transcript = transcripts[i];
-          if (transcript.segments) {
-            const offsetSegments = transcript.segments.map(seg => ({
-              ...seg,
-              start: seg.start + timeOffset,
-              end: seg.end + timeOffset
-            }));
-            allSegments = allSegments.concat(offsetSegments);
-          }
-          if (i < chunkDurations.length) {
-            timeOffset += chunkDurations[i];
-          }
+      for (let i = 0; i < transcripts.length; i++) {
+        const transcript = transcripts[i];
+        if (transcript.segments) {
+          const offsetSegments = transcript.segments.map(seg => ({
+            ...seg,
+            start: seg.start + timeOffset,
+            end: seg.end + timeOffset
+          }));
+          allSegments = allSegments.concat(offsetSegments);
         }
-
-        combinedTranscript = diarizedJsonToVTT({ segments: allSegments });
-        isDiarized = true;
+        if (i < chunkDurations.length) {
+          timeOffset += chunkDurations[i];
+        }
       }
+
+      const combinedTranscript = diarizedJsonToVTT({ segments: allSegments });
 
       // Clean up chunks
       cleanupChunks(chunkPaths);
