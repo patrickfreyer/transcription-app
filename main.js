@@ -534,9 +534,10 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
   let chunkPaths = [];
   let convertedFilePath = null;
 
-  // Always use diarized model
-  const model = 'gpt-4o-transcribe-diarize';
+  // Get model from options or default to diarized model
+  const model = options?.model || 'gpt-4o-transcribe-diarize';
   const speakers = options?.speakers || null;
+  const isDiarizeModel = model === 'gpt-4o-transcribe-diarize';
 
   try {
     const openai = new OpenAI({ apiKey });
