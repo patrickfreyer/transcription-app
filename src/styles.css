@@ -17,6 +17,256 @@ body {
   padding: 40px 20px;
 }
 
+/* App Layout with Sidebar */
+body.app-body {
+  padding: 0;
+  display: block;
+  background: #fbfbfd;
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* ==================== SIDEBAR ==================== */
+
+.sidebar {
+  width: 240px;
+  background: #f5f5f7;
+  border-right: 1px solid #d2d2d7;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease, transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.sidebar.collapsed {
+  width: 80px;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid #d2d2d7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  -webkit-app-region: drag;
+}
+
+.sidebar-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1d1d1f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar.collapsed .sidebar-title {
+  opacity: 0;
+  width: 0;
+}
+
+.sidebar-toggle {
+  background: transparent;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+}
+
+.sidebar-toggle:hover {
+  background: #e8e8ed;
+}
+
+.toggle-icon {
+  width: 16px;
+  height: 2px;
+  background: #1d1d1f;
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.toggle-icon::before,
+.toggle-icon::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 2px;
+  background: #1d1d1f;
+  left: 0;
+  transition: transform 0.3s ease;
+}
+
+.toggle-icon::before {
+  top: -5px;
+}
+
+.toggle-icon::after {
+  top: 5px;
+}
+
+.sidebar.collapsed .toggle-icon {
+  transform: rotate(180deg);
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 16px 12px;
+  overflow-y: auto;
+}
+
+.sidebar-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #6e6e73;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  margin-bottom: 4px;
+}
+
+.sidebar-item:hover {
+  background: #e8e8ed;
+  color: #1d1d1f;
+}
+
+.sidebar-item.active {
+  background: #007aff;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+.sidebar-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.sidebar-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar.collapsed .sidebar-label {
+  opacity: 0;
+  width: 0;
+}
+
+.sidebar.collapsed .sidebar-item {
+  justify-content: center;
+  padding: 12px;
+}
+
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.view {
+  display: none;
+  animation: fadeIn 0.3s ease-out;
+  width: 100%;
+  max-width: 700px;
+}
+
+.view.active {
+  display: block;
+}
+
+.view-container {
+  width: 100%;
+}
+
+/* About View Specific Styles */
+.about-content {
+  margin-top: 24px;
+}
+
+.about-section {
+  margin-bottom: 32px;
+}
+
+.about-section h3 {
+  color: #1d1d1f;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.about-list {
+  list-style: none;
+  padding: 0;
+}
+
+.about-list li {
+  color: #6e6e73;
+  font-size: 15px;
+  line-height: 1.8;
+  padding: 6px 0;
+}
+
+.about-version {
+  color: #007aff;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.about-text {
+  color: #6e6e73;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* Responsive Sidebar */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100%;
+    z-index: 1000;
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+}
+
 .container {
   background: white;
   padding: 0 40px 32px 40px;
