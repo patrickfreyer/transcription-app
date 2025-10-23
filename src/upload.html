@@ -347,14 +347,7 @@
         fileName.textContent = file.name;
         fileSize.textContent = formatFileSize(file.size);
         fileInfo.classList.add('show');
-        modelSection.style.display = 'block';
-
-        // Show prompt section only if standard model is selected
-        const selectedModel = document.querySelector('input[name="model"]:checked').value;
-        if (selectedModel === 'gpt-4o-transcribe') {
-          promptSection.style.display = 'block';
-        }
-
+        speakerSection.style.display = 'block';
         transcribeBtn.style.display = 'block';
       }
 
