@@ -775,7 +775,7 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         transcript: combinedTranscript,
         chunked: true,
         totalChunks: chunkPaths.length,
-        isDiarized: true,
+        isDiarized: isDiarizeModel,
       };
     } else {
       // File is small enough, process normally
