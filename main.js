@@ -600,7 +600,14 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
 
         // Transcribe chunk
         try {
-          console.log(`[Transcription] Starting chunk ${i + 1}/${chunkPaths.length} with model: ${model}`);
+          console.log(`[Transcription] ========================================`);
+          console.log(`[Transcription] Starting chunk ${i + 1}/${chunkPaths.length}`);
+          console.log(`[Transcription] Chunk path: ${chunkPath}`);
+
+          // Check chunk file
+          const chunkStats = fs.statSync(chunkPath);
+          console.log(`[Transcription] Chunk size: ${(chunkStats.size / (1024 * 1024)).toFixed(2)}MB`);
+          console.log(`[Transcription] Chunk exists: ${fs.existsSync(chunkPath)}`);
 
           const transcriptionParams = {
             file: fs.createReadStream(chunkPath),
@@ -611,6 +618,7 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
 
           // Add speaker references if provided (only for first chunk)
           if (speakers && speakers.length > 0 && i === 0) {
+            console.log(`[Transcription] Adding speaker references for chunk 1`);
             const speakerNames = [];
             const speakerReferences = [];
 
@@ -622,14 +630,50 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
 
             transcriptionParams.known_speaker_names = speakerNames;
             transcriptionParams.known_speaker_references = speakerReferences;
+            console.log(`[Transcription] Added ${speakerNames.length} speaker references`);
           }
 
+          console.log(`[Transcription] API parameters:`, {
+            model: transcriptionParams.model,
+            response_format: transcriptionParams.response_format,
+            chunking_strategy: transcriptionParams.chunking_strategy,
+            has_speaker_names: !!transcriptionParams.known_speaker_names,
+            speaker_count: transcriptionParams.known_speaker_names?.length || 0
+          });
+
           console.log(`[Transcription] Calling OpenAI API for chunk ${i + 1}...`);
+          const startTime = Date.now();
+
           const transcription = await openai.audio.transcriptions.create(transcriptionParams);
+
+          const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+          console.log(`[Transcription] API call completed in ${duration}s`);
+          console.log(`[Transcription] Response has segments: ${!!transcription.segments}`);
+          console.log(`[Transcription] Segment count: ${transcription.segments?.length || 0}`);
+
+          if (transcription.segments && transcription.segments.length > 0) {
+            console.log(`[Transcription] First segment preview:`, {
+              speaker: transcription.segments[0].speaker,
+              text: transcription.segments[0].text?.substring(0, 50) + '...',
+              start: transcription.segments[0].start,
+              end: transcription.segments[0].end
+            });
+          }
+
           console.log(`[Transcription] Chunk ${i + 1} completed successfully`);
           transcripts.push(transcription);
         } catch (error) {
-          console.error(`[Transcription] Error transcribing chunk ${i + 1}:`, error);
+          console.error(`[Transcription] ========================================`);
+          console.error(`[Transcription] ERROR on chunk ${i + 1}:`, {
+            message: error.message,
+            status: error.status,
+            type: error.type,
+            code: error.code,
+            param: error.param
+          });
+          console.error(`[Transcription] Full error:`, error);
+          console.error(`[Transcription] ========================================`);
+
           // Add empty transcript for failed chunk
           transcripts.push({ segments: [] });
         }
