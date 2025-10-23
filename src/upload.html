@@ -448,51 +448,7 @@
         return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
       }
 
-      // ==================== PROMPT SECTION ====================
-
-      // Toggle prompt section
-      promptHeader.addEventListener('click', () => {
-        isPromptExpanded = !isPromptExpanded;
-        promptBody.classList.toggle('expanded', isPromptExpanded);
-        promptChevron.classList.toggle('expanded', isPromptExpanded);
-      });
-
-      // Update character counter
-      function updatePromptCounter() {
-        const length = promptTextarea.value.length;
-        const maxChars = 560; // Approximate for 224 tokens
-        const warningThreshold = 500;
-
-        promptCounter.textContent = `${length} / ~${maxChars} chars`;
-
-        promptCounter.classList.remove('warning', 'error');
-        if (length > maxChars) {
-          promptCounter.classList.add('error');
-        } else if (length > warningThreshold) {
-          promptCounter.classList.add('warning');
-        }
-      }
-
-      promptTextarea.addEventListener('input', updatePromptCounter);
-
-      // Show/hide examples
-      showExamplesLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        const isVisible = promptExamples.classList.contains('show');
-        promptExamples.classList.toggle('show', !isVisible);
-        showExamplesLink.textContent = isVisible ? 'Show examples' : 'Hide examples';
-      });
-
-      // Use example prompts
-      promptExampleElements.forEach(example => {
-        example.addEventListener('click', () => {
-          const promptText = example.getAttribute('data-prompt').replace(/&#10;/g, '\n');
-          promptTextarea.value = promptText;
-          updatePromptCounter();
-          promptExamples.classList.remove('show');
-          showExamplesLink.textContent = 'Show examples';
-        });
-      });
+      // ==================== TRANSCRIPTION ====================
 
       // Listen for progress updates
       const progressText = document.querySelector('.progress-text');
