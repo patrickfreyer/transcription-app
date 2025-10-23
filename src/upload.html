@@ -666,8 +666,8 @@
               localStorage.setItem('isDiarized', 'true');
             }
 
-            // Navigate to summary screen (which will auto-generate summary)
-            window.electron.navigate('summary');
+            // Navigate to results screen (which will show combined view and auto-generate summary)
+            window.electron.navigate('results');
           } else {
             throw new Error(result.error);
           }
