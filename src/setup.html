@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Setup - Audio Transcription</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Audio Transcription</h1>
+      <p class="subtitle">Enter your OpenAI API key to get started.</p>
+
+      <div class="error-message" id="error-message"></div>
+      <div class="loading" id="loading">Validating API key...</div>
+
+      <form id="setup-form">
+        <div class="input-group">
+          <label for="api-key">OpenAI API Key</label>
+          <input
+            type="password"
+            id="api-key"
+            placeholder="sk-..."
+            required
+            autocomplete="off"
+          />
+        </div>
+
+        <button type="submit" class="btn" id="submit-btn">Continue</button>
+      </form>
+
+      <p style="text-align: center; margin-top: 20px; color: #86868b; font-size: 13px;">
+        Your API key is stored locally and never shared.
+      </p>
+
+      <footer class="attribution">
+        Created by <a href="https://patrickfreyer.com" target="_blank">Patrick C. Freyer</a>
+        <br>
+        <a href="mailto:freyer.patrick@bcg.com">freyer.patrick@bcg.com</a>
+      </footer>
+    </div>
+
+    <script>
+      const form = document.getElementById('setup-form');
+      const apiKeyInput = document.getElementById('api-key');
+      const errorMessage = document.getElementById('error-message');
+      const loading = document.getElementById('loading');
+      const submitBtn = document.getElementById('submit-btn');
+
+      // Check if API key already exists
+      window.electron.getApiKey().then((apiKey) => {
+        if (apiKey) {
+          apiKeyInput.value = apiKey;
+        }
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const apiKey = apiKeyInput.value.trim();
+
+        // Basic validation
+        if (!apiKey.startsWith('sk-')) {
+          errorMessage.textContent =
+            'Invalid API key format. OpenAI API keys start with "sk-"';
+          errorMessage.classList.add('show');
+          return;
+        }
+
+        // Clear any previous errors and show loading
+        errorMessage.classList.remove('show');
+        loading.classList.add('show');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Validating...';
+
+        try {
+          // Validate API key with OpenAI
+          const validationResult = await window.electron.validateApiKey(apiKey);
+
+          if (validationResult.success) {
+            // API key is valid, save it
+            await window.electron.saveApiKey(apiKey);
+
+            // Brief success feedback before navigating
+            submitBtn.textContent = '✓ Valid!';
+            submitBtn.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+
+            setTimeout(() => {
+              // Navigate to upload screen
+              window.electron.navigate('upload');
+            }, 500);
+          } else {
+            // Validation failed
+            throw new Error(validationResult.error);
+          }
+        } catch (error) {
+          // Show error message
+          errorMessage.textContent = error.message || 'Failed to validate API key';
+          errorMessage.classList.add('show');
+          loading.classList.remove('show');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Continue';
+        }
+      });
+    </script>
+  </body>
+</html>

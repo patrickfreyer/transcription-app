@@ -1,0 +1,86 @@
+/**
+ * Custom Title Bar (Windows only)
+ */
+
+.custom-title-bar {
+  display: none; /* Hidden by default (macOS) */
+  justify-content: space-between;
+  align-items: center;
+  height: var(--title-bar-height);
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  user-select: none;
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+}
+
+/* Show only on Windows */
+[data-platform="win32"] .custom-title-bar {
+  display: flex;
+}
+
+.title-bar-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding-left: var(--spacing-md);
+}
+
+.app-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.app-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.app-title {
+  font-size: 12px;
+  font-weight: var(--font-weight-regular);
+  color: var(--text-primary);
+}
+
+.window-controls {
+  display: flex;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-btn {
+  width: 46px;
+  height: 100%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.title-bar-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+.title-bar-btn.close:hover {
+  background: #E81123;
+  color: white;
+}
+
+.title-bar-btn svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .custom-title-bar {
+    background: var(--bg-primary);
+  }
+}

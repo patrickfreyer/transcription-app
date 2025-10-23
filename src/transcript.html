@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transcript - Audio Transcription</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Transcription Complete</h1>
+      <p class="subtitle" id="file-name-subtitle"></p>
+
+      <!-- Timestamp Toggle -->
+      <div class="toggle-container">
+        <span class="toggle-label active" id="plain-label">Plain Text</span>
+        <div class="toggle-switch" id="toggle-switch">
+          <div class="toggle-slider"></div>
+        </div>
+        <span class="toggle-label" id="timestamp-label">With Timestamps</span>
+      </div>
+
+      <div class="transcript-content" id="transcript-content"></div>
+
+      <!-- Format Selection -->
+      <div class="format-selector">
+        <label class="format-label">Export format:</label>
+        <div class="format-options">
+          <button class="format-btn active" data-format="txt">Plain Text (.txt)</button>
+          <button class="format-btn" data-format="vtt">WebVTT (.vtt)</button>
+          <button class="format-btn" data-format="srt">SubRip (.srt)</button>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn" id="save-btn">Save As...</button>
+        <button class="btn" id="copy-btn">Copy</button>
+        <button class="btn btn-secondary" id="new-transcription-btn">
+          New
+        </button>
+      </div>
+
+      <div
+        style="
+          text-align: center;
+          margin-top: 20px;
+          color: #48bb78;
+          font-size: 14px;
+          font-weight: 600;
+          display: none;
+        "
+        id="copy-success"
+      >
+        ✓ Copied to clipboard!
+      </div>
+
+      <footer class="attribution">
+        Created by <a href="https://patrickfreyer.com" target="_blank">Patrick C. Freyer</a>
+        <br>
+        <a href="mailto:freyer.patrick@bcg.com">freyer.patrick@bcg.com</a>
+      </footer>
+    </div>
+
+<script>
+      const transcriptContent = document.getElementById('transcript-content');
+      const fileNameSubtitle = document.getElementById('file-name-subtitle');
+      const copyBtn = document.getElementById('copy-btn');
+      const saveBtn = document.getElementById('save-btn');
+      const newTranscriptionBtn = document.getElementById('new-transcription-btn');
+      const copySuccess = document.getElementById('copy-success');
+      const toggleSwitch = document.getElementById('toggle-switch');
+      const plainLabel = document.getElementById('plain-label');
+      const timestampLabel = document.getElementById('timestamp-label');
+      const formatBtns = document.querySelectorAll('.format-btn');
+
+      let selectedFormat = 'txt';
+
+      // Load transcript from localStorage
+      const rawTranscript = localStorage.getItem('transcript');
+      const fileName = localStorage.getItem('fileName');
+      const isDiarized = localStorage.getItem('isDiarized') === 'true';
+
+      let plainText = '';
+      let timestampedText = '';
+      let showTimestamps = false;
+
+      // Parse VTT format
+      function parseVTT(vttText) {
+        if (!vttText) return { plain: '', timestamped: '' };
+
+        const lines = vttText.split('\n');
+        let plain = [];
+        let timestamped = [];
+        let i = 0;
+
+        // Skip WEBVTT header
+        while (i < lines.length && !lines[i].includes('-->')) {
+          i++;
+        }
+
+        while (i < lines.length) {
+          const line = lines[i].trim();
+
+          // Check if this is a timestamp line
+          if (line.includes('-->')) {
+            const timestamp = line;
+            i++;
+
+            // Get the text content (may span multiple lines)
+            let textLines = [];
+            while (i < lines.length && lines[i].trim() !== '' && !lines[i].includes('-->')) {
+              textLines.push(lines[i].trim());
+              i++;
+            }
+
+            const text = textLines.join(' ');
+
+            if (text) {
+              plain.push(text);
+              timestamped.push(`[${timestamp.split(' --> ')[0]}]\n${text}`);
+            }
+          } else {
+            i++;
+          }
+        }
+
+        return {
+          plain: plain.join('\n\n'),
+          timestamped: timestamped.join('\n\n')
+        };
+      }
+
+      // Check for test mode
+      const isTestMode = window.location.search.includes('test=true');
+
+      // Initialize transcript
+      if (rawTranscript || isTestMode) {
+        let transcriptToUse = rawTranscript;
+
+        // Use sample data if in test mode
+        if (isTestMode && !rawTranscript) {
+          transcriptToUse = `WEBVTT
+
+1
+00:00:00.000 --> 00:00:03.500
+[Patrick] Hey everyone, thanks for joining today's meeting.
+
+2
+00:00:03.500 --> 00:00:07.200
+[Sarah] Thanks for having me. I'm excited to discuss the new project.
+
+3
+00:00:07.200 --> 00:00:12.800
+[Patrick] Great! So let's start with the timeline. I'm thinking we can launch in about three months.
+
+4
+00:00:12.800 --> 00:00:18.500
+[Michael] Three months seems tight. We'll need to prioritize features carefully.
+
+5
+00:00:18.500 --> 00:00:23.700
+[Sarah] I agree with Michael. What if we break it into phases? We could launch an MVP first.
+
+6
+00:00:23.700 --> 00:00:29.200
+[Patrick] That's a smart approach. Let's focus on core functionality for the initial release.
+
+7
+00:00:29.200 --> 00:00:34.800
+[Michael] Perfect. I can draft a feature priority list by end of week.
+
+8
+00:00:34.800 --> 00:00:38.500
+[Sarah] Sounds good. I'll work on the user research to validate our assumptions.
+
+9
+00:00:38.500 --> 00:00:43.200
+[Patrick] Excellent. Let's reconvene next Tuesday to review everything.`;
+
+          localStorage.setItem('transcript', transcriptToUse);
+          localStorage.setItem('fileName', 'sample_meeting.mp3');
+          localStorage.setItem('isDiarized', 'true');
+          localStorage.setItem('transcriptModel', 'gpt-4o-transcribe-diarize');
+
+          // Reload to show the test data
+          window.location.href = window.location.pathname;
+          return;
+        }
+
+        const parsed = parseVTT(transcriptToUse);
+        plainText = parsed.plain;
+        timestampedText = parsed.timestamped;
+
+        // Get saved preference or default to plain text
+        showTimestamps = localStorage.getItem('showTimestamps') === 'true';
+
+        // Display initial view
+        updateDisplay();
+      } else {
+        transcriptContent.innerHTML = `
+          No transcript available. Please go back and transcribe an audio file.
+          <br><br>
+          <a href="?test=true" style="color: #007aff; text-decoration: none; font-size: 13px;">Load test data for UI preview</a>
+        `;
+      }
+
+      if (fileName) {
+        const transcriptInfo = localStorage.getItem('transcriptInfo');
+        if (transcriptInfo) {
+          fileNameSubtitle.textContent = `File: ${fileName} • ${transcriptInfo}`;
+          localStorage.removeItem('transcriptInfo'); // Clean up after displaying
+        } else {
+          fileNameSubtitle.textContent = `File: ${fileName}`;
+        }
+      }
+
+      // Format diarized transcript with enhanced styling
+      function formatDiarizedDisplay(text) {
+        if (!isDiarized) {
+          return text;
+        }
+
+        // Split by speaker segments (looking for [Speaker Name] pattern)
+        const segments = text.split(/\n\n+/);
+        let html = '';
+
+        for (const segment of segments) {
+          const match = segment.match(/^\[([^\]]+)\]\s*(.+)/s);
+          if (match) {
+            const speaker = match[1];
+            const content = match[2];
+            html += `
+              <div class="speaker-segment">
+                <span class="speaker-label">${speaker}</span>
+                <span class="speaker-text">${content}</span>
+              </div>
+            `;
+          } else if (segment.trim()) {
+            html += `<div class="speaker-segment"><span class="speaker-text">${segment}</span></div>`;
+          }
+        }
+
+        return html;
+      }
+
+      // Update display based on toggle state
+      function updateDisplay() {
+        const textToDisplay = showTimestamps ? timestampedText : plainText;
+
+        if (isDiarized && !showTimestamps) {
+          // Use enhanced formatting for diarized plain text
+          transcriptContent.classList.add('diarized');
+          transcriptContent.innerHTML = formatDiarizedDisplay(textToDisplay);
+        } else {
+          // Use plain text display
+          transcriptContent.classList.remove('diarized');
+          transcriptContent.textContent = textToDisplay;
+        }
+
+        // Update toggle UI
+        if (showTimestamps) {
+          toggleSwitch.classList.add('active');
+          plainLabel.classList.remove('active');
+          timestampLabel.classList.add('active');
+        } else {
+          toggleSwitch.classList.remove('active');
+          plainLabel.classList.add('active');
+          timestampLabel.classList.remove('active');
+        }
+      }
+
+      // Toggle switch
+      toggleSwitch.addEventListener('click', () => {
+        showTimestamps = !showTimestamps;
+        localStorage.setItem('showTimestamps', showTimestamps);
+        updateDisplay();
+      });
+
+      // Copy to clipboard
+      copyBtn.addEventListener('click', async () => {
+        try {
+          const textToCopy = showTimestamps ? timestampedText : plainText;
+          await navigator.clipboard.writeText(textToCopy);
+          copySuccess.style.display = 'block';
+
+          setTimeout(() => {
+            copySuccess.style.display = 'none';
+          }, 2000);
+        } catch (error) {
+          console.error('Failed to copy:', error);
+        }
+      });
+
+      // New transcription
+      newTranscriptionBtn.addEventListener('click', () => {
+        // Clear localStorage
+        localStorage.removeItem('transcript');
+        localStorage.removeItem('fileName');
+        localStorage.removeItem('isDiarized');
+        localStorage.removeItem('transcriptModel');
+        localStorage.removeItem('transcriptInfo');
+
+        // Navigate back to upload screen
+        window.electron.navigate('upload');
+      });
+
+      // Format selection
+      formatBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          // Update active state
+          formatBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+
+          // Update selected format
+          selectedFormat = btn.dataset.format;
+        });
+      });
+
+      // Convert VTT to SRT format
+      function convertVTTtoSRT(vttText) {
+        if (!vttText) return '';
+
+        const lines = vttText.split('\n');
+        let srtContent = [];
+        let counter = 1;
+        let i = 0;
+
+        // Skip WEBVTT header
+        while (i < lines.length && !lines[i].includes('-->')) {
+          i++;
+        }
+
+        while (i < lines.length) {
+          const line = lines[i].trim();
+
+          if (line.includes('-->')) {
+            // Convert VTT timestamp format to SRT format
+            const timestamp = line.replace(/\./g, ','); // Replace . with , for milliseconds
+
+            i++;
+
+            // Get text content
+            let textLines = [];
+            while (i < lines.length && lines[i].trim() !== '' && !lines[i].includes('-->')) {
+              textLines.push(lines[i].trim());
+              i++;
+            }
+
+            const text = textLines.join('\n');
+
+            if (text) {
+              srtContent.push(`${counter}\n${timestamp}\n${text}\n`);
+              counter++;
+            }
+          } else {
+            i++;
+          }
+        }
+
+        return srtContent.join('\n');
+      }
+
+      // Save transcript
+      saveBtn.addEventListener('click', async () => {
+        try {
+          let content = '';
+          let baseName = fileName ? fileName.replace(/\.[^/.]+$/, '') : 'transcript';
+
+          // Generate content based on selected format
+          if (selectedFormat === 'txt') {
+            content = showTimestamps ? timestampedText : plainText;
+          } else if (selectedFormat === 'vtt') {
+            content = rawTranscript;
+          } else if (selectedFormat === 'srt') {
+            content = convertVTTtoSRT(rawTranscript);
+          }
+
+          // Call save dialog
+          const result = await window.electron.saveTranscript(content, selectedFormat, baseName);
+
+          if (result.success) {
+            // Show success message briefly
+            copySuccess.textContent = '✓ Saved successfully!';
+            copySuccess.style.display = 'block';
+            setTimeout(() => {
+              copySuccess.style.display = 'none';
+              copySuccess.textContent = '✓ Copied to clipboard!';
+            }, 2000);
+          }
+        } catch (error) {
+          console.error('Failed to save:', error);
+        }
+      });
+    </script>
+  </body>
+</html>
