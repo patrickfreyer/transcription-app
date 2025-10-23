@@ -623,6 +623,11 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
 
       const combinedTranscript = diarizedJsonToVTT({ segments: allSegments });
 
+      // Check if we have any actual content
+      if (allSegments.length === 0) {
+        throw new Error('All chunks failed to transcribe. Please check your audio file and try again.');
+      }
+
       // Clean up chunks
       cleanupChunks(chunkPaths);
 
