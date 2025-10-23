@@ -475,11 +475,9 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
   let chunkPaths = [];
   let convertedFilePath = null;
 
-  // Parse options (backward compatibility: if options is a string, treat it as prompt)
-  const isLegacyCall = typeof options === 'string';
-  const model = isLegacyCall ? 'whisper-1' : (options?.model || 'gpt-4o-transcribe');
-  const prompt = isLegacyCall ? options : (options?.prompt || null);
-  const speakers = isLegacyCall ? null : (options?.speakers || null);
+  // Always use diarized model
+  const model = 'gpt-4o-transcribe-diarize';
+  const speakers = options?.speakers || null;
 
   try {
     const openai = new OpenAI({ apiKey });
