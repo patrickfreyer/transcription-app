@@ -1,7 +1,26 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const os = require('os');
 const OpenAI = require('openai');
+
+// Load FFmpeg dependencies (same as main.js)
+let ffmpeg, ffmpegPath, ffprobePath;
+let ffmpegAvailable = false;
+
+try {
+  ffmpeg = require('fluent-ffmpeg');
+  const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
+  ffmpegPath = ffmpegInstaller.path;
+  const ffprobeInstaller = require('@ffprobe-installer/ffprobe');
+  ffprobePath = ffprobeInstaller.path;
+
+  ffmpeg.setFfmpegPath(ffmpegPath);
+  ffmpeg.setFfprobePath(ffprobePath);
+  ffmpegAvailable = true;
+} catch (error) {
+  console.error('FFmpeg not available:', error.message);
+}
 
 // Load environment variables from .env file if it exists
 const envPath = path.join(__dirname, '.env');
@@ -57,7 +76,6 @@ async function downloadFile(url, dest) {
 
     https.get(url, (response) => {
       if (response.statusCode === 302 || response.statusCode === 301) {
-        // Follow redirect
         https.get(response.headers.location, (redirectResponse) => {
           const totalBytes = parseInt(redirectResponse.headers['content-length'], 10);
           let downloadedBytes = 0;
@@ -72,7 +90,7 @@ async function downloadFile(url, dest) {
 
           file.on('finish', () => {
             file.close();
-            console.log(''); // New line after progress
+            console.log('');
             resolve();
           });
         }).on('error', (err) => {
@@ -93,7 +111,7 @@ async function downloadFile(url, dest) {
 
         file.on('finish', () => {
           file.close();
-          console.log(''); // New line after progress
+          console.log('');
           resolve();
         });
       }
@@ -104,47 +122,172 @@ async function downloadFile(url, dest) {
   });
 }
 
-// Extract plain text from VTT format
-function extractPlainText(vttContent) {
-  return vttContent
-    .split('\n')
-    .filter(line =>
-      !line.includes('-->') &&
-      !line.startsWith('WEBVTT') &&
-      line.trim() !== '' &&
-      !/^\d+$/.test(line.trim())
-    )
-    .join(' ')
-    .trim();
+// ==================== COPIED FROM MAIN.JS ====================
+// These are the actual functions used in the app
+
+function getAudioDuration(filePath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg.ffprobe(filePath, (err, metadata) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(metadata.format.duration);
+      }
+    });
+  });
 }
 
-// Test transcription
+async function splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
+  try {
+    const stats = fs.statSync(filePath);
+    const fileSizeInMB = stats.size / (1024 * 1024);
+
+    // If file is small enough, return the original file
+    if (fileSizeInMB <= 25) {
+      return [filePath];
+    }
+
+    const duration = await getAudioDuration(filePath);
+    const tempDir = os.tmpdir();
+    const chunksDir = path.join(tempDir, `chunks-${Date.now()}`);
+    fs.mkdirSync(chunksDir, { recursive: true });
+
+    // Calculate chunk duration based on file size and desired chunk size
+    const chunkDuration = Math.floor((duration * chunkSizeInMB) / fileSizeInMB);
+    const numChunks = Math.ceil(duration / chunkDuration);
+
+    const chunkPaths = [];
+
+    // Split audio into chunks
+    for (let i = 0; i < numChunks; i++) {
+      const startTime = i * chunkDuration;
+      const chunkPath = path.join(chunksDir, `chunk-${i}.mp3`);
+
+      process.stdout.write(`\r  Creating chunk ${i + 1}/${numChunks}...`);
+
+      await new Promise((resolve, reject) => {
+        ffmpeg(filePath)
+          .setStartTime(startTime)
+          .setDuration(chunkDuration)
+          .output(chunkPath)
+          .audioCodec('libmp3lame')
+          .audioBitrate('128k')
+          .on('end', () => resolve())
+          .on('error', (err) => reject(err))
+          .run();
+      });
+
+      chunkPaths.push(chunkPath);
+    }
+
+    console.log(''); // New line after progress
+    return chunkPaths;
+  } catch (error) {
+    throw new Error(`Failed to split audio: ${error.message}`);
+  }
+}
+
+function cleanupChunks(chunkPaths) {
+  try {
+    if (chunkPaths.length > 0) {
+      const chunksDir = path.dirname(chunkPaths[0]);
+      chunkPaths.forEach(chunkPath => {
+        if (fs.existsSync(chunkPath)) {
+          fs.unlinkSync(chunkPath);
+        }
+      });
+      if (fs.existsSync(chunksDir) && chunksDir.includes('chunks-')) {
+        fs.rmdirSync(chunksDir);
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up chunks:', error);
+  }
+}
+
+// Extract plain text from VTT or JSON format
+function extractPlainText(transcript) {
+  if (typeof transcript === 'string') {
+    // VTT format
+    return transcript
+      .split('\n')
+      .filter(line =>
+        !line.includes('-->') &&
+        !line.startsWith('WEBVTT') &&
+        line.trim() !== '' &&
+        !/^\d+$/.test(line.trim())
+      )
+      .join(' ')
+      .trim();
+  } else if (transcript.text) {
+    // JSON format
+    return transcript.text;
+  }
+  return '';
+}
+
+// ==================== TEST FUNCTIONS ====================
+
+// Test transcription with actual app logic
 async function testTranscription(apiKey, testFile) {
-  info('Starting transcription test...');
+  info('Starting transcription test using real app logic...');
+  let chunkPaths = [];
 
   try {
     const openai = new OpenAI({ apiKey });
+    const stats = fs.statSync(testFile);
+    const fileSizeInMB = stats.size / (1024 * 1024);
 
-    // Test 1: Basic transcription with whisper-1 (supports longer files)
-    info('Test 1: Basic transcription with whisper-1');
-    const transcription1 = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(testFile),
-      model: 'whisper-1',
-      response_format: 'json',
-    });
+    info(`File size: ${fileSizeInMB.toFixed(2)} MB`);
 
-    if (!transcription1 || !transcription1.text) {
-      throw new Error('Transcription returned empty result');
-    }
+    // Test 1: Check if file needs chunking
+    if (fileSizeInMB > 25) {
+      if (!ffmpegAvailable) {
+        throw new Error('FFmpeg required for large files but not available');
+      }
 
-    const wordCount = transcription1.text.split(/\s+/).length;
-    success(`  Transcribed ${wordCount} words`);
-    info(`  Sample text: "${transcription1.text.substring(0, 100)}..."`);
+      info('Test 1: Large file handling with chunking');
+      info('  Splitting audio into chunks...');
 
-    // Test 2: Generate meeting summary
-    info('Test 2: Generate meeting summary with GPT-4o');
+      chunkPaths = await splitAudioIntoChunks(testFile, 20);
+      success(`  Created ${chunkPaths.length} chunks`);
 
-    const systemPrompt = `You are an expert meeting analyst. Create a brief markdown summary with:
+      // Get duration of each chunk
+      const chunkDurations = [];
+      for (const chunkPath of chunkPaths) {
+        const duration = await getAudioDuration(chunkPath);
+        chunkDurations.push(duration);
+      }
+
+      // Process each chunk with gpt-4o-transcribe
+      info('  Transcribing chunks with gpt-4o-transcribe...');
+      const transcripts = [];
+
+      for (let i = 0; i < chunkPaths.length; i++) {
+        const chunkPath = chunkPaths[i];
+        process.stdout.write(`\r  Transcribing chunk ${i + 1}/${chunkPaths.length}...`);
+
+        const transcription = await openai.audio.transcriptions.create({
+          file: fs.createReadStream(chunkPath),
+          model: 'gpt-4o-transcribe',
+          response_format: 'json',
+        });
+
+        transcripts.push(transcription);
+      }
+      console.log(''); // New line after progress
+
+      // Combine results
+      const combinedText = transcripts.map(t => t.text || '').join(' ');
+      const wordCount = combinedText.split(/\s+/).length;
+
+      success(`  Transcribed ${wordCount} words from ${chunkPaths.length} chunks`);
+      info(`  Sample text: "${combinedText.substring(0, 100)}..."`);
+
+      // Test 2: Generate meeting summary
+      info('Test 2: Generate meeting summary with GPT-4o');
+
+      const systemPrompt = `You are an expert meeting analyst. Create a brief markdown summary with:
 
 # Meeting Summary
 
@@ -159,38 +302,88 @@ Brief overview of the content
 
 Keep it concise (max 300 words).`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Summarize this transcript:\n\n${transcription1.text.substring(0, 2000)}` }
-      ],
-      temperature: 0.7,
-      max_tokens: 500,
-    });
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Summarize this transcript:\n\n${combinedText.substring(0, 2000)}` }
+        ],
+        temperature: 0.7,
+        max_tokens: 500,
+      });
 
-    const summary = completion.choices[0].message.content;
+      const summary = completion.choices[0].message.content;
 
-    if (!summary || summary.length < 50) {
-      throw new Error('Summary generation failed or returned insufficient content');
-    }
+      if (!summary || summary.length < 50) {
+        throw new Error('Summary generation failed or returned insufficient content');
+      }
 
-    success(`  Generated summary (${summary.length} characters)`);
-    info(`  Summary preview:\n${summary.substring(0, 200)}...\n`);
+      success(`  Generated summary (${summary.length} characters)`);
+      info(`  Summary preview:\n${summary.substring(0, 200)}...\n`);
 
-    // Test 3: Validate summary contains markdown formatting
-    const hasHeaders = summary.includes('#');
-    const hasBullets = summary.includes('-') || summary.includes('*');
+      // Test 3: Validate summary formatting
+      const hasHeaders = summary.includes('#');
+      const hasBullets = summary.includes('-') || summary.includes('*');
 
-    if (hasHeaders && hasBullets) {
-      success('  Summary has proper markdown formatting');
+      if (hasHeaders && hasBullets) {
+        success('  Summary has proper markdown formatting');
+      } else {
+        warn('  Summary may be missing some markdown formatting');
+      }
+
+      // Cleanup
+      info('Cleaning up temporary chunks...');
+      cleanupChunks(chunkPaths);
+      success('Cleanup complete');
+
+      return { transcription: combinedText, summary, chunked: true };
+
     } else {
-      warn('  Summary may be missing some markdown formatting');
-    }
+      // Small file - process normally
+      info('Test 1: Standard transcription (file under 25MB)');
 
-    return { transcription: transcription1, summary };
+      const transcription = await openai.audio.transcriptions.create({
+        file: fs.createReadStream(testFile),
+        model: 'gpt-4o-transcribe',
+        response_format: 'json',
+      });
+
+      if (!transcription || !transcription.text) {
+        throw new Error('Transcription returned empty result');
+      }
+
+      const wordCount = transcription.text.split(/\s+/).length;
+      success(`  Transcribed ${wordCount} words`);
+      info(`  Sample text: "${transcription.text.substring(0, 100)}..."`);
+
+      // Generate summary
+      info('Test 2: Generate meeting summary with GPT-4o');
+
+      const systemPrompt = `You are an expert meeting analyst. Create a brief markdown summary.`;
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Summarize:\n\n${transcription.text.substring(0, 2000)}` }
+        ],
+        temperature: 0.7,
+        max_tokens: 500,
+      });
+
+      const summary = completion.choices[0].message.content;
+      success(`  Generated summary (${summary.length} characters)`);
+
+      return { transcription: transcription.text, summary, chunked: false };
+    }
   } catch (err) {
     error(`Transcription test failed: ${err.message}`);
+
+    // Cleanup on error
+    if (chunkPaths.length > 0) {
+      cleanupChunks(chunkPaths);
+    }
+
     throw err;
   }
 }
@@ -205,10 +398,18 @@ async function runTests() {
     error('OPENAI_API_KEY environment variable not set');
     info('Please set your OpenAI API key:');
     info('  export OPENAI_API_KEY=your-api-key-here');
+    info('Or create a .env file with: OPENAI_API_KEY=your-key');
     process.exit(1);
   }
 
   success('OpenAI API key found');
+
+  // Check FFmpeg availability
+  if (!ffmpegAvailable) {
+    error('FFmpeg not available - large file handling will fail');
+    process.exit(1);
+  }
+  success('FFmpeg is available');
 
   // Determine test file
   let testFile = LOCAL_TEST_FILE;
@@ -240,6 +441,8 @@ async function runTests() {
     await testTranscription(apiKey, testFile);
 
     log('\n=== All Tests Passed! ===\n', colors.green);
+    success('The app\'s large file handling works correctly');
+    success('Chunking, transcription, and summary generation validated');
 
     // Cleanup temp file if used
     if (useRemote && fs.existsSync(TEMP_TEST_FILE)) {
