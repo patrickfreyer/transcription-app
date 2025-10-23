@@ -344,13 +344,14 @@
 
       // Initialize from localStorage or loaded data
       async function initialize() {
-        const transcriptId = localStorage.getItem('loadTranscriptionId');
+        const loadedTranscriptId = localStorage.getItem('loadTranscriptionId');
 
-        if (transcriptId) {
+        if (loadedTranscriptId) {
           // Load from history
           localStorage.removeItem('loadTranscriptionId');
+          transcriptId = loadedTranscriptId; // Store ID for updates
 
-          const result = await window.electron.loadTranscription(transcriptId);
+          const result = await window.electron.loadTranscription(loadedTranscriptId);
           if (result.success) {
             const data = result.data;
             fileName = data.fileName;
