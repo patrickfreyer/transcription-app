@@ -445,7 +445,7 @@
         updateTranscriptDisplay();
 
         // Then generate summary if this is a new transcription (not loaded from history)
-        if (!localStorage.getItem('loadTranscriptionId')) {
+        if (!loadedTranscriptId) {
           // Small delay to ensure UI is updated
           setTimeout(() => {
             generateSummary();
