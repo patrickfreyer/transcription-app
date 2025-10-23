@@ -621,8 +621,7 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
             }
           } else if (model === 'gpt-4o-transcribe-diarize') {
             transcriptionParams.response_format = 'diarized_json';
-            // Note: Don't use chunking_strategy when manually splitting audio
-            // The API's chunking_strategy is for full files, not pre-chunked audio
+            transcriptionParams.chunking_strategy = 'auto';
 
             // Add speaker references if provided
             if (speakers && speakers.length > 0 && i === 0) {
