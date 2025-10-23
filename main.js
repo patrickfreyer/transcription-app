@@ -513,19 +513,6 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
 
     // Check if file needs to be split
     if (fileSizeInMB > 25) {
-      // Diarization models require full audio context and don't work with manual chunking
-      if (model === 'gpt-4o-transcribe-diarize') {
-        // Clean up converted file if it exists
-        if (convertedFilePath && fs.existsSync(convertedFilePath)) {
-          fs.unlinkSync(convertedFilePath);
-        }
-
-        return {
-          success: false,
-          error: `File size is ${fileSizeInMB.toFixed(1)}MB, which exceeds the 25MB limit for speaker identification.\n\nSpeaker identification requires the full audio context and cannot be split into chunks.\n\nPlease use a file smaller than 25MB for speaker identification, or use Standard Transcription for large files.`,
-        };
-      }
-
       // Check if ffmpeg is available for splitting
       if (!ffmpegAvailable) {
         // Clean up converted file if it exists
