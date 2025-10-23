@@ -293,6 +293,11 @@
         }
       });
 
+      // View meeting summary
+      viewSummaryBtn.addEventListener('click', () => {
+        window.electron.navigate('summary');
+      });
+
       // New transcription
       newTranscriptionBtn.addEventListener('click', () => {
         // Clear localStorage
@@ -301,6 +306,7 @@
         localStorage.removeItem('isDiarized');
         localStorage.removeItem('transcriptModel');
         localStorage.removeItem('transcriptInfo');
+        localStorage.removeItem('meetingSummary');
 
         // Navigate back to upload screen
         window.electron.navigate('upload');
