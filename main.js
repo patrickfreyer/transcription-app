@@ -946,3 +946,166 @@ ipcMain.handle('save-summary', async (event, content, fileName, openInTypora = f
     };
   }
 });
+
+// ==================== TRANSCRIPTION HISTORY ====================
+
+// Save transcription and summary to app data
+ipcMain.handle('save-transcription-history', async (event, data) => {
+  try {
+    const { fileName, transcript, summary, isDiarized, model } = data;
+
+    // Create unique ID based on timestamp
+    const timestamp = Date.now();
+    const id = `${timestamp}`;
+
+    // Create directory for this transcription
+    const transcriptionDir = path.join(APP_DATA_DIR, id);
+    fs.mkdirSync(transcriptionDir, { recursive: true });
+
+    // Save metadata
+    const metadata = {
+      id,
+      fileName,
+      timestamp,
+      date: new Date(timestamp).toISOString(),
+      isDiarized,
+      model,
+      transcriptPreview: transcript.substring(0, 200),
+    };
+
+    fs.writeFileSync(
+      path.join(transcriptionDir, 'metadata.json'),
+      JSON.stringify(metadata, null, 2),
+      'utf8'
+    );
+
+    // Save transcript
+    fs.writeFileSync(
+      path.join(transcriptionDir, 'transcript.txt'),
+      transcript,
+      'utf8'
+    );
+
+    // Save summary if provided
+    if (summary) {
+      fs.writeFileSync(
+        path.join(transcriptionDir, 'summary.md'),
+        summary,
+        'utf8'
+      );
+    }
+
+    return {
+      success: true,
+      id,
+    };
+  } catch (error) {
+    console.error('Error saving transcription history:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to save transcription history',
+    };
+  }
+});
+
+// Get list of all transcription history items
+ipcMain.handle('get-transcription-history', async () => {
+  try {
+    const items = [];
+
+    // Read all directories in APP_DATA_DIR
+    const entries = fs.readdirSync(APP_DATA_DIR, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const metadataPath = path.join(APP_DATA_DIR, entry.name, 'metadata.json');
+
+        if (fs.existsSync(metadataPath)) {
+          const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+          items.push(metadata);
+        }
+      }
+    }
+
+    // Sort by timestamp (newest first)
+    items.sort((a, b) => b.timestamp - a.timestamp);
+
+    return {
+      success: true,
+      items,
+    };
+  } catch (error) {
+    console.error('Error getting transcription history:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to get transcription history',
+      items: [],
+    };
+  }
+});
+
+// Load a specific transcription by ID
+ipcMain.handle('load-transcription', async (event, id) => {
+  try {
+    const transcriptionDir = path.join(APP_DATA_DIR, id);
+
+    // Read metadata
+    const metadata = JSON.parse(
+      fs.readFileSync(path.join(transcriptionDir, 'metadata.json'), 'utf8')
+    );
+
+    // Read transcript
+    const transcript = fs.readFileSync(
+      path.join(transcriptionDir, 'transcript.txt'),
+      'utf8'
+    );
+
+    // Read summary if it exists
+    let summary = null;
+    const summaryPath = path.join(transcriptionDir, 'summary.md');
+    if (fs.existsSync(summaryPath)) {
+      summary = fs.readFileSync(summaryPath, 'utf8');
+    }
+
+    return {
+      success: true,
+      data: {
+        ...metadata,
+        transcript,
+        summary,
+      },
+    };
+  } catch (error) {
+    console.error('Error loading transcription:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to load transcription',
+    };
+  }
+});
+
+// Delete a transcription by ID
+ipcMain.handle('delete-transcription', async (event, id) => {
+  try {
+    const transcriptionDir = path.join(APP_DATA_DIR, id);
+
+    // Delete all files in the directory
+    const files = fs.readdirSync(transcriptionDir);
+    for (const file of files) {
+      fs.unlinkSync(path.join(transcriptionDir, file));
+    }
+
+    // Delete the directory
+    fs.rmdirSync(transcriptionDir);
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error('Error deleting transcription:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to delete transcription',
+    };
+  }
+});
