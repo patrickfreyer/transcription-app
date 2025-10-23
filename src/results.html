@@ -162,10 +162,24 @@
         let timestamped = [];
         let i = 0;
 
-        while (i < lines.length && !lines[i].includes('-->')) {
+        // Skip WEBVTT header
+        while (i < lines.length && (lines[i].trim() === '' || lines[i].startsWith('WEBVTT'))) {
           i++;
         }
 
+        // Check if this VTT file has timestamps
+        const hasTimestamps = vttText.includes('-->');
+
+        if (!hasTimestamps) {
+          // Non-diarized transcript without timestamps - just plain text after WEBVTT
+          const plainTextContent = lines.slice(i).join('\n').trim();
+          return {
+            plain: plainTextContent,
+            timestamped: plainTextContent // Same text for both views
+          };
+        }
+
+        // Parse VTT with timestamps
         while (i < lines.length) {
           const line = lines[i].trim();
 
