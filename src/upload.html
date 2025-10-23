@@ -635,7 +635,7 @@
           );
 
           if (result.success) {
-            // Store transcript in localStorage and navigate to transcript screen
+            // Store transcript in localStorage
             localStorage.setItem('transcript', result.transcript);
             localStorage.setItem('fileName', selectedFile.name);
             localStorage.setItem('transcriptModel', selectedModel);
@@ -645,7 +645,9 @@
             if (result.isDiarized) {
               localStorage.setItem('isDiarized', 'true');
             }
-            window.electron.navigate('transcript');
+
+            // Navigate to summary screen (which will auto-generate summary)
+            window.electron.navigate('summary');
           } else {
             throw new Error(result.error);
           }
