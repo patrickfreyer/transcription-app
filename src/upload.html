@@ -193,24 +193,7 @@
         updateSpeakerList();
       }
 
-      // ==================== MODEL SELECTION ====================
-
-      // Handle model selection change
-      modelRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-          const isDiarize = e.target.value === 'gpt-4o-transcribe-diarize';
-
-          // Show/hide speaker section based on model
-          speakerSection.style.display = isDiarize ? 'block' : 'none';
-
-          // Update prompt section note for diarize model
-          if (isDiarize) {
-            promptSection.style.display = 'none'; // Diarize doesn't support prompts
-          } else {
-            promptSection.style.display = 'block';
-          }
-        });
-      });
+      // ==================== SPEAKER SECTION ====================
 
       // Toggle speaker section
       speakerHeader.addEventListener('click', () => {
