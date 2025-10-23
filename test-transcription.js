@@ -3,6 +3,18 @@ const path = require('path');
 const https = require('https');
 const OpenAI = require('openai');
 
+// Load environment variables from .env file if it exists
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  envContent.split('\n').forEach(line => {
+    const match = line.match(/^([^=]+)=(.*)$/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2].trim();
+    }
+  });
+}
+
 // Configuration
 const LOCAL_TEST_FILE = path.join(__dirname, 'test_audio.mp3');
 const REMOTE_TEST_URL = 'https://omny.fm/shows/planetary-radio-space-exploration-astronomy-and-sc/elon-musk-of-spacex.mp3';
