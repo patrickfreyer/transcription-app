@@ -590,7 +590,7 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         } catch (error) {
           console.error(`[Transcription] Error transcribing chunk ${i + 1}:`, error);
           // Add empty transcript for failed chunk
-          transcripts.push(model === 'whisper-1' ? '' : { text: '' });
+          transcripts.push({ segments: [] });
         }
       }
 
