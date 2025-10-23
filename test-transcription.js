@@ -125,11 +125,11 @@ async function testTranscription(apiKey, testFile) {
   try {
     const openai = new OpenAI({ apiKey });
 
-    // Test 1: Basic transcription with gpt-4o-transcribe
-    info('Test 1: Basic transcription with gpt-4o-transcribe');
+    // Test 1: Basic transcription with whisper-1 (supports longer files)
+    info('Test 1: Basic transcription with whisper-1');
     const transcription1 = await openai.audio.transcriptions.create({
       file: fs.createReadStream(testFile),
-      model: 'gpt-4o-transcribe',
+      model: 'whisper-1',
       response_format: 'json',
     });
 
