@@ -25,8 +25,41 @@
       window.mermaid = mermaid;
     </script>
   </head>
-  <body>
-    <div class="container results-container">
+  <body class="app-body">
+    <!-- App Container with Sidebar -->
+    <div class="app-container">
+      <!-- Sidebar -->
+      <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2 class="sidebar-title">Audio Transcription</h2>
+          <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+            <span class="toggle-icon"></span>
+          </button>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="sidebar-item" data-view="transcribe" onclick="window.electron.navigate('app')">
+            <span class="sidebar-icon">🎤</span>
+            <span class="sidebar-label">Transcribe</span>
+          </button>
+          <button class="sidebar-item" data-view="history" onclick="window.electron.navigate('app'); setTimeout(() => document.querySelector('[data-view=history]')?.click(), 100)">
+            <span class="sidebar-icon">📝</span>
+            <span class="sidebar-label">History</span>
+          </button>
+          <button class="sidebar-item" data-view="settings" onclick="window.electron.navigate('app'); setTimeout(() => document.querySelector('[data-view=settings]')?.click(), 100)">
+            <span class="sidebar-icon">⚙️</span>
+            <span class="sidebar-label">Settings</span>
+          </button>
+          <button class="sidebar-item" data-view="about" onclick="window.electron.navigate('app'); setTimeout(() => document.querySelector('[data-view=about]')?.click(), 100)">
+            <span class="sidebar-icon">ℹ️</span>
+            <span class="sidebar-label">About</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="main-content">
+        <div class="container results-container">
       <h1>Transcription Results</h1>
       <p class="subtitle" id="file-name-subtitle"></p>
 
