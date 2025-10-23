@@ -218,7 +218,26 @@
         speakerSection.style.display = 'none';
         speakerReferences = [];
         updateSpeakerList();
+        modelSelection.style.display = 'none';
       }
+
+      // ==================== MODEL SELECTION ====================
+
+      // Update model display based on selection
+      function updateModelDisplay() {
+        const isDiarizeSelected = modelDiarize.checked;
+        speakerSection.style.display = isDiarizeSelected ? 'block' : 'none';
+
+        // Reset speaker references if switching to fast mode
+        if (!isDiarizeSelected) {
+          speakerReferences = [];
+          updateSpeakerList();
+        }
+      }
+
+      // Handle model change
+      modelFast.addEventListener('change', updateModelDisplay);
+      modelDiarize.addEventListener('change', updateModelDisplay);
 
       // ==================== SPEAKER SECTION ====================
 
