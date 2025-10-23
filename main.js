@@ -6,11 +6,39 @@ const os = require('os');
 
 // App data directory for persistent storage
 const APP_DATA_DIR = path.join(app.getPath('userData'), 'transcriptions');
+const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
 
 // Ensure app data directory exists
 if (!fs.existsSync(APP_DATA_DIR)) {
   fs.mkdirSync(APP_DATA_DIR, { recursive: true });
 }
+
+// Helper functions for config management
+function loadConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const configData = fs.readFileSync(CONFIG_FILE, 'utf8');
+      return JSON.parse(configData);
+    }
+  } catch (error) {
+    console.error('Error loading config:', error);
+  }
+  return {};
+}
+
+function saveConfig(config) {
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    console.error('Error saving config:', error);
+    return false;
+  }
+}
+
+// Load API key from config on startup
+const config = loadConfig();
+global.apiKey = config.apiKey || null;
 
 // Add error logging for startup issues
 process.on('uncaughtException', (error) => {
