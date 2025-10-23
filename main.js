@@ -4,6 +4,14 @@ const OpenAI = require('openai');
 const fs = require('fs');
 const os = require('os');
 
+// App data directory for persistent storage
+const APP_DATA_DIR = path.join(app.getPath('userData'), 'transcriptions');
+
+// Ensure app data directory exists
+if (!fs.existsSync(APP_DATA_DIR)) {
+  fs.mkdirSync(APP_DATA_DIR, { recursive: true });
+}
+
 // Add error logging for startup issues
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
