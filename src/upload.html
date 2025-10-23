@@ -501,7 +501,7 @@
             // Store transcript in localStorage
             localStorage.setItem('transcript', result.transcript);
             localStorage.setItem('fileName', selectedFile.name);
-            localStorage.setItem('transcriptModel', selectedModel);
+            localStorage.setItem('transcriptModel', model);
             if (result.chunked) {
               localStorage.setItem('transcriptInfo', `Processed in ${result.totalChunks} chunks`);
             }
