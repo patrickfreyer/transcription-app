@@ -4,6 +4,10 @@ const OpenAI = require('openai');
 const fs = require('fs');
 const os = require('os');
 
+// Import service modules
+const audioProcessing = require('./src/services/audioProcessing');
+const transcriptionService = require('./src/services/transcription');
+
 // App data directory for persistent storage
 const APP_DATA_DIR = path.join(app.getPath('userData'), 'transcriptions');
 const CONFIG_FILE = path.join(app.getPath('userData'), 'config.json');
