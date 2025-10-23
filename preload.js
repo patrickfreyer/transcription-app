@@ -32,6 +32,16 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.on('summary-progress', (event, data) => callback(data));
   },
 
+  // Transcription History
+  saveTranscriptionHistory: (data) =>
+    ipcRenderer.invoke('save-transcription-history', data),
+  getTranscriptionHistory: () =>
+    ipcRenderer.invoke('get-transcription-history'),
+  loadTranscription: (id) =>
+    ipcRenderer.invoke('load-transcription', id),
+  deleteTranscription: (id) =>
+    ipcRenderer.invoke('delete-transcription', id),
+
   // Clipboard
   copyToClipboard: (text) => {
     navigator.clipboard.writeText(text);
