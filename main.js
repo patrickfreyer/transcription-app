@@ -411,11 +411,24 @@ ipcMain.handle('validate-api-key', async (event, apiKey) => {
 // Handle API key storage
 ipcMain.handle('save-api-key', async (event, apiKey) => {
   global.apiKey = apiKey;
-  return { success: true };
+
+  // Persist to config file
+  const currentConfig = loadConfig();
+  currentConfig.apiKey = apiKey;
+  const saved = saveConfig(currentConfig);
+
+  return { success: saved };
 });
 
 ipcMain.handle('get-api-key', async () => {
-  return global.apiKey || null;
+  // Return from memory if available, otherwise load from config
+  if (global.apiKey) {
+    return global.apiKey;
+  }
+
+  const currentConfig = loadConfig();
+  global.apiKey = currentConfig.apiKey || null;
+  return global.apiKey;
 });
 
 // Navigate to different screens
