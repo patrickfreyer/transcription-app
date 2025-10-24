@@ -7,22 +7,16 @@ import remarkGfm from 'remark-gfm';
  * Supports GitHub Flavored Markdown (GFM) including tables, task lists, etc.
  */
 function MarkdownRenderer({ content, className = '' }) {
-  console.log('MarkdownRenderer - Content type:', typeof content);
-  console.log('MarkdownRenderer - Content length:', content?.length);
-  console.log('MarkdownRenderer - Content preview:', content?.substring(0, 100));
-
   // Handle empty or undefined content
   if (!content || typeof content !== 'string') {
-    console.warn('MarkdownRenderer - Invalid content:', content);
     return (
-      <div className="text-foreground-secondary italic">
+      <div className="text-foreground-secondary italic text-sm">
         No content available
       </div>
     );
   }
 
   try {
-    console.log('MarkdownRenderer - Rendering markdown...');
     return (
       <ReactMarkdown
         className={`markdown-content ${className}`}
@@ -30,35 +24,35 @@ function MarkdownRenderer({ content, className = '' }) {
         components={{
         // Headings
         h1: ({ node, ...props }) => (
-          <h1 className="text-2xl font-bold text-text-dark mt-6 mb-4 border-b border-border pb-2" {...props} />
+          <h1 className="text-2xl font-bold text-foreground mt-4 mb-3 border-b border-border pb-2 first:mt-0" {...props} />
         ),
         h2: ({ node, ...props }) => (
-          <h2 className="text-xl font-bold text-text-dark mt-5 mb-3 border-b border-border pb-2" {...props} />
+          <h2 className="text-xl font-bold text-foreground mt-4 mb-2 border-b border-border pb-2 first:mt-0" {...props} />
         ),
         h3: ({ node, ...props }) => (
-          <h3 className="text-lg font-semibold text-text-dark mt-4 mb-2" {...props} />
+          <h3 className="text-lg font-semibold text-foreground mt-3 mb-2 first:mt-0" {...props} />
         ),
         h4: ({ node, ...props }) => (
-          <h4 className="text-base font-semibold text-text-dark mt-3 mb-2" {...props} />
+          <h4 className="text-base font-semibold text-foreground mt-3 mb-2 first:mt-0" {...props} />
         ),
         h5: ({ node, ...props }) => (
-          <h5 className="text-sm font-semibold text-text-dark mt-3 mb-2" {...props} />
+          <h5 className="text-sm font-semibold text-foreground mt-2 mb-1 first:mt-0" {...props} />
         ),
         h6: ({ node, ...props }) => (
-          <h6 className="text-xs font-semibold text-text-dark mt-3 mb-2" {...props} />
+          <h6 className="text-xs font-semibold text-foreground mt-2 mb-1 first:mt-0" {...props} />
         ),
 
         // Paragraphs
         p: ({ node, ...props }) => (
-          <p className="text-sm text-text-dark leading-relaxed mb-4" {...props} />
+          <p className="text-sm text-foreground leading-relaxed mb-3 last:mb-0" {...props} />
         ),
 
         // Lists
         ul: ({ node, ...props }) => (
-          <ul className="list-disc list-inside text-sm text-text-dark mb-4 ml-4 space-y-1" {...props} />
+          <ul className="list-disc list-inside text-sm text-foreground mb-3 ml-4 space-y-1 last:mb-0" {...props} />
         ),
         ol: ({ node, ...props }) => (
-          <ol className="list-decimal list-inside text-sm text-text-dark mb-4 ml-4 space-y-1" {...props} />
+          <ol className="list-decimal list-inside text-sm text-foreground mb-3 ml-4 space-y-1 last:mb-0" {...props} />
         ),
         li: ({ node, ...props }) => (
           <li className="text-sm leading-relaxed" {...props} />
@@ -79,14 +73,14 @@ function MarkdownRenderer({ content, className = '' }) {
           if (inline) {
             return (
               <code
-                className="bg-surface-secondary text-red-600 px-1.5 py-0.5 rounded text-xs font-mono"
+                className="bg-surface-tertiary text-primary px-1.5 py-0.5 rounded text-xs font-mono"
                 {...props}
               />
             );
           }
           return (
             <code
-              className="block bg-foreground text-surface p-4 rounded-lg overflow-x-auto text-sm font-mono leading-relaxed mb-4"
+              className="block bg-surface-tertiary text-foreground p-3 rounded-lg overflow-x-auto text-xs font-mono leading-relaxed mb-3 border border-border"
               {...props}
             />
           );
@@ -94,21 +88,21 @@ function MarkdownRenderer({ content, className = '' }) {
 
         // Pre blocks (wraps code blocks)
         pre: ({ node, ...props }) => (
-          <pre className="mb-4" {...props} />
+          <pre className="mb-3 last:mb-0" {...props} />
         ),
 
         // Blockquotes
         blockquote: ({ node, ...props }) => (
           <blockquote
-            className="border-l-4 border-strong pl-4 py-2 my-4 italic text-foreground bg-surface-tertiary"
+            className="border-l-4 border-primary pl-4 py-2 my-3 italic text-foreground-secondary bg-surface-secondary rounded-r"
             {...props}
           />
         ),
 
         // Tables
         table: ({ node, ...props }) => (
-          <div className="overflow-x-auto mb-4">
-            <table className="min-w-full border border-border text-sm" {...props} />
+          <div className="overflow-x-auto mb-3 last:mb-0">
+            <table className="min-w-full border border-border text-sm rounded-lg" {...props} />
           </div>
         ),
         thead: ({ node, ...props }) => (
@@ -118,28 +112,28 @@ function MarkdownRenderer({ content, className = '' }) {
           <tbody {...props} />
         ),
         tr: ({ node, ...props }) => (
-          <tr className="border-b border-border" {...props} />
+          <tr className="border-b border-border last:border-b-0" {...props} />
         ),
         th: ({ node, ...props }) => (
-          <th className="px-4 py-2 text-left font-semibold text-text-dark" {...props} />
+          <th className="px-3 py-2 text-left font-semibold text-foreground" {...props} />
         ),
         td: ({ node, ...props }) => (
-          <td className="px-4 py-2 text-text-dark" {...props} />
+          <td className="px-3 py-2 text-foreground" {...props} />
         ),
 
         // Horizontal rule
         hr: ({ node, ...props }) => (
-          <hr className="my-6 border-t border-border" {...props} />
+          <hr className="my-4 border-t border-border" {...props} />
         ),
 
         // Images
         img: ({ node, ...props }) => (
-          <img className="max-w-full h-auto rounded-lg my-4" alt="" {...props} />
+          <img className="max-w-full h-auto rounded-lg my-3" alt="" {...props} />
         ),
 
         // Strong/Bold
         strong: ({ node, ...props }) => (
-          <strong className="font-bold text-text-dark" {...props} />
+          <strong className="font-bold text-foreground" {...props} />
         ),
 
         // Emphasis/Italic
@@ -159,10 +153,10 @@ function MarkdownRenderer({ content, className = '' }) {
   } catch (error) {
     console.error('MarkdownRenderer error:', error);
     return (
-      <div className="text-red-600 p-4 bg-red-50 border border-red-200 rounded">
-        <p className="font-semibold">Error rendering markdown:</p>
-        <p className="text-sm">{error.message}</p>
-        <pre className="mt-2 text-xs bg-white p-2 rounded overflow-auto max-h-40">
+      <div className="text-error p-3 bg-error/10 border border-error/30 rounded-lg">
+        <p className="font-semibold text-sm">Error rendering markdown:</p>
+        <p className="text-xs mt-1">{error.message}</p>
+        <pre className="mt-2 text-xs bg-surface p-2 rounded overflow-auto max-h-32 text-foreground">
           {content}
         </pre>
       </div>
