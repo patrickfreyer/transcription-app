@@ -50,5 +50,22 @@ contextBridge.exposeInMainWorld("electron", {
   // Chat management
   getChatHistory: () => ipcRenderer.invoke("get-chat-history"),
   saveChatHistory: (chatHistory) => ipcRenderer.invoke("save-chat-history", chatHistory),
-  chatWithAI: (messages, systemPrompt, contextIds) => ipcRenderer.invoke("chat-with-ai", messages, systemPrompt, contextIds)
+  // Streaming chat with Agents SDK
+  chatWithAIStream: (messages, systemPrompt, contextIds) => {
+    ipcRenderer.send("chat-with-ai-stream", messages, systemPrompt, contextIds);
+  },
+  onChatStreamToken: (callback) => {
+    ipcRenderer.on("chat-stream-token", (event, data) => callback(data));
+  },
+  onChatStreamComplete: (callback) => {
+    ipcRenderer.on("chat-stream-complete", (event, data) => callback(data));
+  },
+  onChatStreamError: (callback) => {
+    ipcRenderer.on("chat-stream-error", (event, data) => callback(data));
+  },
+  removeChatStreamListeners: () => {
+    ipcRenderer.removeAllListeners("chat-stream-token");
+    ipcRenderer.removeAllListeners("chat-stream-complete");
+    ipcRenderer.removeAllListeners("chat-stream-error");
+  }
 });

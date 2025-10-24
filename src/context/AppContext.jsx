@@ -185,42 +185,78 @@ export function AppProvider({ children }) {
 
     // Add user message to chat
     const updatedMessages = [...currentChatMessages, userMessage];
-    const updatedChatHistory = {
+
+    // Create placeholder assistant message for streaming
+    const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const contextIds = selectedContextIds.length > 0 ? selectedContextIds : [selectedTranscriptId];
+
+    const placeholderAssistantMessage = {
+      id: assistantMessageId,
+      role: "assistant",
+      content: "",
+      timestamp: Date.now(),
+      contextUsed: contextIds
+    };
+
+    const messagesWithPlaceholder = [...updatedMessages, placeholderAssistantMessage];
+
+    // Update chat history with user message and placeholder
+    let workingChatHistory = {
       ...chatHistory,
       [selectedTranscriptId]: {
         transcriptId: selectedTranscriptId,
-        messages: updatedMessages,
+        messages: messagesWithPlaceholder,
         createdAt: chatHistory[selectedTranscriptId]?.createdAt || Date.now(),
         updatedAt: Date.now()
       }
     };
-    setChatHistory(updatedChatHistory);
+    setChatHistory(workingChatHistory);
 
     // Build context from selected transcripts
-    const contextIds = selectedContextIds.length > 0 ? selectedContextIds : [selectedTranscriptId];
     const contextTranscripts = transcripts.filter(t => contextIds.includes(t.id));
-
-    // Build system prompt with transcripts
     const systemPrompt = buildSystemPrompt(contextTranscripts);
 
-    // Call OpenAI API
+    // Set up streaming listeners
     setIsChatStreaming(true);
-    const result = await window.electron.chatWithAI(
-      updatedMessages,
-      systemPrompt,
-      contextIds
-    );
 
-    if (result.success) {
-      const assistantMessage = {
-        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        role: "assistant",
-        content: result.message,
-        timestamp: Date.now(),
-        contextUsed: contextIds
+    let streamedContent = "";
+
+    // Token callback
+    const handleToken = (data) => {
+      streamedContent += data.token;
+
+      // Update the assistant message with accumulated content
+      const updatedAssistantMessage = {
+        ...placeholderAssistantMessage,
+        content: streamedContent
       };
 
-      const finalMessages = [...updatedMessages, assistantMessage];
+      const updatedMessagesWithStream = [...updatedMessages, updatedAssistantMessage];
+
+      workingChatHistory = {
+        ...chatHistory,
+        [selectedTranscriptId]: {
+          transcriptId: selectedTranscriptId,
+          messages: updatedMessagesWithStream,
+          createdAt: chatHistory[selectedTranscriptId]?.createdAt || Date.now(),
+          updatedAt: Date.now()
+        }
+      };
+      setChatHistory(workingChatHistory);
+    };
+
+    // Complete callback
+    const handleComplete = async (data) => {
+      setIsChatStreaming(false);
+
+      // Final update with complete message
+      const finalAssistantMessage = {
+        ...placeholderAssistantMessage,
+        content: data.message,
+        contextUsed: data.metadata?.contextUsed || contextIds
+      };
+
+      const finalMessages = [...updatedMessages, finalAssistantMessage];
       const finalChatHistory = {
         ...chatHistory,
         [selectedTranscriptId]: {
@@ -230,11 +266,46 @@ export function AppProvider({ children }) {
           updatedAt: Date.now()
         }
       };
+
       setChatHistory(finalChatHistory);
       await window.electron.saveChatHistory(finalChatHistory);
-    }
 
-    setIsChatStreaming(false);
+      // Clean up listeners
+      window.electron.removeChatStreamListeners();
+    };
+
+    // Error callback
+    const handleError = (data) => {
+      setIsChatStreaming(false);
+      console.error('Chat stream error:', data.error);
+
+      // Remove placeholder message on error
+      const errorChatHistory = {
+        ...chatHistory,
+        [selectedTranscriptId]: {
+          transcriptId: selectedTranscriptId,
+          messages: updatedMessages,
+          createdAt: chatHistory[selectedTranscriptId]?.createdAt || Date.now(),
+          updatedAt: Date.now()
+        }
+      };
+      setChatHistory(errorChatHistory);
+
+      // Clean up listeners
+      window.electron.removeChatStreamListeners();
+    };
+
+    // Register listeners
+    window.electron.onChatStreamToken(handleToken);
+    window.electron.onChatStreamComplete(handleComplete);
+    window.electron.onChatStreamError(handleError);
+
+    // Start streaming
+    window.electron.chatWithAIStream(
+      updatedMessages,
+      systemPrompt,
+      contextIds
+    );
   };
 
   const clearChatHistory = async (transcriptId) => {

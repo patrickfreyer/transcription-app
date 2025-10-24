@@ -32,8 +32,8 @@ async function getApiKey() {
 function registerChatHandlers() {
   logger.info('Registering chat IPC handlers');
 
-  // Chat with AI using new Agent SDK system
-  ipcMain.handle('chat-with-ai', async (event, messages, systemPrompt, contextIds) => {
+  // Chat with AI using Agents SDK with streaming
+  ipcMain.on('chat-with-ai-stream', async (event, messages, systemPrompt, contextIds) => {
     try {
       // Get API key
       const apiKey = await getApiKey();
@@ -45,38 +45,47 @@ function registerChatHandlers() {
       const transcriptId = contextIds && contextIds.length > 0 ? contextIds[0] : null;
 
       if (!transcriptId) {
-        return {
-          success: false,
+        event.sender.send('chat-stream-error', {
           error: 'No transcript selected'
-        };
+        });
+        return;
       }
 
       // Message history (exclude the current message)
       const messageHistory = messages.slice(0, -1);
 
-      logger.info(`Chat request: ${userMessage.substring(0, 50)}...`);
+      logger.info(`Chat stream request: ${userMessage.substring(0, 50)}...`);
 
-      // Call ChatService
+      // Call ChatService with streaming callback
       const result = await chatService.sendMessage({
         apiKey,
         transcriptId,
         userMessage,
         messageHistory,
-        contextIds: contextIds || [transcriptId]
+        contextIds: contextIds || [transcriptId],
+        onToken: (token) => {
+          // Send each token to the renderer
+          event.sender.send('chat-stream-token', { token });
+        }
       });
 
       if (result.success) {
-        logger.success(`Chat response generated (${result.metadata?.iterations || 1} iterations, ${result.metadata?.toolCalls?.length || 0} tool calls)`);
+        logger.success('Chat response completed with streaming');
+        event.sender.send('chat-stream-complete', {
+          message: result.message,
+          metadata: result.metadata
+        });
+      } else {
+        event.sender.send('chat-stream-error', {
+          error: result.error
+        });
       }
 
-      return result;
-
     } catch (error) {
-      logger.error('Chat error:', error);
-      return {
-        success: false,
+      logger.error('Chat stream error:', error);
+      event.sender.send('chat-stream-error', {
         error: error.message || 'Failed to get response from AI'
-      };
+      });
     }
   });
 

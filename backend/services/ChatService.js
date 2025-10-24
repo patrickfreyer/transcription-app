@@ -2,7 +2,7 @@
  * ChatService - Handles chat operations using OpenAI Agents SDK
  */
 
-const OpenAI = require('openai');
+const { Agent, run } = require('@openai/agents');
 const TranscriptService = require('./TranscriptService');
 const StorageService = require('./StorageService');
 const guardrails = require('../guardrails');
@@ -14,19 +14,41 @@ class ChatService {
   constructor() {
     this.transcriptService = new TranscriptService();
     this.storage = new StorageService();
-    this.openai = null;
+    this.agent = null;
+    this.apiKey = null;
 
     logger.info('ChatService initialized');
   }
 
   /**
-   * Initialize OpenAI client with API key
+   * Initialize agent with API key
    * @param {string} apiKey - OpenAI API key
    */
-  initializeOpenAI(apiKey) {
-    if (!this.openai) {
-      this.openai = new OpenAI({ apiKey });
-      logger.info('OpenAI client initialized');
+  initializeAgent(apiKey) {
+    if (!this.agent || this.apiKey !== apiKey) {
+      this.apiKey = apiKey;
+      this.agent = new Agent({
+        name: 'Transcript Analyst',
+        instructions: `You are an expert AI assistant specialized in analyzing audio transcripts.
+
+Your capabilities:
+- Answer questions accurately based on transcript content
+- Identify key themes, decisions, and action items
+- Summarize discussions and meetings
+- Compare multiple transcripts when provided
+- Extract speaker insights from diarized transcripts
+
+Guidelines:
+- ONLY answer based on the provided transcript content
+- If information isn't in the transcripts, state that clearly - do not make up information
+- Cite specific speakers or timestamps when available
+- Be concise but thorough in your responses
+- Always provide evidence from the transcripts to support your answers`,
+        model: 'gpt-4o',
+        tools: [], // No tools for now - will add incrementally
+        temperature: 0.7
+      });
+      logger.info('Agent initialized with GPT-4o model');
     }
   }
 
@@ -50,14 +72,15 @@ class ChatService {
   }
 
   /**
-   * Send a chat message using OpenAI function calling
+   * Send a chat message with streaming using Agents SDK
    * @param {Object} params - Message parameters
+   * @param {Function} onToken - Callback for streaming tokens
    * @returns {Object} Response object
    */
-  async sendMessage({ apiKey, transcriptId, userMessage, messageHistory = [], contextIds = [] }) {
+  async sendMessage({ apiKey, transcriptId, userMessage, messageHistory = [], contextIds = [], onToken }) {
     try {
-      // Initialize OpenAI
-      this.initializeOpenAI(apiKey);
+      // Initialize Agent
+      this.initializeAgent(apiKey);
 
       // Get context transcripts
       const transcripts = contextIds.length > 0
@@ -94,59 +117,57 @@ class ChatService {
 
       logger.info(`Processing message with ${transcripts.length} transcript(s) in context`);
 
-      // Build messages array with full transcript content
+      // Build full context message with transcript content
       const transcriptContent = this.buildTranscriptContext(transcripts);
 
-      const messages = [
-        {
-          role: 'system',
-          content: `You are an expert AI assistant specialized in analyzing audio transcripts.
+      // Build conversation history
+      let conversationHistory = '';
+      if (messageHistory.length > 0) {
+        conversationHistory = '\n\nPrevious conversation:\n';
+        messageHistory.forEach(msg => {
+          conversationHistory += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
+        });
+      }
 
-Your capabilities:
-- Answer questions accurately based on transcript content
-- Identify key themes, decisions, and action items
-- Summarize discussions and meetings
-- Compare multiple transcripts when provided
-- Extract speaker insights from diarized transcripts
+      // Combine context + history + current message
+      const fullMessage = `${transcriptContent}${conversationHistory}
 
-Guidelines:
-- ONLY answer based on the provided transcript content below
-- If information isn't in the transcripts, state that clearly - do not make up information
-- Cite specific speakers or timestamps when available
-- Be concise but thorough in your responses
-- Always provide evidence from the transcripts to support your answers
+Current question: ${userMessage}`;
 
-${transcriptContent}`
-        },
-        // Add message history
-        ...messageHistory.map(msg => ({
-          role: msg.role,
-          content: msg.content
-        })),
-        // Add current user message
-        {
-          role: 'user',
-          content: userMessage
-        }
-      ];
+      logger.info('Starting streaming agent run...');
 
-      // Simple chat completion - no tools
-      logger.info('Sending chat request to OpenAI...');
-
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 2000
+      // Run agent with streaming
+      const stream = await run(this.agent, fullMessage, {
+        apiKey,
+        stream: true
       });
 
-      const assistantMessage = response.choices[0].message;
+      let fullResponse = '';
 
-      logger.success('Response generated successfully');
+      // Process stream events
+      for await (const event of stream) {
+        if (event.type === 'raw_model_stream_event') {
+          // Extract text delta from the event
+          if (event.data?.type === 'response.output_text.delta' && event.data?.delta) {
+            const token = event.data.delta;
+            fullResponse += token;
+
+            // Call onToken callback if provided
+            if (onToken) {
+              onToken(token);
+            }
+          }
+        }
+      }
+
+      // Wait for completion
+      await stream.completed;
+
+      logger.success('Response generated successfully with streaming');
 
       return {
         success: true,
-        message: assistantMessage.content,
+        message: fullResponse,
         metadata: {
           contextUsed: contextIds.length > 0 ? contextIds : [transcriptId]
         }
