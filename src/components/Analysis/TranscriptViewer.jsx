@@ -221,7 +221,6 @@ function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAn
               <MarkdownRenderer
                 content={summary}
                 className="prose prose-sm max-w-none"
-                enableCodeHighlighting={true}
                 enableGFM={true}
               />
             ) : (

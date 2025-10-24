@@ -32,7 +32,6 @@ const MessageBubble = ({ message }) => {
             <MarkdownRenderer
               content={message.content}
               className="text-sm markdown-compact"
-              enableCodeHighlighting={true}
               enableGFM={true}
             />
           ) : (

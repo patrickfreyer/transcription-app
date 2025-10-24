@@ -2,8 +2,6 @@ import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 /**
  * MarkdownRenderer - Safe markdown rendering component
@@ -11,26 +9,19 @@ import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/pris
  * Features:
  * - XSS-safe by default (no dangerouslySetInnerHTML)
  * - GitHub Flavored Markdown support (tables, strikethrough, task lists)
- * - Code syntax highlighting with theme support
+ * - Code blocks with language labels (no heavy syntax highlighting)
  * - External link handling for Electron
  * - Custom styling integration
  *
  * @param {string} content - Markdown content to render
  * @param {string} className - Additional CSS classes
- * @param {boolean} enableCodeHighlighting - Enable syntax highlighting (default: true)
  * @param {boolean} enableGFM - Enable GitHub Flavored Markdown (default: true)
  */
 const MarkdownRenderer = ({
   content,
   className = '',
-  enableCodeHighlighting = true,
   enableGFM = true
 }) => {
-  // Detect current theme (light/dark)
-  const isDarkMode = useMemo(() => {
-    return document.documentElement.classList.contains('dark') ||
-           window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }, []);
 
   // Handle external links in Electron
   const handleLinkClick = (e, href) => {
@@ -60,27 +51,24 @@ const MarkdownRenderer = ({
       </a>
     ),
 
-    // Code blocks with syntax highlighting
+    // Code blocks with language labels
     code: ({ node, inline, className, children, ...props }) => {
       const match = /language-(\w+)/.exec(className || '');
       const language = match ? match[1] : '';
 
-      if (!inline && enableCodeHighlighting && language) {
+      // Block code
+      if (!inline && language) {
         return (
-          <SyntaxHighlighter
-            style={isDarkMode ? oneDark : oneLight}
-            language={language}
-            PreTag="div"
-            className="rounded-lg text-sm my-2"
-            customStyle={{
-              margin: 0,
-              padding: '1rem',
-              background: isDarkMode ? '#1e1e1e' : '#f6f8fa',
-            }}
-            {...props}
-          >
-            {String(children).replace(/\n$/, '')}
-          </SyntaxHighlighter>
+          <div className="my-3 rounded-lg overflow-hidden border border-border">
+            <div className="bg-surface-secondary px-3 py-1 text-xs font-semibold text-foreground-secondary border-b border-border">
+              {language}
+            </div>
+            <pre className="bg-surface-elevated p-4 overflow-x-auto">
+              <code className="text-sm font-mono text-foreground" {...props}>
+                {children}
+              </code>
+            </pre>
+          </div>
         );
       }
 
@@ -226,7 +214,7 @@ const MarkdownRenderer = ({
         {children}
       </del>
     ),
-  }), [isDarkMode, enableCodeHighlighting]);
+  }), []);
 
   // Prepare remark plugins
   const remarkPlugins = useMemo(() => {
