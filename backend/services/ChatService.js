@@ -157,15 +157,9 @@ Current question: ${userMessage}`;
       for await (const event of stream) {
         eventCount++;
 
-        // Log all event types for debugging
-        logger.info(`Event #${eventCount}: type=${event.type}`);
-
         if (event.type === 'raw_model_stream_event') {
-          logger.info(`Raw model event data type: ${event.data?.type}`);
-          logger.info(`Event data: ${JSON.stringify(event.data).substring(0, 200)}`);
-
-          // Extract text delta from the event
-          if (event.data?.type === 'response.output_text.delta' && event.data?.delta) {
+          // Extract text delta from the event - check for 'output_text_delta' (not 'response.output_text.delta')
+          if (event.data?.type === 'output_text_delta' && event.data?.delta) {
             const token = event.data.delta;
             fullResponse += token;
             tokenCount++;
@@ -177,12 +171,6 @@ Current question: ${userMessage}`;
               onToken(token);
             }
           }
-        } else if (event.type === 'run_item_stream_event') {
-          logger.info(`Run item event: ${event.name}, item type: ${event.item?.type}`);
-        } else if (event.type === 'agent_updated_stream_event') {
-          logger.info(`Agent updated: ${event.agent?.name}`);
-        } else {
-          logger.info(`Unknown event type: ${event.type}`);
         }
       }
 
