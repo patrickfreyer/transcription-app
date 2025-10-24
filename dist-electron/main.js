@@ -1,5 +1,5 @@
 "use strict";
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 const path = require("path");
 const OpenAI = require("openai");
 const fs = require("fs");
@@ -727,6 +727,21 @@ ${templatePrompt}`
   }
 });
 registerAllHandlers();
+ipcMain.handle("open-external", async (event, url) => {
+  try {
+    const validUrl = new URL(url);
+    if (validUrl.protocol === "http:" || validUrl.protocol === "https:") {
+      await shell.openExternal(url);
+      return { success: true };
+    } else {
+      console.error("Invalid protocol:", validUrl.protocol);
+      return { success: false, error: "Only HTTP and HTTPS URLs are allowed" };
+    }
+  } catch (error) {
+    console.error("Error opening external URL:", error);
+    return { success: false, error: error.message };
+  }
+});
 ipcMain.handle("save-transcript", async (event, content, format, fileName) => {
   try {
     const formatConfig = {

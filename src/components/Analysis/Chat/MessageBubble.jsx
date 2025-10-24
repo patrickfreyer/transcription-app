@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import MarkdownRenderer from '../../Common/MarkdownRenderer';
 
 /**
  * MessageBubble - Individual message bubble with copy functionality
+ * Now supports markdown rendering for AI responses
  */
 const MessageBubble = ({ message }) => {
   const [showCopyFeedback, setShowCopyFeedback] = useState(false);
@@ -26,9 +28,18 @@ const MessageBubble = ({ message }) => {
             ? 'bg-primary text-white dark:bg-primary dark:text-white'
             : 'bg-surface-elevated border border-border text-foreground dark:bg-surface-elevated dark:text-foreground dark:border-border shadow-sm'
         }`}>
-          <p className="text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere">
-            {message.content}
-          </p>
+          {message.role === 'assistant' ? (
+            <MarkdownRenderer
+              content={message.content}
+              className="text-sm markdown-compact"
+              enableCodeHighlighting={true}
+              enableGFM={true}
+            />
+          ) : (
+            <p className="text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere">
+              {message.content}
+            </p>
+          )}
         </div>
 
         {/* Metadata row */}

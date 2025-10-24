@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import MarkdownRenderer from '../Common/MarkdownRenderer';
 
 function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAnotherButton = false }) {
   const [activeView, setActiveView] = useState('raw'); // 'raw' or 'summary'
@@ -216,11 +217,20 @@ function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAn
       <div className="flex-1 overflow-auto">
         <div className="max-w-5xl mx-auto p-4">
           <div className="bg-surface rounded-xl border border-border p-6 shadow-sm animate-fade-in">
-            <div className="prose prose-sm max-w-none">
-              <pre className="whitespace-pre-wrap font-sans text-sm text-text-dark leading-relaxed">
-                {activeView === 'summary' ? summary : rawTranscript}
-              </pre>
-            </div>
+            {activeView === 'summary' ? (
+              <MarkdownRenderer
+                content={summary}
+                className="prose prose-sm max-w-none"
+                enableCodeHighlighting={true}
+                enableGFM={true}
+              />
+            ) : (
+              <div className="prose prose-sm max-w-none">
+                <pre className="whitespace-pre-wrap font-sans text-sm text-text-dark leading-relaxed">
+                  {rawTranscript}
+                </pre>
+              </div>
+            )}
           </div>
         </div>
       </div>

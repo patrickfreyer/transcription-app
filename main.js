@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const OpenAI = require('openai');
 const fs = require('fs');
@@ -979,6 +979,24 @@ ipcMain.handle('generate-summary', async (event, transcript, templatePrompt, api
 // Register all new backend handlers (transcript, chat, etc.)
 // These replace the old inline handlers with the new modular system
 registerAllHandlers();
+
+// Handle opening external links (for markdown links)
+ipcMain.handle('open-external', async (event, url) => {
+  try {
+    // Validate URL to prevent security issues
+    const validUrl = new URL(url);
+    if (validUrl.protocol === 'http:' || validUrl.protocol === 'https:') {
+      await shell.openExternal(url);
+      return { success: true };
+    } else {
+      console.error('Invalid protocol:', validUrl.protocol);
+      return { success: false, error: 'Only HTTP and HTTPS URLs are allowed' };
+    }
+  } catch (error) {
+    console.error('Error opening external URL:', error);
+    return { success: false, error: error.message };
+  }
+});
 
 // Handle save transcript
 ipcMain.handle('save-transcript', async (event, content, format, fileName) => {

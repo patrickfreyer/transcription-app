@@ -55,6 +55,9 @@ contextBridge.exposeInMainWorld('electron', {
     navigator.clipboard.writeText(text);
   },
 
+  // External links (for markdown links)
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+
   // Transcript management
   getTranscripts: () => ipcRenderer.invoke('get-transcripts'),
   saveTranscripts: (transcripts) => ipcRenderer.invoke('save-transcripts', transcripts),
