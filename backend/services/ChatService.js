@@ -2,7 +2,7 @@
  * ChatService - Handles chat operations using OpenAI Agents SDK
  */
 
-const { Agent, run } = require('@openai/agents');
+const { Agent, run, setDefaultOpenAIKey } = require('@openai/agents');
 const TranscriptService = require('./TranscriptService');
 const StorageService = require('./StorageService');
 const guardrails = require('../guardrails');
@@ -27,6 +27,12 @@ class ChatService {
   initializeAgent(apiKey) {
     if (!this.agent || this.apiKey !== apiKey) {
       this.apiKey = apiKey;
+
+      // Set the API key globally for the Agents SDK
+      logger.info('Setting default OpenAI API key for Agents SDK...');
+      setDefaultOpenAIKey(apiKey);
+      logger.info('API key set successfully');
+
       this.agent = new Agent({
         name: 'Transcript Analyst',
         instructions: `You are an expert AI assistant specialized in analyzing audio transcripts.
@@ -136,9 +142,8 @@ Current question: ${userMessage}`;
 
       logger.info('Starting streaming agent run...');
 
-      // Run agent with streaming
+      // Run agent with streaming (API key already set globally)
       const stream = await run(this.agent, fullMessage, {
-        apiKey,
         stream: true
       });
 
