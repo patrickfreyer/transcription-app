@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import MarkdownRenderer from '../../Common/MarkdownRenderer';
 
 /**
  * MessageBubble - Individual message bubble with copy functionality
@@ -27,17 +26,9 @@ const MessageBubble = ({ message }) => {
             ? 'bg-primary text-white dark:bg-primary dark:text-white'
             : 'bg-surface-elevated border border-border text-foreground dark:bg-surface-elevated dark:text-foreground dark:border-border shadow-sm'
         }`}>
-          {message.role === 'assistant' ? (
-            // Render markdown for assistant messages
-            <div className="text-sm">
-              <MarkdownRenderer content={message.content} />
-            </div>
-          ) : (
-            // Keep user messages as plain text
-            <p className="text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere">
-              {message.content}
-            </p>
-          )}
+          <p className="text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere">
+            {message.content}
+          </p>
         </div>
 
         {/* Metadata row */}
