@@ -91,7 +91,7 @@ function AnalysisPanel({ isActive }) {
       <div className="absolute inset-0 flex">
         {/* Left Sidebar - Resizable */}
         <div
-          className="flex-shrink-0 border-r-2 border-gray-200 bg-white min-w-0"
+          className="flex-shrink-0 border-r border-border bg-surface min-w-0"
           style={{ width: `${sidebarWidth}px` }}
         >
           <TranscriptSidebar />
@@ -100,7 +100,7 @@ function AnalysisPanel({ isActive }) {
         {/* Resize handle for sidebar */}
         <div
           onMouseDown={handleSidebarMouseDown}
-          className="w-1 flex-shrink-0 cursor-col-resize hover:bg-primary hover:bg-opacity-20 transition-colors relative group"
+          className="w-1 flex-shrink-0 cursor-col-resize hover:bg-primary hover:bg-opacity-30 transition-colors relative group"
         >
           <div className="absolute inset-y-0 -left-1 -right-1" />
         </div>
@@ -110,11 +110,11 @@ function AnalysisPanel({ isActive }) {
           {selectedTranscript ? (
             <TranscriptViewer transcription={selectedTranscript} />
           ) : (
-            <div className="h-full flex items-center justify-center bg-gray-50">
+            <div className="h-full flex items-center justify-center bg-surface-tertiary">
               <div className="text-center space-y-6 max-w-md px-4">
-                <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center shadow-lg">
+                <div className="w-24 h-24 mx-auto rounded-full bg-surface-secondary flex items-center justify-center shadow-lg">
                   <svg
-                    className="w-12 h-12 text-gray-400"
+                    className="w-12 h-12 text-foreground-secondary"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -139,7 +139,7 @@ function AnalysisPanel({ isActive }) {
 
                 <button
                   onClick={() => switchTab('recording')}
-                  className="px-6 py-3 rounded-xl bg-gradient-bcg text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105 inline-flex items-center gap-2"
+                  className="px-6 py-3 rounded-xl bg-primary text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:scale-105 inline-flex items-center gap-2"
                 >
                   <svg
                     className="w-4 h-4"
@@ -165,13 +165,13 @@ function AnalysisPanel({ isActive }) {
             {/* Resize handle for chat */}
             <div
               onMouseDown={handleChatMouseDown}
-              className="w-1 flex-shrink-0 cursor-col-resize hover:bg-primary hover:bg-opacity-20 transition-colors relative group"
+              className="w-1 flex-shrink-0 cursor-col-resize hover:bg-primary hover:bg-opacity-30 transition-colors relative group"
             >
               <div className="absolute inset-y-0 -left-1 -right-1" />
             </div>
 
             <div
-              className="flex-shrink-0 border-l-2 border-gray-200 bg-gray-50 min-w-0"
+              className="flex-shrink-0 border-l border-border bg-surface-tertiary min-w-0"
               style={{ width: `${chatWidth}px` }}
             >
               <ChatPanel />

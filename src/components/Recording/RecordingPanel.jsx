@@ -9,6 +9,7 @@ import RecordingInterface from './RecordingInterface';
 import TranscribeButton from './TranscribeButton';
 import RecentRecordingsSection from './RecentRecordingsSection';
 import TranscriptViewer from '../Analysis/TranscriptViewer';
+import MicrophoneSelector from './MicrophoneSelector';
 
 const MODELS = [
   {
@@ -40,7 +41,11 @@ function RecordingPanel({ isActive }) {
     switchTab,
     isTranscribing,
     setIsTranscribing,
-    loadTranscripts
+    loadTranscripts,
+    transcripts,
+    setSelectedTranscriptId,
+    toggleTranscriptSelection,
+    isTranscriptSelected
   } = useApp();
 
   // State
@@ -55,6 +60,7 @@ function RecordingPanel({ isActive }) {
   const [promptOpen, setPromptOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [transcriptionProgress, setTranscriptionProgress] = useState(null);
+  const [selectedMicrophoneId, setSelectedMicrophoneId] = useState(null);
 
   // Recording state
   const [recordingFilePath, setRecordingFilePath] = useState(null);
@@ -138,8 +144,12 @@ function RecordingPanel({ isActive }) {
     }
 
     try {
-      // Request microphone access
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Request microphone access with specific device if selected
+      const audioConstraints = selectedMicrophoneId
+        ? { deviceId: { exact: selectedMicrophoneId } }
+        : true;
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
 
       // Capture start time in local variable to avoid closure issues
       const startTime = Date.now();
@@ -338,13 +348,45 @@ function RecordingPanel({ isActive }) {
         console.log('No summary template selected or template has no prompt');
       }
 
-      // Step 3: Store the transcription result
+      // Step 3: Generate smart name for recordings (not uploads)
+      let fileName = selectedFile?.name || 'Recording';
+
+      if (!selectedFile && rawTranscript) {
+        // This is a recording (not an upload), generate smart name
+        console.log('🎯 Recording detected - generating AI-powered name...');
+        console.log('Transcript preview:', rawTranscript.substring(0, 100) + '...');
+
+        if (window.electron && window.electron.generateTranscriptName) {
+          try {
+            console.log('Calling generateTranscriptName API...');
+            const nameResult = await window.electron.generateTranscriptName(rawTranscript, apiKey);
+            console.log('Name generation result:', nameResult);
+
+            if (nameResult.success && nameResult.name) {
+              fileName = nameResult.name;
+              console.log(`✅ Generated name: "${fileName}"${nameResult.fallback ? ' (fallback)' : ''}`);
+            } else {
+              console.warn('Name generation succeeded but no name returned');
+            }
+          } catch (nameError) {
+            console.error('❌ Failed to generate name:', nameError);
+            // Keep default "Recording"
+          }
+        } else {
+          console.error('❌ generateTranscriptName method not available on window.electron');
+          console.log('Available methods:', Object.keys(window.electron || {}));
+        }
+      } else {
+        console.log('Skipping auto-naming:', selectedFile ? 'Upload file detected' : 'No transcript');
+      }
+
+      // Step 4: Store the transcription result
       const result = {
         rawTranscript,
         summary,
         summaryTemplate: summaryTemplateName,
         model: selectedModel,
-        fileName: selectedFile?.name || 'Recording',
+        fileName,
         duration: recordingDuration || 0,
         timestamp: Date.now(),
         vttTranscript: transcriptionResult.transcript, // VTT format
@@ -428,6 +470,8 @@ function RecordingPanel({ isActive }) {
               onStopRecording={handleStopRecording}
               onRecordAgain={handleRecordAgain}
               disabled={isDisabled}
+              selectedMicrophoneId={selectedMicrophoneId}
+              onMicrophoneChange={setSelectedMicrophoneId}
             />
           )}
 
@@ -453,10 +497,10 @@ function RecordingPanel({ isActive }) {
               {/* Divider */}
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t-2 border-gray-200"></div>
+                  <div className="w-full border-t border-border"></div>
                 </div>
                 <div className="relative flex justify-center text-sm uppercase">
-                  <span className="bg-gray-50 px-6 text-primary font-bold tracking-wide">Configure Transcription</span>
+                  <span className="bg-surface-tertiary px-6 text-primary font-bold tracking-wide">Configure Transcription</span>
                 </div>
               </div>
 
@@ -526,7 +570,7 @@ function RecordingPanel({ isActive }) {
                     onChange={(e) => setPrompt(e.target.value)}
                     disabled={isDisabled}
                     placeholder="Provide context or specific terms to improve accuracy..."
-                    className="w-full px-4 py-3 border-2 border-bg-gray-200 rounded-xl text-sm text-text-dark placeholder-text-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
+                    className="w-full px-4 py-3 border border-border rounded-xl text-sm bg-surface text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
                     rows={4}
                   />
                   <p className="mt-3 text-xs text-text-gray leading-relaxed">
@@ -536,7 +580,7 @@ function RecordingPanel({ isActive }) {
 
                 {/* Diarization Info (only for diarized model) */}
                 {selectedModel === 'gpt-4o-transcribe-diarize' && (
-                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                     <div className="flex items-start gap-3">
                       <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" />
@@ -570,9 +614,18 @@ function RecordingPanel({ isActive }) {
 
       {/* Recent Recordings Section - Fixed at Bottom (hide when showing results) */}
       {!showResults && (
-      <div className="flex-shrink-0 border-t-2 border-gray-200 bg-gradient-to-b from-white to-gray-50 shadow-2xl">
+      <div className="flex-shrink-0 border-t border-border bg-gradient-to-b from-surface to-surface-tertiary">
         <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-4 sm:py-5">
-          <RecentRecordingsSection recordings={[]} />
+          <RecentRecordingsSection
+            transcripts={transcripts.slice(0, 4)}
+            onTranscriptClick={(transcriptId) => {
+              setSelectedTranscriptId(transcriptId);
+              if (!isTranscriptSelected(transcriptId)) {
+                toggleTranscriptSelection(transcriptId);
+              }
+              switchTab('analysis');
+            }}
+          />
         </div>
       </div>
       )}

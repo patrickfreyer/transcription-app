@@ -11,15 +11,15 @@ function FilterTabs() {
   ];
 
   return (
-    <div className="flex items-center bg-gray-50 p-2 gap-1">
+    <div className="flex items-center bg-surface-tertiary p-2 gap-1">
       {tabs.map(tab => (
         <button
           key={tab.id}
           onClick={() => setFilterMode(tab.id)}
           className={`flex-1 px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
             filterMode === tab.id
-              ? 'bg-primary text-white'
-              : 'text-gray-600 hover:bg-gray-100'
+              ? 'bg-primary text-white shadow-sm'
+              : 'text-foreground-secondary hover:bg-surface-secondary hover:text-foreground'
           }`}
         >
           {tab.id === 'starred' && (

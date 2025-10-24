@@ -52,16 +52,16 @@ const ContextSelector = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+      <div className="bg-surface rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b-2 border-gray-200">
+        <div className="p-6 border-b border">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-text-dark">
+            <h3 className="text-xl font-bold text-foreground">
               Select Context Transcripts
             </h3>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-surface-secondary rounded-lg text-foreground-secondary hover:text-foreground transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -75,7 +75,7 @@ const ContextSelector = ({ onClose }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search transcripts..."
-            className="w-full px-4 py-2 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full px-4 py-2 bg-surface border border rounded-xl text-sm text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
 
@@ -84,7 +84,7 @@ const ContextSelector = ({ onClose }) => {
           {filteredTranscripts.map(transcript => (
             <label
               key={transcript.id}
-              className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 cursor-pointer"
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-tertiary cursor-pointer"
             >
               <input
                 type="checkbox"
@@ -99,10 +99,10 @@ const ContextSelector = ({ onClose }) => {
                 className="w-4 h-4 text-primary rounded"
               />
               <div className="flex-1">
-                <div className="font-semibold text-sm text-text-dark">
+                <div className="font-semibold text-sm text-foreground">
                   {transcript.fileName}
                 </div>
-                <div className="text-xs text-text-gray">
+                <div className="text-xs text-foreground-secondary">
                   {formatTimestamp(transcript.timestamp)} • {formatDuration(transcript.duration)}
                 </div>
               </div>
@@ -111,14 +111,14 @@ const ContextSelector = ({ onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t-2 border-gray-200">
+        <div className="p-4 border-t border">
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm">
-              <span className="text-text-gray">Selected: </span>
-              <span className="font-semibold text-text-dark">{localSelectedIds.length}</span>
-              <span className="text-text-gray"> transcript(s)</span>
+              <span className="text-foreground-secondary">Selected: </span>
+              <span className="font-semibold text-foreground">{localSelectedIds.length}</span>
+              <span className="text-foreground-secondary"> transcript(s)</span>
             </div>
-            <div className={`text-xs ${isOverLimit ? 'text-red-600 font-semibold' : 'text-text-gray'}`}>
+            <div className={`text-xs ${isOverLimit ? 'text-error font-semibold' : 'text-foreground-secondary'}`}>
               ~{(estimatedTokens / 1000).toFixed(1)}k tokens
               {isOverLimit && ' (exceeds safe limit)'}
             </div>
@@ -127,7 +127,7 @@ const ContextSelector = ({ onClose }) => {
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-xl border-2 border-gray-200 font-semibold text-sm hover:bg-gray-50 transition-all"
+              className="flex-1 px-4 py-2 rounded-xl border border font-semibold text-sm hover:bg-surface-tertiary transition-all"
             >
               Cancel
             </button>
@@ -139,7 +139,7 @@ const ContextSelector = ({ onClose }) => {
               disabled={isOverLimit}
               className={`flex-1 px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
                 isOverLimit
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  ? 'bg-surface-secondary text-foreground-secondary cursor-not-allowed'
                   : 'bg-primary text-white hover:bg-primary-hover'
               }`}
             >

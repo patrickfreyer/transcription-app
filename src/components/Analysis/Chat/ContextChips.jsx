@@ -37,9 +37,9 @@ const ContextChips = () => {
       })}
 
       {selectedContextIds.length === 0 && selectedTranscript && (
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+        <div className="inline-flex items-center gap-2 px-3 py-1 bg-surface-secondary text-foreground text-xs rounded-full">
           <span className="truncate max-w-[150px]">{selectedTranscript.fileName}</span>
-          <span className="text-gray-500">(current)</span>
+          <span className="text-foreground-secondary">(current)</span>
         </div>
       )}
     </div>

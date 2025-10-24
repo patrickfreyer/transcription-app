@@ -6,13 +6,13 @@ import StorageInfo from './StorageInfo';
 
 function TranscriptSidebar() {
   return (
-    <div className="h-full flex flex-col bg-white">
-      <div className="flex-shrink-0 p-4 border-b-2 border-gray-200">
-        <h2 className="text-xl font-bold text-text-dark mb-3">Transcripts</h2>
+    <div className="h-full flex flex-col bg-surface">
+      <div className="flex-shrink-0 px-4 py-3 border-b border-border">
+        <h2 className="text-lg font-semibold text-text-dark mb-2">Transcripts</h2>
         <SearchBar />
       </div>
 
-      <div className="flex-shrink-0 border-b-2 border-gray-200">
+      <div className="flex-shrink-0 border-b border-border">
         <FilterTabs />
       </div>
 
@@ -20,7 +20,7 @@ function TranscriptSidebar() {
         <TranscriptList />
       </div>
 
-      <div className="flex-shrink-0 border-t-2 border-gray-200">
+      <div className="flex-shrink-0 border-t border-border">
         <StorageInfo />
       </div>
     </div>

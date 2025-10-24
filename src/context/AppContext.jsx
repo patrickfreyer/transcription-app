@@ -111,6 +111,20 @@ export function AppProvider({ children }) {
     await window.electron.saveTranscripts(updatedTranscripts);
   };
 
+  const renameTranscript = async (transcriptId, newName) => {
+    if (!newName || !newName.trim()) {
+      return false;
+    }
+
+    const trimmedName = newName.trim();
+    const updatedTranscripts = transcripts.map(t =>
+      t.id === transcriptId ? { ...t, fileName: trimmedName, updatedAt: Date.now() } : t
+    );
+    setTranscripts(updatedTranscripts);
+    await window.electron.saveTranscripts(updatedTranscripts);
+    return true;
+  };
+
   // Multi-Selection Functions
   const MAX_SELECTED_TRANSCRIPTS = 10;
 
@@ -474,6 +488,7 @@ export function AppProvider({ children }) {
     saveTranscript,
     deleteTranscript,
     toggleStarTranscript,
+    renameTranscript,
     // Multi-selection
     toggleTranscriptSelection,
     selectAllVisibleTranscripts,

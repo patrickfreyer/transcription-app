@@ -5,13 +5,13 @@ function TabSwitcher({ activeMode, onModeChange, disabled }) {
     const isActive = activeMode === mode;
     return `flex-1 px-5 py-3 rounded-xl font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2 ${
       isActive
-        ? 'bg-white text-ios-blue shadow-md scale-105'
-        : 'text-text-gray hover:text-text-dark hover:bg-white/50'
+        ? 'bg-surface text-primary dark:text-primary-hover shadow-md scale-105'
+        : 'text-text-gray hover:text-text-dark hover:bg-surface/50'
     } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`;
   };
 
   return (
-    <div className="flex items-center gap-2 bg-bg-gray-50 rounded-xl p-1.5 border border-bg-gray-200">
+    <div className="flex items-center gap-2 bg-surface-tertiary rounded-xl p-1.5 border border-border">
       <button
         className={buttonClass('upload')}
         onClick={() => !disabled && onModeChange('upload')}

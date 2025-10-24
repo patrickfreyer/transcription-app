@@ -2,21 +2,21 @@ import React from 'react';
 
 function CollapsibleSection({ title, isOpen, onToggle, children, disabled }) {
   return (
-    <div className={`border-2 border-bg-gray-200 rounded-xl overflow-hidden transition-all duration-200 ${
+    <div className={`border border-border rounded-xl overflow-hidden transition-all duration-200 ${
       isOpen ? 'shadow-md' : 'shadow-sm'
     }`}>
       {/* Header */}
       <button
         onClick={onToggle}
         disabled={disabled}
-        className={`w-full flex items-center justify-between px-5 py-4 bg-gradient-to-br from-bg-gray-50 to-white hover:from-bg-gray-100 hover:to-bg-gray-50 transition-all duration-200 ${
+        className={`w-full flex items-center justify-between px-5 py-4 bg-surface-tertiary hover:bg-surface-secondary transition-all duration-200 ${
           disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
         }`}
       >
         <span className="text-sm font-semibold text-text-dark">{title}</span>
         <svg
           className={`w-5 h-5 text-text-gray transition-all duration-300 ${
-            isOpen ? 'rotate-180 text-ios-blue' : ''
+            isOpen ? 'rotate-180 text-primary' : ''
           }`}
           viewBox="0 0 24 24"
           fill="none"
@@ -36,7 +36,7 @@ function CollapsibleSection({ title, isOpen, onToggle, children, disabled }) {
         }`}
       >
         <div className="overflow-hidden">
-          <div className={`p-5 bg-white border-t-2 border-bg-gray-200 transition-opacity duration-300 ${
+          <div className={`p-5 bg-surface border-t border-border transition-opacity duration-300 ${
             isOpen ? 'opacity-100' : 'opacity-0'
           }`}>
             {children}

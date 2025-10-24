@@ -93,10 +93,10 @@ function DropZone({ onFileSelect, disabled }) {
 
   return (
     <div
-      className={`relative rounded-2xl border-2 border-dashed p-8 transition-all duration-300 min-h-[400px] flex items-center justify-center animate-fade-in ${
+      className={`relative rounded-2xl border border-dashed p-8 transition-all duration-300 min-h-[400px] flex items-center justify-center animate-fade-in ${
         isDragging
           ? 'border-primary bg-primary/5 shadow-xl scale-[1.02]'
-          : 'border-gray-200 bg-gradient-to-br from-gray-50 via-white to-gray-50 shadow-lg'
+          : 'border bg-surface-tertiary shadow-lg'
       } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50 hover:shadow-xl hover:scale-[1.01]'}`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -118,13 +118,13 @@ function DropZone({ onFileSelect, disabled }) {
         <div
           className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
             isDragging
-              ? 'bg-gradient-to-br from-primary to-primary-hover scale-110'
-              : 'bg-gradient-to-br from-gray-100 to-gray-50'
+              ? 'bg-primary scale-110'
+              : 'bg-surface-secondary'
           }`}
         >
           <svg
             className={`w-10 h-10 transition-all duration-300 ${
-              isDragging ? 'text-white scale-110' : 'text-gray-600'
+              isDragging ? 'text-white scale-110' : 'text-foreground-secondary'
             }`}
             viewBox="0 0 24 24"
             fill="none"
@@ -150,15 +150,15 @@ function DropZone({ onFileSelect, disabled }) {
 
           {/* Supported formats */}
           <div className="pt-2">
-            <p className="text-xs text-gray-500 mb-2 font-medium">Supported formats:</p>
+            <p className="text-xs text-foreground-secondary mb-2 font-medium">Supported formats:</p>
             <div className="flex items-center justify-center flex-wrap gap-2">
               {['MP3', 'WAV', 'M4A', 'WEBM'].map((format) => (
                 <div
                   key={format}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-full"
                 >
                   <div className="w-2 h-2 bg-primary rounded-full"></div>
-                  <span className="text-xs font-semibold text-gray-700">{format}</span>
+                  <span className="text-xs font-semibold text-foreground">{format}</span>
                 </div>
               ))}
             </div>
@@ -171,7 +171,7 @@ function DropZone({ onFileSelect, disabled }) {
               <line x1="12" y1="16" x2="12" y2="12"/>
               <line x1="12" y1="8" x2="12.01" y2="8"/>
             </svg>
-            <p className="text-xs text-gray-700 leading-relaxed text-left">
+            <p className="text-xs text-foreground leading-relaxed text-left">
               Maximum file size is 25MB. Larger files will be automatically split for processing.
             </p>
           </div>

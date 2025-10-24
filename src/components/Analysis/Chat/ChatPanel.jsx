@@ -21,7 +21,7 @@ const ChatPanel = () => {
       <ChatHeader />
 
       {selectedContextIds.length > 0 && (
-        <div className="flex-shrink-0 px-4 py-2 border-b-2 border-gray-200 bg-white">
+        <div className="flex-shrink-0 px-4 py-2 border-b border-border bg-surface">
           <ContextChips />
         </div>
       )}
@@ -34,7 +34,7 @@ const ChatPanel = () => {
         )}
       </div>
 
-      <div className="flex-shrink-0 border-t-2 border-gray-200 bg-white">
+      <div className="flex-shrink-0 border-t border-border bg-surface">
         <ChatInput />
       </div>
     </div>

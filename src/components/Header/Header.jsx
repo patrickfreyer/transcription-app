@@ -7,15 +7,15 @@ function Header() {
   const tabClass = (tabName) => {
     const isActive = currentTab === tabName;
     return isActive
-      ? 'px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 bg-white text-ios-blue shadow-sm'
-      : 'px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 text-text-gray hover:text-text-dark hover:bg-white/50';
+      ? 'px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 bg-surface text-primary shadow-sm'
+      : 'px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 text-text-gray hover:text-text-dark hover:bg-surface/50';
   };
 
   return (
-    <header className="flex-shrink-0 bg-white border-b border-gray-200">
+    <header className="flex-shrink-0 bg-surface border-b border-border">
       <div className="flex items-center justify-between px-6 py-3">
         {/* Mode Tabs */}
-        <nav className="flex items-center gap-2 bg-bg-gray-50 rounded-xl p-1" role="tablist" aria-label="App modes">
+        <nav className="flex items-center gap-2 bg-surface-tertiary rounded-xl p-1" role="tablist" aria-label="App modes">
           <button
             className={tabClass('recording')}
             onClick={() => switchTab('recording')}
@@ -53,8 +53,8 @@ function Header() {
         <div className="flex items-center gap-3">
           {/* API Key Button */}
           <button
-            className={`relative p-3 rounded-xl bg-bg-gray-50 hover:bg-bg-gray-200 border border-bg-gray-200 hover:border-bg-gray-300 transition-all duration-200 group ${
-              shouldPulseAPIButton ? 'animate-pulse ring-4 ring-ios-blue/20' : ''
+            className={`relative p-3 rounded-xl bg-surface-tertiary hover:bg-surface-secondary border border-border hover:border-strong transition-all duration-200 group ${
+              shouldPulseAPIButton ? 'animate-pulse ring-4 ring-primary/20' : ''
             }`}
             onClick={openAPIKeyModal}
             aria-label="OpenAI API Key"
@@ -62,7 +62,7 @@ function Header() {
           >
             <svg
               className={`w-5 h-5 transition-transform group-hover:rotate-12 text-text-gray ${
-                shouldPulseAPIButton ? '!text-ios-blue' : ''
+                shouldPulseAPIButton ? '!text-primary' : ''
               }`}
               viewBox="0 0 24 24"
               fill="none"
@@ -78,7 +78,7 @@ function Header() {
 
           {/* Settings Button */}
           <button
-            className="p-3 rounded-xl bg-bg-gray-50 hover:bg-bg-gray-200 border border-bg-gray-200 hover:border-bg-gray-300 transition-all duration-200 group"
+            className="p-3 rounded-xl bg-surface-tertiary hover:bg-surface-secondary border border-border hover:border-strong transition-all duration-200 group"
             onClick={() => console.log('Settings coming soon...')}
             aria-label="Settings"
             title="Settings"

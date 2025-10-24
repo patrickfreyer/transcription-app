@@ -39,16 +39,16 @@ function Dropdown({ options, value, onChange, disabled, placeholder = 'Select an
         type="button"
         onClick={handleToggle}
         disabled={disabled}
-        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-all duration-200 text-left ${
+        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all duration-200 text-left ${
           isOpen
             ? 'border-bcg-green bg-bcg-green/5 shadow-sm'
-            : 'border-bg-gray-200 bg-white hover:border-bg-gray-300 hover:shadow-sm'
+            : 'border-border bg-surface hover:border-strong hover:shadow-sm'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       >
         <div className="flex-1 min-w-0">
           {selectedOption ? (
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-text-dark">{selectedOption.name}</span>
+              <span className="text-sm font-medium text-foreground">{selectedOption.name}</span>
               {selectedOption.badge && (
                 <span className="px-2 py-0.5 text-xs font-medium bg-bcg-green/10 text-bcg-green rounded">
                   {selectedOption.badge}
@@ -56,14 +56,14 @@ function Dropdown({ options, value, onChange, disabled, placeholder = 'Select an
               )}
             </div>
           ) : (
-            <span className="text-sm text-text-gray">{placeholder}</span>
+            <span className="text-sm text-foreground-secondary">{placeholder}</span>
           )}
           {selectedOption?.description && (
-            <p className="text-xs text-text-gray mt-0.5 truncate">{selectedOption.description}</p>
+            <p className="text-xs text-foreground-secondary mt-0.5 truncate">{selectedOption.description}</p>
           )}
         </div>
         <svg
-          className={`w-5 h-5 text-text-gray transition-transform duration-200 flex-shrink-0 ml-2 ${
+          className={`w-5 h-5 text-foreground-secondary transition-transform duration-200 flex-shrink-0 ml-2 ${
             isOpen ? 'rotate-180' : ''
           }`}
           viewBox="0 0 24 24"
@@ -79,7 +79,7 @@ function Dropdown({ options, value, onChange, disabled, placeholder = 'Select an
 
       {/* Dropdown Menu */}
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-2 bg-white border border-bg-gray-200 rounded-xl shadow-lg overflow-hidden animate-slide-down">
+        <div className="absolute z-50 w-full mt-2 bg-surface border border-border rounded-xl shadow-lg overflow-hidden animate-slide-down">
           <div className="py-2">
             {options.map((option) => {
               const isSelected = option.id === value;
@@ -91,7 +91,7 @@ function Dropdown({ options, value, onChange, disabled, placeholder = 'Select an
                   className={`w-full flex items-start gap-3 px-4 py-3 transition-colors ${
                     isSelected
                       ? 'bg-bcg-green/5'
-                      : 'hover:bg-bg-gray-50'
+                      : 'hover:bg-surface-tertiary'
                   }`}
                 >
                   {/* Checkmark */}
@@ -114,7 +114,7 @@ function Dropdown({ options, value, onChange, disabled, placeholder = 'Select an
                   {/* Option Content */}
                   <div className="flex-1 text-left">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={`text-sm font-medium ${isSelected ? 'text-bcg-green' : 'text-text-dark'}`}>
+                      <span className={`text-sm font-medium ${isSelected ? 'text-bcg-green' : 'text-foreground'}`}>
                         {option.name}
                       </span>
                       {option.badge && (
@@ -123,7 +123,7 @@ function Dropdown({ options, value, onChange, disabled, placeholder = 'Select an
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-text-gray leading-relaxed">{option.description}</p>
+                    <p className="text-xs text-foreground-secondary leading-relaxed">{option.description}</p>
                   </div>
                 </button>
               );

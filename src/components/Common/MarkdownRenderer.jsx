@@ -15,7 +15,7 @@ function MarkdownRenderer({ content, className = '' }) {
   if (!content || typeof content !== 'string') {
     console.warn('MarkdownRenderer - Invalid content:', content);
     return (
-      <div className="text-gray-500 italic">
+      <div className="text-foreground-secondary italic">
         No content available
       </div>
     );
@@ -30,10 +30,10 @@ function MarkdownRenderer({ content, className = '' }) {
         components={{
         // Headings
         h1: ({ node, ...props }) => (
-          <h1 className="text-2xl font-bold text-text-dark mt-6 mb-4 border-b-2 border-gray-200 pb-2" {...props} />
+          <h1 className="text-2xl font-bold text-text-dark mt-6 mb-4 border-b border-border pb-2" {...props} />
         ),
         h2: ({ node, ...props }) => (
-          <h2 className="text-xl font-bold text-text-dark mt-5 mb-3 border-b border-gray-200 pb-2" {...props} />
+          <h2 className="text-xl font-bold text-text-dark mt-5 mb-3 border-b border-border pb-2" {...props} />
         ),
         h3: ({ node, ...props }) => (
           <h3 className="text-lg font-semibold text-text-dark mt-4 mb-2" {...props} />
@@ -79,14 +79,14 @@ function MarkdownRenderer({ content, className = '' }) {
           if (inline) {
             return (
               <code
-                className="bg-gray-100 text-red-600 px-1.5 py-0.5 rounded text-xs font-mono"
+                className="bg-surface-secondary text-red-600 px-1.5 py-0.5 rounded text-xs font-mono"
                 {...props}
               />
             );
           }
           return (
             <code
-              className="block bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm font-mono leading-relaxed mb-4"
+              className="block bg-foreground text-surface p-4 rounded-lg overflow-x-auto text-sm font-mono leading-relaxed mb-4"
               {...props}
             />
           );
@@ -100,7 +100,7 @@ function MarkdownRenderer({ content, className = '' }) {
         // Blockquotes
         blockquote: ({ node, ...props }) => (
           <blockquote
-            className="border-l-4 border-gray-300 pl-4 py-2 my-4 italic text-gray-700 bg-gray-50"
+            className="border-l-4 border-strong pl-4 py-2 my-4 italic text-foreground bg-surface-tertiary"
             {...props}
           />
         ),
@@ -108,17 +108,17 @@ function MarkdownRenderer({ content, className = '' }) {
         // Tables
         table: ({ node, ...props }) => (
           <div className="overflow-x-auto mb-4">
-            <table className="min-w-full border-2 border-gray-200 text-sm" {...props} />
+            <table className="min-w-full border border-border text-sm" {...props} />
           </div>
         ),
         thead: ({ node, ...props }) => (
-          <thead className="bg-gray-100 border-b-2 border-gray-200" {...props} />
+          <thead className="bg-surface-secondary border-b border-border" {...props} />
         ),
         tbody: ({ node, ...props }) => (
           <tbody {...props} />
         ),
         tr: ({ node, ...props }) => (
-          <tr className="border-b border-gray-200" {...props} />
+          <tr className="border-b border-border" {...props} />
         ),
         th: ({ node, ...props }) => (
           <th className="px-4 py-2 text-left font-semibold text-text-dark" {...props} />
@@ -129,7 +129,7 @@ function MarkdownRenderer({ content, className = '' }) {
 
         // Horizontal rule
         hr: ({ node, ...props }) => (
-          <hr className="my-6 border-t-2 border-gray-200" {...props} />
+          <hr className="my-6 border-t border-border" {...props} />
         ),
 
         // Images
@@ -149,7 +149,7 @@ function MarkdownRenderer({ content, className = '' }) {
 
         // Strikethrough (GFM)
         del: ({ node, ...props }) => (
-          <del className="line-through text-gray-500" {...props} />
+          <del className="line-through text-foreground-secondary" {...props} />
         ),
       }}
     >

@@ -11,7 +11,7 @@ function AppContent() {
   const { currentTab, platform, showSettingsModal, closeSettingsModal } = useApp();
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-surface-tertiary overflow-hidden">
       {/* Custom Title Bar (macOS - draggable region) */}
       {platform === 'darwin' && (
         <div className="draggable h-14 flex-shrink-0 hidden" id="mac-title-bar"></div>

@@ -104,6 +104,56 @@ function registerTranscriptHandlers() {
     }
   });
 
+  // Generate smart transcript name using AI
+  ipcMain.handle('generate-transcript-name', async (event, transcriptText, apiKey) => {
+    try {
+      const OpenAI = require('openai');
+      const openai = new OpenAI({ apiKey });
+
+      // Take first 500 words for name generation (efficient)
+      const words = transcriptText.trim().split(/\s+/).slice(0, 500).join(' ');
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful assistant that creates short, descriptive file names for transcripts. Generate a concise name (3-6 words) that captures the main topic or purpose. Use title case. Do not use quotes or special characters. Examples: "Team Standup Meeting", "Product Launch Discussion", "Interview with John Smith"'
+          },
+          {
+            role: 'user',
+            content: `Generate a short descriptive name for this transcript:\n\n${words}`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 30
+      });
+
+      const generatedName = completion.choices[0].message.content.trim()
+        .replace(/^["']|["']$/g, '') // Remove quotes
+        .replace(/[<>:"/\\|?*]/g, '') // Remove invalid file characters
+        .substring(0, 80); // Max 80 chars
+
+      logger.success(`Generated name: "${generatedName}"`);
+      return { success: true, name: generatedName };
+    } catch (error) {
+      logger.error('Error generating transcript name:', error);
+
+      // Fallback to timestamp-based name
+      const timestamp = new Date().toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      const fallbackName = `Recording ${timestamp}`;
+
+      logger.info(`Using fallback name: "${fallbackName}"`);
+      return { success: true, name: fallbackName, fallback: true };
+    }
+  });
+
   logger.success('Transcript IPC handlers registered');
 }
 

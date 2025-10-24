@@ -25,8 +25,8 @@ const MessageList = () => {
       ))}
 
       {isChatStreaming && (
-        <div className="flex items-center gap-2 text-gray-500 text-sm">
-          <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full"></div>
+        <div className="flex items-center gap-2 text-foreground-secondary text-sm">
+          <div className="animate-spin w-4 h-4 border border-primary border-t-transparent rounded-full"></div>
           <span>Thinking...</span>
         </div>
       )}

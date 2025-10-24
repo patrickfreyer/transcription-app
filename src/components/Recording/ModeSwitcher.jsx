@@ -28,7 +28,7 @@ function ModeSwitcher({ activeMode, onModeChange, disabled }) {
 
   return (
     <div className="flex justify-center">
-      <div className="inline-flex items-center gap-2 bg-gradient-to-br from-gray-100 to-gray-50 rounded-2xl p-1.5 border-2 border-gray-200 shadow-sm">
+      <div className="inline-flex items-center gap-2 bg-surface-secondary rounded-2xl p-1.5 border border-border shadow-sm">
         {modes.map((mode) => {
           const isActive = activeMode === mode.id;
           return (
@@ -38,8 +38,8 @@ function ModeSwitcher({ activeMode, onModeChange, disabled }) {
               disabled={disabled}
               className={`group relative flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 ${
                 isActive
-                  ? 'bg-gradient-to-br from-primary to-primary-hover text-white shadow-lg scale-105'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                  ? 'bg-primary hover:bg-primary-hover text-white shadow-lg scale-105'
+                  : 'text-foreground-secondary hover:text-foreground hover:bg-surface/50'
               } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               <div className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>

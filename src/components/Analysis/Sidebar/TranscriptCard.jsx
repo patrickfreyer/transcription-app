@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../../../context/AppContext';
 
 // Helper function to format timestamp
@@ -49,17 +49,64 @@ function TranscriptCard({ transcript, isActive }) {
     toggleStarTranscript,
     deleteTranscript,
     toggleTranscriptSelection,
-    isTranscriptSelected
+    isTranscriptSelected,
+    renameTranscript
   } = useApp();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(transcript.fileName || 'Untitled Transcript');
+  const inputRef = useRef(null);
 
   const isSelected = isTranscriptSelected(transcript.id);
 
-  const handleClick = () => {
-    setSelectedTranscriptId(transcript.id);
-    // Also add to selection if not already selected
-    if (!isSelected) {
-      toggleTranscriptSelection(transcript.id);
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
     }
+  }, [isEditing]);
+
+  const handleClick = () => {
+    if (!isEditing) {
+      setSelectedTranscriptId(transcript.id);
+      // Also add to selection if not already selected
+      if (!isSelected) {
+        toggleTranscriptSelection(transcript.id);
+      }
+    }
+  };
+
+  const handleDoubleClick = (e) => {
+    e.stopPropagation();
+    console.log('✏️ Double-click detected - enabling rename mode');
+    setIsEditing(true);
+    setEditName(transcript.fileName || 'Untitled Transcript');
+  };
+
+  const handleRename = async () => {
+    if (editName.trim() && editName.trim() !== transcript.fileName) {
+      console.log(`💾 Saving new name: "${editName.trim()}"`);
+      await renameTranscript(transcript.id, editName.trim());
+      console.log('✅ Rename saved');
+    } else {
+      console.log('❌ Rename cancelled - no changes or empty name');
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleRename();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditName(transcript.fileName || 'Untitled Transcript');
+    }
+  };
+
+  const handleBlur = () => {
+    handleRename();
   };
 
   const handleCheckboxClick = (e) => {
@@ -82,43 +129,72 @@ function TranscriptCard({ transcript, isActive }) {
   return (
     <div
       onClick={handleClick}
-      className={`p-4 border-b border-gray-200 cursor-pointer transition-all duration-200 hover:bg-gray-50 ${
+      className={`group p-3 border-b border-border cursor-pointer transition-all duration-200 hover:bg-surface-tertiary ${
         isActive ? 'bg-blue-50 border-l-4 border-l-primary' : ''
       } ${
-        isSelected ? 'ring-2 ring-primary ring-inset' : ''
+        isSelected ? 'ring-1 ring-primary ring-inset' : ''
       }`}
     >
-      <div className="flex items-start gap-3 mb-2 min-w-0">
+      <div className="flex items-start gap-2.5 mb-1.5 min-w-0">
         {/* Checkbox */}
         <button
           onClick={handleCheckboxClick}
-          className="flex-shrink-0 mt-0.5 w-5 h-5 rounded border-2 border-gray-300 hover:border-primary transition-colors duration-200 flex items-center justify-center"
+          className="flex-shrink-0 mt-0.5 w-4 h-4 rounded border border-border hover:border-primary transition-colors duration-200 flex items-center justify-center"
           aria-label={isSelected ? 'Deselect transcript' : 'Select transcript'}
         >
           {isSelected && (
-            <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <svg className="w-3.5 h-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           )}
         </button>
 
-        {/* Title */}
-        <h3
-          className="font-semibold text-gray-900 text-sm line-clamp-2 flex-1 min-w-0 break-words"
-          title={transcript.fileName || 'Untitled Transcript'}
-        >
-          {transcript.fileName || 'Untitled Transcript'}
-        </h3>
+        {/* Title - Editable on double-click */}
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-1 min-w-0 px-2 py-0.5 text-sm font-medium text-foreground bg-surface border border-primary rounded focus:outline-none focus:ring-1 focus:ring-primary"
+            maxLength={100}
+          />
+        ) : (
+          <h3
+            onDoubleClick={handleDoubleClick}
+            className="font-medium text-foreground text-sm line-clamp-2 flex-1 min-w-0 break-words cursor-text"
+            title={`${transcript.fileName || 'Untitled Transcript'} (double-click to rename)`}
+          >
+            {transcript.fileName || 'Untitled Transcript'}
+          </h3>
+        )}
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+        {/* Action buttons - Show on hover */}
+        <div className="flex items-center gap-0.5 ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDoubleClick(e);
+            }}
+            className="p-1 hover:bg-surface-tertiary rounded transition-all duration-200"
+            aria-label="Rename"
+            title="Rename transcript"
+          >
+            <svg className="w-3.5 h-3.5 text-foreground-secondary hover:text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
           <button
             onClick={handleStarClick}
-            className="p-1 hover:bg-gray-200 rounded transition-all duration-200"
+            className="p-1 hover:bg-surface-tertiary rounded transition-all duration-200"
             aria-label={transcript.starred ? 'Unstar' : 'Star'}
           >
             <svg
-              className="w-4 h-4"
+              className={`w-3.5 h-3.5 transition-colors ${transcript.starred ? 'text-yellow-500' : 'text-foreground-secondary hover:text-yellow-500'}`}
               viewBox="0 0 24 24"
               fill={transcript.starred ? 'currentColor' : 'none'}
               stroke="currentColor"
@@ -129,34 +205,36 @@ function TranscriptCard({ transcript, isActive }) {
           </button>
           <button
             onClick={handleDeleteClick}
-            className="p-1 hover:bg-red-100 text-red-600 rounded transition-all duration-200"
+            className="p-1 hover:bg-error/10 dark:hover:bg-error/20 text-foreground-secondary hover:text-error rounded transition-all duration-200"
             aria-label="Delete"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
             </svg>
           </button>
         </div>
+
+        {/* Star indicator - Always visible if starred */}
+        {transcript.starred && (
+          <div className="flex-shrink-0 opacity-100 group-hover:opacity-0 transition-opacity duration-200">
+            <svg
+              className="w-3.5 h-3.5 text-yellow-500"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-gray-500 min-w-0">
-        <span className="flex items-center gap-1 flex-shrink-0">
-          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-          {formatDuration(transcript.duration)}
-        </span>
+      <div className="flex items-center gap-2 text-xs text-foreground-secondary min-w-0 ml-6.5">
+        <span className="flex-shrink-0">{formatDuration(transcript.duration)}</span>
+        <span>•</span>
         <span className="truncate">{formatTimestamp(transcript.timestamp)}</span>
       </div>
-
-      {transcript.model && (
-        <div className="mt-2">
-          <span className="inline-block px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded truncate max-w-full">
-            {getModelDisplayName(transcript.model)}
-          </span>
-        </div>
-      )}
     </div>
   );
 }

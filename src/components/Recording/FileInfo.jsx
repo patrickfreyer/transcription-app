@@ -15,22 +15,22 @@ function FileInfo({ file, onRemove, disabled }) {
 
   const getFormatColor = (ext) => {
     const colors = {
-      'MP3': 'bg-ios-blue/10 text-ios-blue',
+      'MP3': 'bg-primary/10 text-primary',
       'WAV': 'bg-bcg-green/10 text-bcg-green',
-      'M4A': 'bg-ios-purple/10 text-ios-purple',
+      'M4A': 'bg-primary/10 text-primary',
       'WEBM': 'bg-ios-orange/10 text-ios-orange',
     };
-    return colors[ext] || 'bg-bg-gray-200 text-text-gray';
+    return colors[ext] || 'bg-surface-secondary text-foreground-secondary';
   };
 
   const extension = getFileExtension(file.name);
 
   return (
-    <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-white to-primary/5 p-8 shadow-xl min-h-[400px] flex items-center justify-center animate-fade-in">
+    <div className="rounded-2xl border border-primary/30 bg-primary/5 p-8 shadow-xl min-h-[400px] flex items-center justify-center animate-fade-in">
       <div className="flex flex-col items-center gap-6 w-full max-w-lg">
         {/* Success Icon */}
         <div className="relative">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center shadow-lg animate-scale-in">
+          <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-lg animate-scale-in">
             <svg
               className="w-10 h-10 text-white"
               viewBox="0 0 24 24"
@@ -56,7 +56,7 @@ function FileInfo({ file, onRemove, disabled }) {
           </h3>
 
           {/* File name */}
-          <div className="px-4 py-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-4 py-3 bg-surface rounded-xl border border-border shadow-sm">
             <p className="text-sm font-semibold text-text-dark truncate mb-1">{file.name}</p>
             <div className="flex items-center justify-center gap-4 text-xs">
               <div className="flex items-center gap-2">
@@ -83,7 +83,7 @@ function FileInfo({ file, onRemove, disabled }) {
         <button
           onClick={onRemove}
           disabled={disabled}
-          className={`px-8 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold text-sm transition-all duration-200 hover:bg-gray-50 hover:border-gray-400 hover:shadow-md ${
+          className={`px-8 py-3 rounded-xl border border-strong text-foreground font-semibold text-sm transition-all duration-200 hover:bg-surface-tertiary hover:border-strong hover:shadow-md ${
             disabled ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >

@@ -37,15 +37,15 @@ function TranscriptList() {
 
   if (filteredTranscripts.length === 0) {
     return (
-      <div className="p-8 text-center text-gray-500">
-        <svg className="w-12 h-12 mx-auto mb-3 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <div className="p-8 text-center text-foreground-secondary">
+        <svg className="w-12 h-12 mx-auto mb-3 text-foreground-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <polyline points="14 2 14 8 20 8" />
         </svg>
         <p className="text-sm font-semibold mb-1">No transcripts found</p>
         {searchQuery && (
           <>
-            <p className="text-xs text-gray-400 mb-2">
+            <p className="text-xs text-foreground-tertiary mb-2">
               No results for "{searchQuery}"
             </p>
             <button
@@ -57,17 +57,17 @@ function TranscriptList() {
           </>
         )}
         {!searchQuery && filterMode === 'starred' && (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-foreground-tertiary">
             Star transcripts to see them here
           </p>
         )}
         {!searchQuery && filterMode === 'recent' && (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-foreground-tertiary">
             No transcripts from the last 7 days
           </p>
         )}
         {!searchQuery && filterMode === 'all' && transcripts.length === 0 && (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-foreground-tertiary">
             Create your first transcription to get started
           </p>
         )}
@@ -92,12 +92,12 @@ function TranscriptList() {
     <div>
       {/* Select All Header */}
       {filteredTranscripts.length > 0 && (
-        <div className="sticky top-0 z-10 bg-white border-b-2 border-gray-200 px-4 py-3 flex items-center justify-between">
+        <div className="sticky top-0 z-10 bg-surface border-b border-border px-4 py-3 flex items-center justify-between">
           <button
             onClick={handleSelectAll}
-            className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-primary transition-colors"
+            className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
           >
-            <div className="w-5 h-5 rounded border-2 border-gray-300 hover:border-primary transition-colors flex items-center justify-center">
+            <div className="w-5 h-5 rounded border border-border hover:border-primary transition-colors flex items-center justify-center">
               {allVisibleSelected && (
                 <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <polyline points="20 6 9 17 4 12" />
@@ -116,7 +116,7 @@ function TranscriptList() {
               </span>
               <button
                 onClick={clearAllSelections}
-                className="text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-xs font-medium text-foreground-secondary hover:text-foreground transition-colors"
               >
                 Clear
               </button>

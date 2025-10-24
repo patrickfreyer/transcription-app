@@ -9,14 +9,66 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Primary Theme - BCG Green
-        'primary': {
+        // Semantic Surface Colors (backgrounds)
+        surface: {
+          DEFAULT: 'rgb(var(--surface) / <alpha-value>)',
+          elevated: 'rgb(var(--surface-elevated) / <alpha-value>)',
+          secondary: 'rgb(var(--surface-secondary) / <alpha-value>)',
+          tertiary: 'rgb(var(--surface-tertiary) / <alpha-value>)',
+        },
+        // Semantic Text Colors
+        foreground: {
+          DEFAULT: 'rgb(var(--foreground) / <alpha-value>)',
+          secondary: 'rgb(var(--foreground-secondary) / <alpha-value>)',
+          tertiary: 'rgb(var(--foreground-tertiary) / <alpha-value>)',
+          inverse: 'rgb(var(--foreground-inverse) / <alpha-value>)',
+        },
+        // Semantic Border Colors
+        border: {
+          DEFAULT: 'rgb(var(--border) / <alpha-value>)',
+          strong: 'rgb(var(--border-strong) / <alpha-value>)',
+          subtle: 'rgb(var(--border-subtle) / <alpha-value>)',
+        },
+        // Interactive Colors (buttons, links, actions)
+        interactive: {
+          DEFAULT: 'rgb(var(--interactive) / <alpha-value>)',
+          hover: 'rgb(var(--interactive-hover) / <alpha-value>)',
+          active: 'rgb(var(--interactive-active) / <alpha-value>)',
+          disabled: 'rgb(var(--interactive-disabled) / <alpha-value>)',
+        },
+        // Semantic State Colors
+        success: {
+          DEFAULT: '#00A758',
+          hover: '#008C4A',
+          light: '#33B977',
+          bg: '#f0fdf4',
+        },
+        error: {
+          DEFAULT: '#ff3b30',
+          hover: '#e02d23',
+          light: '#FF6B61',
+          bg: '#fef2f2',
+        },
+        warning: {
+          DEFAULT: '#ff9500',
+          hover: '#e68500',
+          light: '#FFB340',
+          bg: '#fffbeb',
+        },
+        info: {
+          DEFAULT: '#007aff',
+          hover: '#0051d5',
+          light: '#4DA3FF',
+          bg: '#eff6ff',
+        },
+        // Primary (maps to interactive for compatibility)
+        primary: {
           DEFAULT: '#00A758',
           hover: '#008C4A',
           light: '#33B977',
           dark: '#007042',
         },
-        // BCG Brand Colors
+        // Brand Colors (preserved)
         'bcg-green': {
           DEFAULT: '#00A758',
           hover: '#008C4A',
@@ -28,66 +80,6 @@ module.exports = {
           hover: '#0062A8',
           light: '#3395D8',
           dark: '#005291',
-        },
-        // Apple/iOS system colors (Secondary)
-        'ios-blue': {
-          DEFAULT: '#007aff',
-          hover: '#0051d5',
-        },
-        'ios-green': {
-          DEFAULT: '#34c759',
-          hover: '#2fb350',
-        },
-        'ios-red': {
-          DEFAULT: '#ff3b30',
-          hover: '#e02d23',
-        },
-        'ios-orange': {
-          DEFAULT: '#ff9500',
-          hover: '#e68500',
-        },
-        'ios-purple': {
-          DEFAULT: '#af52de',
-          hover: '#9d3fd1',
-        },
-        // Background colors (Apple light theme)
-        'bg-white': '#ffffff',
-        'bg-gray': {
-          50: '#f5f5f7',   // Cards, sections
-          100: '#fbfbfd',  // Drop zones, visualizers
-          200: '#e8e8ed',  // Borders
-          300: '#d2d2d7',  // Darker borders
-        },
-        // Text colors
-        'text-dark': '#1d1d1f',
-        'text-gray': {
-          DEFAULT: '#6e6e73',
-          light: '#86868b',
-        },
-        // Legacy mappings for compatibility
-        accent: {
-          DEFAULT: '#007aff',
-          hover: '#0051d5',
-          light: '#4DA3FF',
-          dark: '#0047B3',
-        },
-        success: {
-          DEFAULT: '#00A758',
-          hover: '#008C4A',
-          light: '#33B977',
-          dark: '#007042',
-        },
-        error: {
-          DEFAULT: '#ff3b30',
-          hover: '#e02d23',
-          light: '#FF6B61',
-          dark: '#C62828',
-        },
-        warning: {
-          DEFAULT: '#ff9500',
-          hover: '#e68500',
-          light: '#FFB340',
-          dark: '#CC7700',
         },
       },
       backgroundImage: {
@@ -147,6 +139,11 @@ module.exports = {
         'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
         'glass-lg': '0 20px 60px 0 rgba(0, 0, 0, 0.5)',
         'inner-lg': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
+        // Elevation shadows for dark mode (subtle, for depth without heavy borders)
+        'dark-sm': '0 2px 8px 0 rgba(0, 0, 0, 0.4)',
+        'dark-md': '0 4px 16px 0 rgba(0, 0, 0, 0.5)',
+        'dark-lg': '0 8px 24px 0 rgba(0, 0, 0, 0.6)',
+        'dark-xl': '0 12px 32px 0 rgba(0, 0, 0, 0.7)',
       },
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'Roboto', 'sans-serif'],

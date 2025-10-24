@@ -39,23 +39,23 @@ function AppHeader() {
   };
 
   return (
-    <header className="bg-white border-b border-gray-200 px-4 sm:px-8 lg:px-16 py-3 sm:py-4 lg:py-5">
+    <header className="bg-surface border-b border-strong px-4 sm:px-8 lg:px-16 py-3 sm:py-4 lg:py-5">
       <div className="flex items-center justify-between">
         {/* Brand Section - Left */}
         <div className="flex-1">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary">TranscriptAI</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Record, transcribe, and analyze</p>
+          <p className="text-xs sm:text-sm text-foreground-secondary mt-0.5">Record, transcribe, and analyze</p>
         </div>
 
         {/* Navigation Toggle - Center */}
         <div className="flex-shrink-0">
-          <div className="inline-flex items-center bg-gray-100 rounded-lg sm:rounded-xl p-1">
+          <div className="inline-flex items-center bg-surface-secondary rounded-lg sm:rounded-xl p-1">
             <button
               onClick={() => switchTab('recording')}
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 rounded-md sm:rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 ${
                 currentTab === 'recording'
                   ? 'bg-primary text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-foreground-secondary hover:text-foreground'
               }`}
             >
               <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -71,7 +71,7 @@ function AppHeader() {
               className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 rounded-md sm:rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 ${
                 currentTab === 'analysis'
                   ? 'bg-primary text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-foreground-secondary hover:text-foreground'
               }`}
             >
               <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -91,7 +91,7 @@ function AppHeader() {
           {/* Settings Button */}
           <button
             onClick={openSettingsModal}
-            className="relative flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-medium text-xs sm:text-sm transition-all duration-200 bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300"
+            className="relative flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-medium text-xs sm:text-sm transition-all duration-200 bg-surface-secondary text-foreground hover:bg-surface-tertiary border border-strong"
             title="Settings"
           >
             <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -112,10 +112,10 @@ function AppHeader() {
 
             {/* Status indicator dot (visible on mobile when text is hidden) */}
             {apiKeyStatus === 'valid' && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-success rounded-full border-2 border-white sm:hidden"></span>
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-success rounded-full border border-surface-secondary sm:hidden"></span>
             )}
             {apiKeyStatus === 'missing' && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-error rounded-full border-2 border-white sm:hidden"></span>
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-error rounded-full border border-surface-secondary sm:hidden"></span>
             )}
           </button>
         </div>

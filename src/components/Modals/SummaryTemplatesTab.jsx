@@ -67,8 +67,8 @@ function SummaryTemplatesTab() {
       {/* Header with Add Button */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-text-dark">Summary Templates</h3>
-          <p className="text-sm text-text-gray mt-1">
+          <h3 className="text-lg font-bold text-foreground">Summary Templates</h3>
+          <p className="text-sm text-foreground-secondary mt-1">
             Create custom templates to format your transcription summaries
           </p>
         </div>
@@ -88,14 +88,14 @@ function SummaryTemplatesTab() {
 
       {/* Template Editor (Create/Edit) */}
       {(isCreating || editingId) && (
-        <div className="p-6 border-2 border-primary/30 rounded-2xl bg-gradient-to-br from-primary/5 via-white to-primary/5 space-y-4 animate-fade-in">
-          <h4 className="text-lg font-bold text-text-dark">
+        <div className="p-6 border border-primary/30 rounded-2xl bg-gradient-to-br from-primary/5 via-surface to-primary/5 space-y-4 animate-fade-in">
+          <h4 className="text-lg font-bold text-foreground">
             {isCreating ? 'New Template' : 'Edit Template'}
           </h4>
 
           {/* Name Field */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground mb-2">
               Template Name <span className="text-error">*</span>
             </label>
             <input
@@ -103,13 +103,13 @@ function SummaryTemplatesTab() {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="e.g., Meeting Minutes"
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-text-dark placeholder-text-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              className="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
             />
           </div>
 
           {/* Description Field */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground mb-2">
               Description
             </label>
             <input
@@ -117,23 +117,23 @@ function SummaryTemplatesTab() {
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Brief description of what this template does"
-              className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm text-text-dark placeholder-text-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              className="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
             />
           </div>
 
           {/* Prompt Field */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-foreground mb-2">
               Summary Instructions
             </label>
             <textarea
               value={formData.prompt}
               onChange={(e) => setFormData({ ...formData, prompt: e.target.value })}
               placeholder="Provide instructions for how to summarize the transcription..."
-              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm text-text-dark placeholder-text-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
+              className="w-full px-4 py-3 bg-surface border border-border rounded-xl text-sm text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
               rows={6}
             />
-            <p className="mt-2 text-xs text-text-gray">
+            <p className="mt-2 text-xs text-foreground-secondary">
               These instructions will be sent to the AI along with the transcription to generate the summary
             </p>
           </div>
@@ -148,7 +148,7 @@ function SummaryTemplatesTab() {
             </button>
             <button
               onClick={handleCancel}
-              className="px-6 py-2.5 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold text-sm transition-all hover:bg-gray-50 hover:border-gray-400"
+              className="px-6 py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-tertiary border border-strong text-foreground font-semibold text-sm transition-all"
             >
               Cancel
             </button>
@@ -161,32 +161,32 @@ function SummaryTemplatesTab() {
         {summaryTemplates.map((template) => (
           <div
             key={template.id}
-            className={`p-5 rounded-2xl border-2 transition-all ${
+            className={`p-5 rounded-2xl border transition-all ${
               template.isDefault
-                ? 'border-gray-200 bg-gradient-to-br from-gray-50 via-white to-gray-50'
-                : 'border-gray-200 bg-white hover:border-primary/30 hover:shadow-md'
+                ? 'border-border bg-gradient-to-br from-surface-tertiary via-surface to-surface-tertiary'
+                : 'border-border bg-surface hover:border-primary/30 hover:shadow-md'
             }`}
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <h4 className="text-base font-bold text-text-dark">{template.name}</h4>
+                  <h4 className="text-base font-bold text-foreground">{template.name}</h4>
                   {template.isDefault && (
-                    <span className="px-2 py-0.5 text-xs font-semibold bg-gray-200 text-gray-700 rounded-full">
+                    <span className="px-2 py-0.5 text-xs font-semibold bg-surface-secondary text-foreground rounded-full">
                       Built-in
                     </span>
                   )}
                 </div>
                 {template.description && (
-                  <p className="text-sm text-text-gray mb-3">{template.description}</p>
+                  <p className="text-sm text-foreground-secondary mb-3">{template.description}</p>
                 )}
                 {template.prompt && (
                   <details className="mt-3">
                     <summary className="text-xs font-semibold text-primary cursor-pointer hover:text-primary-hover">
                       View Instructions
                     </summary>
-                    <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <p className="text-xs text-gray-700 whitespace-pre-wrap">{template.prompt}</p>
+                    <div className="mt-2 p-3 bg-surface-tertiary rounded-lg border border-border">
+                      <p className="text-xs text-foreground whitespace-pre-wrap">{template.prompt}</p>
                     </div>
                   </details>
                 )}
@@ -197,7 +197,7 @@ function SummaryTemplatesTab() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleEdit(template)}
-                    className="p-2 rounded-lg text-primary hover:bg-primary/10 transition-all"
+                    className="p-2 rounded-lg text-foreground-secondary hover:text-primary hover:bg-primary/10 transition-all"
                     title="Edit template"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -207,7 +207,7 @@ function SummaryTemplatesTab() {
                   </button>
                   <button
                     onClick={() => handleDelete(template.id)}
-                    className="p-2 rounded-lg text-error hover:bg-error/10 transition-all"
+                    className="p-2 rounded-lg text-foreground-secondary hover:text-error hover:bg-error/10 dark:hover:bg-error/20 transition-all"
                     title="Delete template"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

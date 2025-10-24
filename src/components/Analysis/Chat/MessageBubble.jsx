@@ -23,8 +23,8 @@ const MessageBubble = ({ message }) => {
         {/* Message bubble */}
         <div className={`p-3 rounded-2xl transition-all duration-200 ${
           message.role === 'user'
-            ? 'bg-primary text-white'
-            : 'bg-white border-2 border-gray-200 text-text-dark shadow-sm'
+            ? 'bg-primary text-white dark:bg-primary dark:text-white'
+            : 'bg-surface-elevated border border-border text-foreground dark:bg-surface-elevated dark:text-foreground dark:border-border shadow-sm'
         }`}>
           <p className="text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere">
             {message.content}
@@ -32,7 +32,7 @@ const MessageBubble = ({ message }) => {
         </div>
 
         {/* Metadata row */}
-        <div className={`flex items-center gap-2 mt-1 text-xs text-text-gray ${
+        <div className={`flex items-center gap-2 mt-1 text-xs text-foreground-secondary ${
           message.role === 'user' ? 'justify-end' : 'justify-start'
         }`}>
           <span className="flex-shrink-0">{formatMessageTime(message.timestamp)}</span>
@@ -46,15 +46,15 @@ const MessageBubble = ({ message }) => {
 
           <button
             onClick={handleCopy}
-            className="p-1 hover:bg-gray-100 rounded transition-all duration-200 flex-shrink-0"
+            className="p-1 hover:bg-surface-secondary rounded transition-all duration-200 flex-shrink-0"
             title="Copy message"
           >
             {showCopyFeedback ? (
-              <svg className="w-3 h-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3 h-3 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             ) : (
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-3 h-3 text-foreground-secondary hover:text-foreground transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
             )}

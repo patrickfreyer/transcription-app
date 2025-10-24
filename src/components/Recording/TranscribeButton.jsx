@@ -5,10 +5,10 @@ function TranscribeButton({ onClick, disabled, isProcessing }) {
     <button
       onClick={onClick}
       disabled={disabled || isProcessing}
-      className={`w-full py-5 rounded-xl font-semibold text-base transition-all duration-200 shadow-lg relative overflow-hidden ${
+      className={`w-full py-5 rounded-xl font-semibold text-base transition-all duration-200 shadow-lg relative overflow-hidden group ${
         disabled || isProcessing
-          ? 'bg-bg-gray-200 text-text-gray cursor-not-allowed shadow-none'
-          : 'bg-gradient-to-r from-bcg-green to-bcg-green-hover text-white hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]'
+          ? 'bg-surface-secondary text-foreground-secondary cursor-not-allowed shadow-none border border-border'
+          : 'bg-bcg-green hover:bg-bcg-green-hover dark:bg-bcg-green-dark dark:hover:bg-bcg-green-hover-dark text-white hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] border border-transparent'
       }`}
     >
       {isProcessing ? (

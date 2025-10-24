@@ -93,19 +93,19 @@ function APIKeyModal() {
       }`}
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full animate-scale-in">
+      <div className="bg-surface rounded-2xl shadow-2xl max-w-lg w-full animate-scale-in">
         {/* Modal Header */}
-        <div className="flex items-start justify-between p-6 border-b border-gray-200">
+        <div className="flex items-start justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-bcg shadow-sm">
+            <div className="p-2.5 rounded-xl bg-primary shadow-sm">
               <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
               </svg>
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">OpenAI API Key</h2>
+            <h2 className="text-xl font-semibold text-foreground">OpenAI API Key</h2>
           </div>
           <button
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+            className="p-2 hover:bg-surface-secondary rounded-lg transition-colors text-foreground-secondary hover:text-foreground"
             onClick={handleClose}
             aria-label="Close"
             disabled={isSaving}
@@ -120,7 +120,7 @@ function APIKeyModal() {
         <div className="p-6 space-y-6">
           {/* Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               API Key
             </label>
             <div className="relative">
@@ -128,7 +128,7 @@ function APIKeyModal() {
                 type={isPasswordVisible ? 'text' : 'password'}
                 value={apiKeyInput}
                 onChange={(e) => setApiKeyInput(e.target.value)}
-                className="w-full px-4 py-3 pr-24 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+                className="w-full px-4 py-3 pr-24 bg-surface border border-strong rounded-xl text-foreground placeholder:text-foreground-tertiary focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
                 placeholder="sk-proj-..."
                 autoComplete="off"
                 spellCheck="false"
@@ -136,7 +136,7 @@ function APIKeyModal() {
               />
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                 <button
-                  className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+                  className="p-2 hover:bg-surface-secondary rounded-lg transition-colors text-foreground-secondary hover:text-foreground"
                   onClick={() => setIsPasswordVisible(!isPasswordVisible)}
                   type="button"
                   aria-label={isPasswordVisible ? 'Hide API key' : 'Show API key'}
@@ -155,7 +155,7 @@ function APIKeyModal() {
                   )}
                 </button>
                 <button
-                  className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-500 hover:text-gray-700"
+                  className="p-2 hover:bg-surface-secondary rounded-lg transition-colors text-foreground-secondary hover:text-foreground"
                   onClick={handlePaste}
                   type="button"
                   aria-label="Paste from clipboard"
@@ -177,15 +177,15 @@ function APIKeyModal() {
               <line x1="12" y1="16" x2="12" y2="12"/>
               <line x1="12" y1="8" x2="12.01" y2="8"/>
             </svg>
-            <p className="text-sm text-gray-700 leading-relaxed">
+            <p className="text-sm text-foreground leading-relaxed">
               Your API key is stored securely in your system{' '}
-              <strong className="text-gray-900">{platform === 'darwin' ? 'keychain' : 'Credential Manager'}</strong> and never leaves your device.
+              <strong className="text-foreground">{platform === 'darwin' ? 'keychain' : 'Credential Manager'}</strong> and never leaves your device.
             </p>
           </div>
 
           {/* Help Link */}
           <div className="text-center py-2">
-            <p className="text-gray-600 text-sm mb-2">Don't have an API key?</p>
+            <p className="text-foreground-secondary text-sm mb-2">Don't have an API key?</p>
             <a
               href="https://platform.openai.com/api-keys"
               target="_blank"
@@ -206,10 +206,10 @@ function APIKeyModal() {
             <div
               className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${
                 validationStatus === 'success'
-                  ? 'bg-success/10 border border-success/30 text-success-dark'
+                  ? 'bg-success/10 border border-success/30 text-success'
                   : validationStatus === 'error'
-                  ? 'bg-error/10 border border-error/30 text-error-dark'
-                  : 'bg-primary/10 border border-primary/30 text-primary-dark'
+                  ? 'bg-error/10 border border-error/30 text-error'
+                  : 'bg-primary/10 border border-primary/30 text-primary'
               }`}
             >
               {validationMessage}
@@ -218,16 +218,16 @@ function APIKeyModal() {
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-border bg-surface">
           <button
-            className="px-6 py-2.5 rounded-xl bg-white hover:bg-gray-100 border border-gray-300 transition-all font-medium text-gray-700"
+            className="px-6 py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-tertiary border border-strong transition-all font-medium text-foreground"
             onClick={handleClose}
             disabled={isSaving}
           >
             Cancel
           </button>
           <button
-            className="px-6 py-2.5 rounded-xl bg-gradient-bcg text-white hover:shadow-lg hover:scale-105 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="px-6 py-2.5 rounded-xl bg-primary text-white hover:shadow-lg hover:scale-105 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             onClick={handleSave}
             disabled={!apiKeyInput.trim() || apiKeyInput.trim().length < 10 || isSaving}
           >

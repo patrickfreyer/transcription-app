@@ -58,21 +58,21 @@ const SuggestedQuestions = () => {
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary bg-opacity-10 flex items-center justify-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
           <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
           </svg>
         </div>
-        <h4 className="text-lg font-bold text-text-dark mb-2">
+        <h4 className="text-lg font-bold text-foreground mb-2">
           Ask me anything
         </h4>
-        <p className="text-sm text-text-gray">
+        <p className="text-sm text-foreground-secondary">
           I can help you analyze this transcript
         </p>
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs text-text-gray font-semibold uppercase">
+        <p className="text-xs text-foreground-secondary font-semibold uppercase">
           Suggested Questions
         </p>
         {SUGGESTED_QUESTIONS.map((q, index) => (
@@ -80,10 +80,10 @@ const SuggestedQuestions = () => {
             key={index}
             onClick={() => sendChatMessage(q.text)}
             disabled={!selectedTranscriptId || isChatStreaming}
-            className="w-full text-left p-3 rounded-xl bg-white border-2 border-gray-200 hover:border-primary hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
+            className="w-full text-left p-3 rounded-xl bg-surface-elevated border border-border hover:border-primary dark:hover:border-primary hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
           >
             <div className="flex-shrink-0">{q.icon}</div>
-            <span className="text-sm text-text-dark">{q.text}</span>
+            <span className="text-sm text-foreground">{q.text}</span>
           </button>
         ))}
       </div>

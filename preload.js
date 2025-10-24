@@ -59,6 +59,10 @@ contextBridge.exposeInMainWorld('electron', {
   getTranscripts: () => ipcRenderer.invoke('get-transcripts'),
   saveTranscripts: (transcripts) => ipcRenderer.invoke('save-transcripts', transcripts),
   saveTranscriptToAnalysis: (transcriptData) => ipcRenderer.invoke('save-transcript-to-analysis', transcriptData),
+  updateTranscript: (transcriptId, updates) => ipcRenderer.invoke('update-transcript', transcriptId, updates),
+  deleteTranscript: (transcriptId) => ipcRenderer.invoke('delete-transcript', transcriptId),
+  toggleStarTranscript: (transcriptId) => ipcRenderer.invoke('toggle-star-transcript', transcriptId),
+  generateTranscriptName: (transcriptText, apiKey) => ipcRenderer.invoke('generate-transcript-name', transcriptText, apiKey),
 
   // Chat management
   getChatHistory: () => ipcRenderer.invoke('get-chat-history'),

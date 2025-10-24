@@ -45,7 +45,7 @@ const ChatInput = () => {
   };
 
   return (
-    <div className="p-4 border-t-2 border-gray-200">
+    <div className="p-4 border-t border-border">
       <div className="flex gap-2 items-end">
         <textarea
           ref={textareaRef}
@@ -61,7 +61,7 @@ const ChatInput = () => {
               : 'Ask me anything about this transcript...'
           }
           rows={1}
-          className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 transition-all duration-200 min-h-[44px]"
+          className="flex-1 px-4 py-3 border border-border rounded-xl text-sm resize-none bg-surface text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-tertiary disabled:text-foreground-secondary transition-all duration-200 min-h-[44px]"
           style={{ maxHeight: '200px' }}
         />
 
@@ -71,7 +71,7 @@ const ChatInput = () => {
           className="px-4 py-3 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary-hover transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 flex-shrink-0 h-[44px]"
         >
           {isChatStreaming ? (
-            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+            <div className="animate-spin w-4 h-4 border border-white border-t-transparent rounded-full"></div>
           ) : (
             <>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -83,7 +83,7 @@ const ChatInput = () => {
         </button>
       </div>
 
-      <p className="text-xs text-text-gray mt-2">
+      <p className="text-xs text-foreground-tertiary mt-2">
         Press Enter to send, Shift+Enter for new line
       </p>
     </div>
