@@ -221,8 +221,12 @@ export function AppProvider({ children }) {
 
     let streamedContent = "";
 
+    let tokenCounter = 0;
+
     // Token callback
     const handleToken = (data) => {
+      tokenCounter++;
+      console.log(`[FRONTEND] Token #${tokenCounter} received:`, data.token.substring(0, 20));
       streamedContent += data.token;
 
       // Update the assistant message with accumulated content
@@ -247,6 +251,8 @@ export function AppProvider({ children }) {
 
     // Complete callback
     const handleComplete = async (data) => {
+      console.log('[FRONTEND] Stream complete. Total tokens received:', tokenCounter);
+      console.log('[FRONTEND] Final message length:', data.message?.length);
       setIsChatStreaming(false);
 
       // Final update with complete message
@@ -276,8 +282,8 @@ export function AppProvider({ children }) {
 
     // Error callback
     const handleError = (data) => {
+      console.error('[FRONTEND] Chat stream error:', data.error);
       setIsChatStreaming(false);
-      console.error('Chat stream error:', data.error);
 
       // Remove placeholder message on error
       const errorChatHistory = {
@@ -295,10 +301,15 @@ export function AppProvider({ children }) {
       window.electron.removeChatStreamListeners();
     };
 
+    console.log('[FRONTEND] Registering stream listeners...');
+
     // Register listeners
     window.electron.onChatStreamToken(handleToken);
     window.electron.onChatStreamComplete(handleComplete);
     window.electron.onChatStreamError(handleError);
+
+    console.log('[FRONTEND] Starting chat stream...');
+    console.log('[FRONTEND] Context IDs:', contextIds);
 
     // Start streaming
     window.electron.chatWithAIStream(

@@ -34,9 +34,13 @@ function registerChatHandlers() {
 
   // Chat with AI using Agents SDK with streaming
   ipcMain.on('chat-with-ai-stream', async (event, messages, systemPrompt, contextIds) => {
+    logger.info('=== CHAT STREAM REQUEST RECEIVED ===');
+
     try {
       // Get API key
+      logger.info('Getting API key...');
       const apiKey = await getApiKey();
+      logger.info('API key retrieved');
 
       // Extract user message (last message in array)
       const userMessage = messages[messages.length - 1]?.content || '';
@@ -44,7 +48,12 @@ function registerChatHandlers() {
       // Extract transcript ID (first context ID or from messages)
       const transcriptId = contextIds && contextIds.length > 0 ? contextIds[0] : null;
 
+      logger.info(`Transcript ID: ${transcriptId}`);
+      logger.info(`Context IDs: ${JSON.stringify(contextIds)}`);
+      logger.info(`User message: ${userMessage.substring(0, 100)}...`);
+
       if (!transcriptId) {
+        logger.error('No transcript selected');
         event.sender.send('chat-stream-error', {
           error: 'No transcript selected'
         });
@@ -53,8 +62,11 @@ function registerChatHandlers() {
 
       // Message history (exclude the current message)
       const messageHistory = messages.slice(0, -1);
+      logger.info(`Message history length: ${messageHistory.length}`);
 
-      logger.info(`Chat stream request: ${userMessage.substring(0, 50)}...`);
+      logger.info('Calling ChatService.sendMessage with streaming...');
+
+      let tokensSent = 0;
 
       // Call ChatService with streaming callback
       const result = await chatService.sendMessage({
@@ -64,29 +76,37 @@ function registerChatHandlers() {
         messageHistory,
         contextIds: contextIds || [transcriptId],
         onToken: (token) => {
+          tokensSent++;
+          logger.info(`Sending token #${tokensSent} to renderer: "${token.substring(0, 20)}..."`);
           // Send each token to the renderer
           event.sender.send('chat-stream-token', { token });
         }
       });
 
+      logger.info(`ChatService.sendMessage completed. Success: ${result.success}, Tokens sent: ${tokensSent}`);
+
       if (result.success) {
-        logger.success('Chat response completed with streaming');
+        logger.success(`Chat response completed. Total tokens sent: ${tokensSent}`);
         event.sender.send('chat-stream-complete', {
           message: result.message,
           metadata: result.metadata
         });
       } else {
+        logger.error(`Chat error: ${result.error}`);
         event.sender.send('chat-stream-error', {
           error: result.error
         });
       }
 
     } catch (error) {
-      logger.error('Chat stream error:', error);
+      logger.error('Chat stream exception:', error);
+      logger.error('Stack trace:', error.stack);
       event.sender.send('chat-stream-error', {
         error: error.message || 'Failed to get response from AI'
       });
     }
+
+    logger.info('=== CHAT STREAM REQUEST COMPLETED ===');
   });
 
   // Get chat history

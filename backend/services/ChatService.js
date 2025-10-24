@@ -142,28 +142,51 @@ Current question: ${userMessage}`;
         stream: true
       });
 
+      logger.info('Stream created, processing events...');
+
       let fullResponse = '';
+      let eventCount = 0;
+      let tokenCount = 0;
 
       // Process stream events
       for await (const event of stream) {
+        eventCount++;
+
+        // Log all event types for debugging
+        logger.info(`Event #${eventCount}: type=${event.type}`);
+
         if (event.type === 'raw_model_stream_event') {
+          logger.info(`Raw model event data type: ${event.data?.type}`);
+          logger.info(`Event data: ${JSON.stringify(event.data).substring(0, 200)}`);
+
           // Extract text delta from the event
           if (event.data?.type === 'response.output_text.delta' && event.data?.delta) {
             const token = event.data.delta;
             fullResponse += token;
+            tokenCount++;
+
+            logger.info(`Token #${tokenCount}: "${token}"`);
 
             // Call onToken callback if provided
             if (onToken) {
               onToken(token);
             }
           }
+        } else if (event.type === 'run_item_stream_event') {
+          logger.info(`Run item event: ${event.name}, item type: ${event.item?.type}`);
+        } else if (event.type === 'agent_updated_stream_event') {
+          logger.info(`Agent updated: ${event.agent?.name}`);
+        } else {
+          logger.info(`Unknown event type: ${event.type}`);
         }
       }
+
+      logger.info(`Stream loop ended. Total events: ${eventCount}, tokens: ${tokenCount}`);
 
       // Wait for completion
       await stream.completed;
 
-      logger.success('Response generated successfully with streaming');
+      logger.success(`Response generated successfully with streaming. Final response length: ${fullResponse.length}`);
 
       return {
         success: true,
