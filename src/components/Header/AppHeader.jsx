@@ -1,8 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 function AppHeader() {
   const { currentTab, switchTab, apiKeyStatus, openAPIKeyModal, openSettingsModal, shouldPulseAPIButton } = useApp();
+  const [theme, setTheme] = useState('light');
+
+  // Load theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    setTheme(savedTheme);
+    if (savedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  // Toggle theme
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   // Determine button styling based on API key status
   const getAPIKeyButtonClass = () => {
@@ -86,8 +109,47 @@ function AppHeader() {
           </div>
         </div>
 
-        {/* Right Section: Settings + API Key */}
+        {/* Right Section: Theme Toggle + Settings + API Key */}
         <div className="flex-1 flex items-center justify-end gap-2 sm:gap-3">
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className="relative p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all duration-300 bg-surface-secondary hover:bg-surface-tertiary border border-strong group"
+            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            aria-label="Toggle theme"
+          >
+            {/* Sun icon (visible in dark mode) */}
+            <svg
+              className={`w-4 h-4 sm:w-5 sm:h-5 absolute inset-0 m-auto transition-all duration-300 ${
+                theme === 'dark' ? 'rotate-0 opacity-100' : 'rotate-90 opacity-0'
+              }`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41" />
+            </svg>
+
+            {/* Moon icon (visible in light mode) */}
+            <svg
+              className={`w-4 h-4 sm:w-5 sm:h-5 transition-all duration-300 ${
+                theme === 'light' ? 'rotate-0 opacity-100' : '-rotate-90 opacity-0'
+              }`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
+
           {/* Settings Button */}
           <button
             onClick={openSettingsModal}
