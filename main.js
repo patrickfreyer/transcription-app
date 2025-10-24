@@ -4,10 +4,23 @@ const OpenAI = require('openai');
 const fs = require('fs');
 const os = require('os');
 const keytar = require('keytar');
+const Store = require('electron-store');
+
+// Import new backend handlers
+const { registerAllHandlers } = require('./backend/handlers');
 
 // Constants for secure storage
 const SERVICE_NAME = 'Audio Transcription App';
 const ACCOUNT_NAME = 'openai-api-key';
+
+// Initialize electron-store with defaults
+const store = new Store({
+  defaults: {
+    transcripts: [],
+    chatHistory: {},
+    'summary-templates': []
+  }
+});
 
 // Add error logging for startup issues
 process.on('uncaughtException', (error) => {
@@ -325,8 +338,12 @@ function createWindow() {
     backgroundColor: '#ffffff',
   });
 
-  // Load the new main app shell
-  mainWindow.loadFile('src/main.html');
+  // Load the app (Vite dev server or built files)
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
+  }
 
   // Open DevTools in development
   // mainWindow.webContents.openDevTools();
@@ -435,6 +452,52 @@ ipcMain.handle('delete-api-key-secure', async () => {
   }
 });
 
+// Summary Template handlers
+ipcMain.handle('get-templates', async () => {
+  try {
+    const templates = store.get('summary-templates', []);
+    console.log('✓ Loaded summary templates from storage');
+    return { success: true, templates };
+  } catch (error) {
+    console.error('Failed to load templates:', error);
+    return { success: false, error: error.message, templates: [] };
+  }
+});
+
+ipcMain.handle('save-templates', async (event, templates) => {
+  try {
+    store.set('summary-templates', templates);
+    console.log('✓ Saved summary templates to storage');
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to save templates:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Save file to temp directory
+ipcMain.handle('save-file-to-temp', async (event, arrayBuffer, fileName) => {
+  try {
+    const tempDir = os.tmpdir();
+    const sanitizedFileName = path.basename(fileName); // Prevent path traversal
+    const tempFilePath = path.join(tempDir, `upload-${Date.now()}-${sanitizedFileName}`);
+
+    console.log('Saving file to temp:', tempFilePath);
+    fs.writeFileSync(tempFilePath, Buffer.from(arrayBuffer));
+
+    return {
+      success: true,
+      filePath: tempFilePath
+    };
+  } catch (error) {
+    console.error('Failed to save file to temp:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
+
 // Window control handlers (for Windows custom title bar)
 ipcMain.on('window-minimize', () => {
   if (mainWindow) {
@@ -536,6 +599,24 @@ function diarizedJsonToVTT(diarizedTranscript) {
   }
 
   return vtt;
+}
+
+// Helper function to convert VTT format to plain text
+function vttToPlainText(vtt) {
+  if (!vtt) return '';
+
+  return vtt
+    .split('\n')
+    .filter(line => {
+      const trimmed = line.trim();
+      // Skip empty lines, WEBVTT header, timestamps, and cue numbers
+      return trimmed !== '' &&
+             !trimmed.startsWith('WEBVTT') &&
+             !trimmed.includes('-->') &&
+             !/^\d+$/.test(trimmed);
+    })
+    .join('\n')
+    .trim();
 }
 
 // Handle transcription
@@ -754,7 +835,8 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
 
       return {
         success: true,
-        transcript: combinedTranscript,
+        text: vttToPlainText(combinedTranscript),  // Plain text for display
+        transcript: combinedTranscript,            // VTT format for download
         chunked: true,
         totalChunks: chunkPaths.length,
         isDiarized: isDiarized,
@@ -822,7 +904,8 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
 
       return {
         success: true,
-        transcript: finalTranscript,
+        text: vttToPlainText(finalTranscript),  // Plain text for display
+        transcript: finalTranscript,            // VTT format for download
         chunked: false,
         isDiarized: isDiarized,
       };
@@ -849,31 +932,104 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
   }
 });
 
+// Handle summary generation
+ipcMain.handle('generate-summary', async (event, transcript, templatePrompt, apiKey) => {
+  try {
+    const openai = new OpenAI({ apiKey });
+
+    console.log('Generating summary with OpenAI...');
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a helpful assistant that creates summaries of transcriptions based on user instructions.'
+        },
+        {
+          role: 'user',
+          content: `Here is a transcription:\n\n${transcript}\n\n${templatePrompt}`
+        }
+      ],
+      temperature: 0.3,
+    });
+
+    const summary = response.choices[0]?.message?.content;
+
+    if (!summary) {
+      throw new Error('No summary generated');
+    }
+
+    console.log('✓ Summary generated successfully');
+
+    return {
+      success: true,
+      summary: summary.trim()
+    };
+
+  } catch (error) {
+    console.error('Summary generation error:', error);
+    return {
+      success: false,
+      error: error.message || 'Summary generation failed',
+    };
+  }
+});
+
+// Register all new backend handlers (transcript, chat, etc.)
+// These replace the old inline handlers with the new modular system
+registerAllHandlers();
+
 // Handle save transcript
 ipcMain.handle('save-transcript', async (event, content, format, fileName) => {
   try {
+    // Format configuration
+    const formatConfig = {
+      txt: { name: 'Text File', extensions: ['txt'] },
+      vtt: { name: 'WebVTT Subtitle', extensions: ['vtt'] },
+      md: { name: 'Markdown', extensions: ['md'] },
+      pdf: { name: 'PDF Document', extensions: ['pdf'] }
+    };
+
+    const config = formatConfig[format] || formatConfig.txt;
+
     // Show save dialog
     const result = await dialog.showSaveDialog(mainWindow, {
       title: 'Save Transcript',
-      defaultPath: fileName || 'transcript',
+      defaultPath: path.join(app.getPath('documents'), `${fileName}.${config.extensions[0]}`),
       filters: [
-        { name: format.toUpperCase(), extensions: [format] },
+        { name: config.name, extensions: config.extensions },
         { name: 'All Files', extensions: ['*'] }
       ]
     });
 
     if (result.canceled) {
-      return { success: false, canceled: true };
+      return { success: false, cancelled: true };
+    }
+
+    // PDF export not yet implemented
+    if (format === 'pdf') {
+      throw new Error('PDF export not yet implemented. Please use TXT, VTT, or Markdown format.');
+    }
+
+    // Format content based on export type
+    let finalContent = content;
+    if (format === 'md') {
+      // Add markdown formatting
+      finalContent = `# Transcript\n\n${content}`;
     }
 
     // Write file
-    fs.writeFileSync(result.filePath, content, 'utf8');
+    fs.writeFileSync(result.filePath, finalContent, 'utf8');
+
+    console.log(`✓ Transcript saved as ${format.toUpperCase()}: ${result.filePath}`);
 
     return {
       success: true,
       filePath: result.filePath
     };
   } catch (error) {
+    console.error('Save transcript error:', error);
     return {
       success: false,
       error: error.message || 'Failed to save file'

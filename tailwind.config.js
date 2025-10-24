@@ -1,61 +1,104 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./src/**/*.{html,js}",
+    "./index.html",
+    "./src/**/*.{js,jsx,ts,tsx,html}",
     "./main.js",
     "./preload.js"
   ],
   theme: {
     extend: {
       colors: {
-        // macOS/iOS inspired colors
+        // Primary Theme - BCG Green
+        'primary': {
+          DEFAULT: '#00A758',
+          hover: '#008C4A',
+          light: '#33B977',
+          dark: '#007042',
+        },
+        // BCG Brand Colors
+        'bcg-green': {
+          DEFAULT: '#00A758',
+          hover: '#008C4A',
+          light: '#33B977',
+          dark: '#007042',
+        },
+        'bcg-blue': {
+          DEFAULT: '#0077C8',
+          hover: '#0062A8',
+          light: '#3395D8',
+          dark: '#005291',
+        },
+        // Apple/iOS system colors (Secondary)
+        'ios-blue': {
+          DEFAULT: '#007aff',
+          hover: '#0051d5',
+        },
+        'ios-green': {
+          DEFAULT: '#34c759',
+          hover: '#2fb350',
+        },
+        'ios-red': {
+          DEFAULT: '#ff3b30',
+          hover: '#e02d23',
+        },
+        'ios-orange': {
+          DEFAULT: '#ff9500',
+          hover: '#e68500',
+        },
+        'ios-purple': {
+          DEFAULT: '#af52de',
+          hover: '#9d3fd1',
+        },
+        // Background colors (Apple light theme)
+        'bg-white': '#ffffff',
+        'bg-gray': {
+          50: '#f5f5f7',   // Cards, sections
+          100: '#fbfbfd',  // Drop zones, visualizers
+          200: '#e8e8ed',  // Borders
+          300: '#d2d2d7',  // Darker borders
+        },
+        // Text colors
+        'text-dark': '#1d1d1f',
+        'text-gray': {
+          DEFAULT: '#6e6e73',
+          light: '#86868b',
+        },
+        // Legacy mappings for compatibility
         accent: {
-          DEFAULT: '#007AFF',
-          hover: '#0051D5',
+          DEFAULT: '#007aff',
+          hover: '#0051d5',
           light: '#4DA3FF',
           dark: '#0047B3',
         },
         success: {
-          DEFAULT: '#34C759',
-          hover: '#2FB350',
-          light: '#5DD67D',
-          dark: '#28A745',
+          DEFAULT: '#00A758',
+          hover: '#008C4A',
+          light: '#33B977',
+          dark: '#007042',
         },
         error: {
-          DEFAULT: '#FF3B30',
-          hover: '#D32F2F',
+          DEFAULT: '#ff3b30',
+          hover: '#e02d23',
           light: '#FF6B61',
           dark: '#C62828',
         },
         warning: {
-          DEFAULT: '#FF9500',
-          hover: '#E68500',
+          DEFAULT: '#ff9500',
+          hover: '#e68500',
           light: '#FFB340',
           dark: '#CC7700',
         },
-        gray: {
-          50: '#F9FAFB',
-          100: '#F3F4F6',
-          200: '#E5E7EB',
-          300: '#D1D5DB',
-          400: '#9CA3AF',
-          500: '#6B7280',
-          600: '#4B5563',
-          700: '#374151',
-          800: '#1F2937',
-          900: '#111827',
-          950: '#030712',
-        }
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'gradient-main': 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)',
+        'gradient-bcg': 'linear-gradient(135deg, #00A758 0%, #008C4A 100%)',
+        'gradient-bcg-blue': 'linear-gradient(135deg, #0077C8 0%, #0062A8 100%)',
         'gradient-accent': 'linear-gradient(135deg, #007AFF 0%, #0051D5 100%)',
-        'gradient-success': 'linear-gradient(135deg, #34C759 0%, #2FB350 100%)',
+        'gradient-success': 'linear-gradient(135deg, #00A758 0%, #008C4A 100%)',
         'gradient-error': 'linear-gradient(135deg, #FF3B30 0%, #D32F2F 100%)',
         'gradient-warning': 'linear-gradient(135deg, #FF9500 0%, #E68500 100%)',
-        'gradient-glass': 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
       },
       backdropBlur: {
         xs: '2px',

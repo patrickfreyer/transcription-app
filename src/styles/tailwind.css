@@ -4,10 +4,29 @@
 
 /* Custom base styles */
 @layer base {
+  html {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
   body {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
     @apply antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 }
 
@@ -100,5 +119,11 @@
 
   .non-draggable {
     -webkit-app-region: no-drag;
+  }
+
+  /* Word breaking for URLs and long text */
+  .overflow-wrap-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 }
