@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useApp } from '../../../context/AppContext';
-import ContextSelector from './ContextSelector';
 
 /**
- * ChatHeader - Header with title, context selector button, clear chat, and collapse buttons
+ * ChatHeader - Header with title, clear chat, and collapse buttons
  */
 const ChatHeader = () => {
   const {
@@ -12,8 +11,6 @@ const ChatHeader = () => {
     clearChatHistory,
     setIsChatPanelOpen
   } = useApp();
-
-  const [showContextSelector, setShowContextSelector] = useState(false);
 
   return (
     <>
@@ -27,17 +24,6 @@ const ChatHeader = () => {
         </h3>
 
         <div className="flex items-center gap-1">
-          {/* Add context button */}
-          <button
-            onClick={() => setShowContextSelector(true)}
-            className="p-1.5 rounded-lg hover:bg-surface-secondary transition-all group"
-            title="Select transcripts for context"
-          >
-            <svg className="w-4 h-4 text-foreground-secondary group-hover:text-foreground transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-
           {/* Clear chat button */}
           {currentChatMessages.length > 0 && (
             <button
@@ -67,10 +53,6 @@ const ChatHeader = () => {
           </button>
         </div>
       </div>
-
-      {showContextSelector && (
-        <ContextSelector onClose={() => setShowContextSelector(false)} />
-      )}
     </>
   );
 };

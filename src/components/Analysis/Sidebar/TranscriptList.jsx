@@ -9,6 +9,7 @@ function TranscriptList() {
     filterMode,
     setSearchQuery,
     selectedContextIds,
+    searchAllTranscripts,
     selectAllVisibleTranscripts,
     clearAllSelections
   } = useApp();
@@ -92,36 +93,55 @@ function TranscriptList() {
     <div>
       {/* Select All Header */}
       {filteredTranscripts.length > 0 && (
-        <div className="sticky top-0 z-10 bg-surface border-b border-border px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={handleSelectAll}
-            className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
-          >
-            <div className="w-5 h-5 rounded border border-border hover:border-primary transition-colors flex items-center justify-center">
-              {allVisibleSelected && (
-                <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-            </div>
-            <span>
-              Select All {filteredTranscripts.length > 0 && `(${filteredTranscripts.length})`}
-            </span>
-          </button>
+        <div className="sticky top-0 z-10 bg-surface border-b border-border px-4 py-3">
+          {/* Help text */}
+          <div className="flex items-start gap-1.5 mb-2.5">
+            <svg className="w-3.5 h-3.5 text-primary flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-xs text-foreground-secondary leading-relaxed">
+              Check transcripts to include them in <span className="font-semibold text-foreground">AI chat context</span>.
+              Click to view transcript.
+            </p>
+          </div>
 
-          {selectedCount > 0 && (
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-medium text-primary">
-                {selectedCount} selected
+          {/* Select All button + selected count */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={handleSelectAll}
+              className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+            >
+              <div className="w-5 h-5 rounded border border-border hover:border-primary transition-colors flex items-center justify-center">
+                {allVisibleSelected && (
+                  <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </div>
+              <span>
+                Select All {filteredTranscripts.length > 0 && `(${filteredTranscripts.length})`}
               </span>
-              <button
-                onClick={clearAllSelections}
-                className="text-xs font-medium text-foreground-secondary hover:text-foreground transition-colors"
-              >
-                Clear
-              </button>
-            </div>
-          )}
+            </button>
+
+            {selectedCount > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-primary flex items-center gap-1.5">
+                  <span>{selectedCount} selected</span>
+                  {searchAllTranscripts && (
+                    <span className="px-1.5 py-0.5 bg-primary text-white text-[10px] rounded uppercase font-bold">
+                      All
+                    </span>
+                  )}
+                </span>
+                <button
+                  onClick={clearAllSelections}
+                  className="text-xs font-medium text-foreground-secondary hover:text-foreground transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

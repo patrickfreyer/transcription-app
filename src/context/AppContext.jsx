@@ -60,6 +60,7 @@ export function AppProvider({ children }) {
   // Chat management state
   const [chatHistory, setChatHistory] = useState({}); // Object keyed by transcriptId
   const [selectedContextIds, setSelectedContextIds] = useState([]); // Array of transcript IDs
+  const [searchAllTranscripts, setSearchAllTranscripts] = useState(false); // RAG mode toggle
   const [isChatPanelOpen, setIsChatPanelOpen] = useState(true);
   const [isChatStreaming, setIsChatStreaming] = useState(false);
 
@@ -155,12 +156,18 @@ export function AppProvider({ children }) {
     const isCurrentlySelected = selectedContextIds.includes(transcriptId);
 
     if (isCurrentlySelected) {
-      // Remove from selection
+      // Uncheck: remove from selection
       setSelectedContextIds(selectedContextIds.filter(id => id !== transcriptId));
+
+      // If RAG mode was active, disable it (user is manually deselecting)
+      if (searchAllTranscripts) {
+        setSearchAllTranscripts(false);
+      }
     } else {
-      // Check max limit
+      // Check: add to selection
+      // Block manual selection at 10 - user must use "Select All" for more
       if (selectedContextIds.length >= MAX_SELECTED_TRANSCRIPTS) {
-        alert(`You can select up to ${MAX_SELECTED_TRANSCRIPTS} transcripts at a time for optimal performance.`);
+        alert(`You can select up to ${MAX_SELECTED_TRANSCRIPTS} transcripts individually. Use "Select All" for more.`);
         return;
       }
       // Add to selection
@@ -169,18 +176,20 @@ export function AppProvider({ children }) {
   };
 
   const selectAllVisibleTranscripts = (visibleTranscriptIds) => {
-    // Only select up to the max limit from visible transcripts
-    const transcriptsToAdd = visibleTranscriptIds.slice(0, MAX_SELECTED_TRANSCRIPTS);
+    // Always select all visible transcripts for UI feedback (checkboxes)
+    setSelectedContextIds(visibleTranscriptIds);
 
+    // Enable RAG mode if more than 10 transcripts
     if (visibleTranscriptIds.length > MAX_SELECTED_TRANSCRIPTS) {
-      alert(`Selecting first ${MAX_SELECTED_TRANSCRIPTS} transcripts. You can select up to ${MAX_SELECTED_TRANSCRIPTS} at a time for optimal performance.`);
+      setSearchAllTranscripts(true);
+    } else {
+      setSearchAllTranscripts(false);
     }
-
-    setSelectedContextIds(transcriptsToAdd);
   };
 
   const clearAllSelections = () => {
     setSelectedContextIds([]);
+    setSearchAllTranscripts(false); // Also disable RAG mode
   };
 
   const isTranscriptSelected = (transcriptId) => {
@@ -206,10 +215,22 @@ export function AppProvider({ children }) {
       contextUsed: []
     };
 
-    // Add user message to chat
+    // Add user message to chat (but NOT the assistant message yet)
     const updatedMessages = [...currentChatMessages, userMessage];
 
-    // Create placeholder assistant message for streaming
+    // Update chat history with only user message
+    let workingChatHistory = {
+      ...chatHistory,
+      [selectedTranscriptId]: {
+        transcriptId: selectedTranscriptId,
+        messages: updatedMessages,
+        createdAt: chatHistory[selectedTranscriptId]?.createdAt || Date.now(),
+        updatedAt: Date.now()
+      }
+    };
+    setChatHistory(workingChatHistory);
+
+    // Create assistant message metadata (but don't add to chat yet)
     const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const contextIds = selectedContextIds.length > 0 ? selectedContextIds : [selectedTranscriptId];
 
@@ -220,20 +241,6 @@ export function AppProvider({ children }) {
       timestamp: Date.now(),
       contextUsed: contextIds
     };
-
-    const messagesWithPlaceholder = [...updatedMessages, placeholderAssistantMessage];
-
-    // Update chat history with user message and placeholder
-    let workingChatHistory = {
-      ...chatHistory,
-      [selectedTranscriptId]: {
-        transcriptId: selectedTranscriptId,
-        messages: messagesWithPlaceholder,
-        createdAt: chatHistory[selectedTranscriptId]?.createdAt || Date.now(),
-        updatedAt: Date.now()
-      }
-    };
-    setChatHistory(workingChatHistory);
 
     // Build context from selected transcripts
     const contextTranscripts = transcripts.filter(t => contextIds.includes(t.id));
@@ -333,12 +340,14 @@ export function AppProvider({ children }) {
 
     console.log('[FRONTEND] Starting chat stream...');
     console.log('[FRONTEND] Context IDs:', contextIds);
+    console.log('[FRONTEND] Search All Transcripts:', searchAllTranscripts);
 
     // Start streaming
     window.electron.chatWithAIStream(
       updatedMessages,
       systemPrompt,
-      contextIds
+      contextIds,
+      searchAllTranscripts
     );
   };
 
@@ -655,6 +664,8 @@ export function AppProvider({ children }) {
     chatHistory,
     selectedContextIds,
     setSelectedContextIds,
+    searchAllTranscripts,
+    setSearchAllTranscripts,
     isChatPanelOpen,
     setIsChatPanelOpen,
     isChatStreaming,

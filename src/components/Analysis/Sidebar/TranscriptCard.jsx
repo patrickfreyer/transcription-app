@@ -70,11 +70,8 @@ function TranscriptCard({ transcript, isActive }) {
 
   const handleClick = () => {
     if (!isEditing) {
+      // Only view the transcript - don't auto-select for context
       setSelectedTranscriptId(transcript.id);
-      // Also add to selection if not already selected
-      if (!isSelected) {
-        toggleTranscriptSelection(transcript.id);
-      }
     }
   };
 
@@ -139,11 +136,13 @@ function TranscriptCard({ transcript, isActive }) {
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       className={`group p-3 border-b border-border cursor-pointer transition-all duration-200 hover:bg-surface-tertiary ${
-        isActive ? 'bg-blue-50 border-l-4 border-l-primary' : ''
+        isActive && !isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
       } ${
-        isSelected ? 'border-l-2 border-l-primary bg-primary bg-opacity-5' : ''
+        isSelected && !isActive ? 'border-l-2 border-l-primary bg-primary/5' : ''
+      } ${
+        isActive && isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-primary' : ''
       }`}
-      title="Double-click to view details"
+      title="Click to view • Check to add to AI context • Double-click for details"
     >
       <div className="flex items-start gap-2.5 mb-1.5 min-w-0">
         {/* Checkbox */}
