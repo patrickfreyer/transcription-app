@@ -452,6 +452,29 @@ ipcMain.handle('delete-api-key-secure', async () => {
   }
 });
 
+// Disclaimer handlers
+ipcMain.handle('get-disclaimer-status', async () => {
+  try {
+    const accepted = store.get('disclaimer-accepted', false);
+    console.log('✓ Disclaimer status:', accepted ? 'accepted' : 'not accepted');
+    return { success: true, accepted };
+  } catch (error) {
+    console.error('Failed to get disclaimer status:', error);
+    return { success: false, accepted: false };
+  }
+});
+
+ipcMain.handle('set-disclaimer-accepted', async () => {
+  try {
+    store.set('disclaimer-accepted', true);
+    console.log('✓ Disclaimer accepted and saved');
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to save disclaimer acceptance:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // Summary Template handlers
 ipcMain.handle('get-templates', async () => {
   try {

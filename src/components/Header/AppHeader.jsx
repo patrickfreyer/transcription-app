@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import logo from '../../assets/logo.png';
 
 function AppHeader() {
-  const { currentTab, switchTab, apiKeyStatus, openAPIKeyModal, openSettingsModal, shouldPulseAPIButton } = useApp();
+  const { currentTab, switchTab, apiKeyStatus, openAPIKeyModal, openSettingsModal, shouldPulseAPIButton, openDisclaimerModal } = useApp();
   const [theme, setTheme] = useState('light');
 
   // Load theme on mount
@@ -65,9 +66,12 @@ function AppHeader() {
     <header className="bg-surface border-b border-strong px-4 sm:px-8 lg:px-16 py-3 sm:py-4 lg:py-5">
       <div className="flex items-center justify-between">
         {/* Brand Section - Left */}
-        <div className="flex-1">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary">TranscriptAI</h1>
-          <p className="text-xs sm:text-sm text-foreground-secondary mt-0.5">Record, transcribe, and analyze</p>
+        <div className="flex-1 flex items-center gap-3">
+          <img src={logo} alt="TranscriptAI Logo" className="h-8 sm:h-10 lg:h-12 w-auto object-contain" />
+          <div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-primary">TranscriptAI</h1>
+            <p className="text-xs sm:text-sm text-foreground-secondary mt-0.5">Record, transcribe, and analyze</p>
+          </div>
         </div>
 
         {/* Navigation Toggle - Center */}
@@ -86,7 +90,7 @@ function AppHeader() {
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                 <line x1="12" y1="19" x2="12" y2="22" />
               </svg>
-              <span className="hidden xs:inline sm:inline">Recording</span>
+              <span className="hidden xs:inline sm:inline">Transcription</span>
             </button>
 
             <button
@@ -147,6 +151,18 @@ function AppHeader() {
               strokeLinejoin="round"
             >
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
+
+          {/* Disclaimer Button */}
+          <button
+            onClick={openDisclaimerModal}
+            className="relative p-2 sm:p-2.5 rounded-lg sm:rounded-xl transition-all duration-200 bg-surface-secondary hover:bg-surface-tertiary border border-strong group"
+            title="View Important Disclaimer"
+            aria-label="View Disclaimer"
+          >
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-foreground-secondary group-hover:text-warning transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </button>
 

@@ -1036,3 +1036,19 @@ input[type='password']:focus {
 .attribution a:hover {
   color: #007aff;
 }
+
+/* Analysis Tab Redesign Animations */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-slide-in {
+  animation: fadeSlideIn 250ms ease-out;
+}

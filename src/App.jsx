@@ -5,10 +5,20 @@ import RecordingPanel from './components/Recording/RecordingPanel';
 import AnalysisPanel from './components/Analysis/AnalysisPanel';
 import APIKeyModal from './components/Modals/APIKeyModal';
 import SettingsModal from './components/Modals/SettingsModal';
+import DisclaimerModal from './components/Modals/DisclaimerModal';
 import { useApp } from './context/AppContext';
 
 function AppContent() {
-  const { currentTab, platform, showSettingsModal, closeSettingsModal } = useApp();
+  const {
+    currentTab,
+    platform,
+    showSettingsModal,
+    closeSettingsModal,
+    showDisclaimerModal,
+    hasAcceptedDisclaimer,
+    acceptDisclaimer,
+    closeDisclaimerModal
+  } = useApp();
 
   return (
     <div className="flex flex-col h-screen bg-surface-tertiary overflow-hidden">
@@ -74,6 +84,13 @@ function AppContent() {
 
       {/* Settings Modal */}
       <SettingsModal isOpen={showSettingsModal} onClose={closeSettingsModal} />
+
+      {/* Disclaimer Modal */}
+      <DisclaimerModal
+        isOpen={showDisclaimerModal}
+        onAccept={hasAcceptedDisclaimer ? closeDisclaimerModal : acceptDisclaimer}
+        isFirstTime={!hasAcceptedDisclaimer}
+      />
     </div>
   );
 }

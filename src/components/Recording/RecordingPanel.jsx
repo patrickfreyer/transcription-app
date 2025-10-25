@@ -6,6 +6,7 @@ import FileInfo from './FileInfo';
 import RecordingInterface from './RecordingInterface';
 import RecentRecordingsSection from './RecentRecordingsSection';
 import TranscriptViewer from '../Analysis/TranscriptViewer';
+import SuccessBanner from './SuccessBanner';
 
 const MODELS = [
   {
@@ -438,12 +439,24 @@ function RecordingPanel({ isActive }) {
       {/* Scrollable Main Content */}
       <div className="flex-1 overflow-auto min-h-0">
         {showResults && localTranscriptionResult ? (
-          /* Results View */
-          <TranscriptViewer
-            transcription={localTranscriptionResult}
-            onTranscribeAnother={handleTranscribeAnother}
-            showTranscribeAnotherButton={true}
-          />
+          /* Results View - Consistent Container */
+          <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-6 sm:py-8 lg:py-10 pb-12 space-y-6">
+            {/* Success Banner */}
+            <SuccessBanner
+              fileName={localTranscriptionResult.fileName}
+              duration={localTranscriptionResult.duration}
+              model={localTranscriptionResult.model}
+              onStartNew={handleTranscribeAnother}
+              onGoToAnalysis={() => switchTab('analysis')}
+            />
+
+            {/* Transcript Content */}
+            <TranscriptViewer
+              transcription={localTranscriptionResult}
+              onTranscribeAnother={handleTranscribeAnother}
+              showTranscribeAnotherButton={false}
+            />
+          </div>
         ) : (
         <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-6 sm:py-8 lg:py-10 pb-12 space-y-8">
           {/* Mode Switcher */}
@@ -518,23 +531,53 @@ function RecordingPanel({ isActive }) {
         )}
       </div>
 
-      {/* Recent Recordings Section - Fixed at Bottom (hide when showing results) */}
-      {!showResults && (
+      {/* Footer Section - Fixed at Bottom */}
       <div className="flex-shrink-0 border-t border-border bg-gradient-to-b from-surface to-surface-tertiary">
-        <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-4 sm:py-5">
-          <RecentRecordingsSection
-            transcripts={transcripts.slice(0, 4)}
-            onTranscriptClick={(transcriptId) => {
-              setSelectedTranscriptId(transcriptId);
-              if (!isTranscriptSelected(transcriptId)) {
-                toggleTranscriptSelection(transcriptId);
-              }
-              switchTab('analysis');
-            }}
-          />
+        {/* Recent Recordings Section (hide when showing results) */}
+        {!showResults && (
+          <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-4 sm:py-5">
+            <RecentRecordingsSection
+              transcripts={transcripts.slice(0, 4)}
+              onTranscriptClick={(transcriptId) => {
+                setSelectedTranscriptId(transcriptId);
+                if (!isTranscriptSelected(transcriptId)) {
+                  toggleTranscriptSelection(transcriptId);
+                }
+                switchTab('analysis');
+              }}
+            />
+          </div>
+        )}
+
+        {/* Attribution Footer (always visible) */}
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-4 text-center">
+          <p className="text-xs text-foreground-tertiary">
+            Created by{' '}
+            <a
+              href="https://patrickfreyer.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-foreground-secondary hover:text-primary transition-colors"
+            >
+              Patrick C. Freyer
+            </a>
+            {' '}
+            <a
+              href="mailto:freyer.patrick@bcg.com"
+              className="text-foreground-secondary hover:text-primary transition-colors"
+            >
+              (freyer.patrick@bcg.com)
+            </a>
+            {' • '}
+            <a
+              href="mailto:achba.alexander@bcg.com"
+              className="text-foreground-secondary hover:text-primary transition-colors"
+            >
+              Alexander Achba (achba.alexander@bcg.com)
+            </a>
+          </p>
         </div>
       </div>
-      )}
 
       {/* Disabled State Helper */}
       {isDisabled && (

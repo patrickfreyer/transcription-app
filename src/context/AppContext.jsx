@@ -38,6 +38,8 @@ export function AppProvider({ children }) {
   const [apiKeyStatus, setApiKeyStatus] = useState('missing'); // 'missing', 'valid', 'loading'
   const [showAPIKeyModal, setShowAPIKeyModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+  const [hasAcceptedDisclaimer, setHasAcceptedDisclaimer] = useState(true); // Default true, will check on mount
   const [platform, setPlatform] = useState('darwin');
   const [shouldPulseAPIButton, setShouldPulseAPIButton] = useState(false);
   const [summaryTemplates, setSummaryTemplates] = useState(DEFAULT_TEMPLATES);
@@ -51,6 +53,10 @@ export function AppProvider({ children }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState('all'); // 'all' | 'starred' | 'recent'
 
+  // Left panel navigation state (for 2-column redesign)
+  const [leftPanelView, setLeftPanelView] = useState('list'); // 'list' | 'detail'
+  const [detailViewTranscriptId, setDetailViewTranscriptId] = useState(null);
+
   // Chat management state
   const [chatHistory, setChatHistory] = useState({}); // Object keyed by transcriptId
   const [selectedContextIds, setSelectedContextIds] = useState([]); // Array of transcript IDs
@@ -59,6 +65,7 @@ export function AppProvider({ children }) {
 
   // Computed values
   const selectedTranscript = transcripts.find(t => t.id === selectedTranscriptId) || null;
+  const detailViewTranscript = transcripts.find(t => t.id === detailViewTranscriptId) || null;
   const currentChatMessages = selectedTranscriptId ? (chatHistory[selectedTranscriptId]?.messages || []) : [];
 
   // Transcript Management Functions
@@ -86,6 +93,17 @@ export function AppProvider({ children }) {
     return newTranscript.id;
   };
 
+  // Left Panel Navigation Functions
+  const openTranscriptDetail = (transcriptId) => {
+    setDetailViewTranscriptId(transcriptId);
+    setLeftPanelView('detail');
+  };
+
+  const closeTranscriptDetail = () => {
+    setLeftPanelView('list');
+    setDetailViewTranscriptId(null);
+  };
+
   const deleteTranscript = async (transcriptId) => {
     const updatedTranscripts = transcripts.filter(t => t.id !== transcriptId);
     setTranscripts(updatedTranscripts);
@@ -100,6 +118,11 @@ export function AppProvider({ children }) {
 
     if (selectedTranscriptId === transcriptId) {
       setSelectedTranscriptId(null);
+    }
+
+    // If deleting the transcript in detail view, close detail view
+    if (detailViewTranscriptId === transcriptId) {
+      closeTranscriptDetail();
     }
   };
 
@@ -360,6 +383,9 @@ export function AppProvider({ children }) {
       setPlatform(window.electron.platform);
     }
 
+    // Check disclaimer acceptance on startup
+    checkDisclaimerStatus();
+
     // Check for existing API key on startup
     checkAPIKey();
 
@@ -377,6 +403,44 @@ export function AppProvider({ children }) {
       });
     }
   }, []);
+
+  const checkDisclaimerStatus = async () => {
+    try {
+      const result = await window.electron.getDisclaimerStatus();
+      if (result.success && result.accepted) {
+        setHasAcceptedDisclaimer(true);
+      } else {
+        setHasAcceptedDisclaimer(false);
+        setShowDisclaimerModal(true);
+      }
+    } catch (error) {
+      console.error('Error checking disclaimer status:', error);
+      // If error, show disclaimer to be safe
+      setHasAcceptedDisclaimer(false);
+      setShowDisclaimerModal(true);
+    }
+  };
+
+  const acceptDisclaimer = async () => {
+    try {
+      await window.electron.setDisclaimerAccepted();
+      setHasAcceptedDisclaimer(true);
+      setShowDisclaimerModal(false);
+    } catch (error) {
+      console.error('Error accepting disclaimer:', error);
+    }
+  };
+
+  const openDisclaimerModal = () => {
+    setShowDisclaimerModal(true);
+  };
+
+  const closeDisclaimerModal = () => {
+    // Only allow closing if already accepted (for review mode)
+    if (hasAcceptedDisclaimer) {
+      setShowDisclaimerModal(false);
+    }
+  };
 
   const checkAPIKey = async () => {
     try {
@@ -542,6 +606,11 @@ export function AppProvider({ children }) {
     showSettingsModal,
     openSettingsModal,
     closeSettingsModal,
+    showDisclaimerModal,
+    hasAcceptedDisclaimer,
+    openDisclaimerModal,
+    closeDisclaimerModal,
+    acceptDisclaimer,
     platform,
     checkAPIKey,
     shouldPulseAPIButton,
@@ -571,6 +640,12 @@ export function AppProvider({ children }) {
     deleteTranscript,
     toggleStarTranscript,
     renameTranscript,
+    // Left panel navigation
+    leftPanelView,
+    detailViewTranscriptId,
+    detailViewTranscript,
+    openTranscriptDetail,
+    closeTranscriptDetail,
     // Multi-selection
     toggleTranscriptSelection,
     selectAllVisibleTranscripts,

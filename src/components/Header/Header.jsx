@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 
 function Header() {
-  const { currentTab, switchTab, apiKeyStatus, openAPIKeyModal, shouldPulseAPIButton } = useApp();
+  const { currentTab, switchTab, apiKeyStatus, openAPIKeyModal, shouldPulseAPIButton, openDisclaimerModal } = useApp();
 
   const tabClass = (tabName) => {
     const isActive = currentTab === tabName;
@@ -74,6 +74,18 @@ function Header() {
               <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
             </svg>
             <span className={`status-indicator ${apiKeyStatus}`}></span>
+          </button>
+
+          {/* Disclaimer Button */}
+          <button
+            className="p-3 rounded-xl bg-surface-tertiary hover:bg-surface-secondary border border-border hover:border-strong transition-all duration-200 group"
+            onClick={openDisclaimerModal}
+            aria-label="View Disclaimer"
+            title="View Disclaimer"
+          >
+            <svg className="w-5 h-5 text-text-gray group-hover:text-warning transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
           </button>
 
           {/* Settings Button */}

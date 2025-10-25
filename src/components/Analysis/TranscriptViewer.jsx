@@ -70,9 +70,9 @@ function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAn
   };
 
   return (
-    <div className="h-full flex flex-col bg-surface-tertiary">
+    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
       {/* Header with File Info */}
-      <div className="flex-shrink-0 bg-surface border-b border-border px-4 py-3">
+      <div className="bg-surface border-b border-border px-4 py-3">
         {/* File Info */}
         <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -214,24 +214,20 @@ function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAn
       </div>
 
       {/* Transcript Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-5xl mx-auto p-4">
-          <div className="bg-surface rounded-xl border border-border p-6 shadow-sm animate-fade-in">
-            {activeView === 'summary' ? (
-              <MarkdownRenderer
-                content={summary}
-                className="prose prose-sm max-w-none"
-                enableGFM={true}
-              />
-            ) : (
-              <div className="prose prose-sm max-w-none">
-                <pre className="whitespace-pre-wrap font-sans text-sm text-text-dark leading-relaxed">
-                  {rawTranscript}
-                </pre>
-              </div>
-            )}
+      <div className="p-6 bg-surface-tertiary">
+        {activeView === 'summary' ? (
+          <MarkdownRenderer
+            content={summary}
+            className="prose prose-sm max-w-none"
+            enableGFM={true}
+          />
+        ) : (
+          <div className="prose prose-sm max-w-none">
+            <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">
+              {rawTranscript}
+            </pre>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

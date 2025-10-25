@@ -50,7 +50,8 @@ function TranscriptCard({ transcript, isActive }) {
     deleteTranscript,
     toggleTranscriptSelection,
     isTranscriptSelected,
-    renameTranscript
+    renameTranscript,
+    openTranscriptDetail
   } = useApp();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -79,7 +80,14 @@ function TranscriptCard({ transcript, isActive }) {
 
   const handleDoubleClick = (e) => {
     e.stopPropagation();
-    console.log('✏️ Double-click detected - enabling rename mode');
+    if (!isEditing) {
+      // Open detail view on double-click
+      openTranscriptDetail(transcript.id);
+    }
+  };
+
+  const handleRenameClick = (e) => {
+    e.stopPropagation();
     setIsEditing(true);
     setEditName(transcript.fileName || 'Untitled Transcript');
   };
@@ -129,11 +137,13 @@ function TranscriptCard({ transcript, isActive }) {
   return (
     <div
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       className={`group p-3 border-b border-border cursor-pointer transition-all duration-200 hover:bg-surface-tertiary ${
         isActive ? 'bg-blue-50 border-l-4 border-l-primary' : ''
       } ${
-        isSelected ? 'ring-1 ring-primary ring-inset' : ''
+        isSelected ? 'border-l-2 border-l-primary bg-primary bg-opacity-5' : ''
       }`}
+      title="Double-click to view details"
     >
       <div className="flex items-start gap-2.5 mb-1.5 min-w-0">
         {/* Checkbox */}
@@ -164,9 +174,8 @@ function TranscriptCard({ transcript, isActive }) {
           />
         ) : (
           <h3
-            onDoubleClick={handleDoubleClick}
-            className="font-medium text-foreground text-sm line-clamp-2 flex-1 min-w-0 break-words cursor-text"
-            title={`${transcript.fileName || 'Untitled Transcript'} (double-click to rename)`}
+            className="font-medium text-foreground text-sm truncate flex-1 min-w-0"
+            title={transcript.fileName || 'Untitled Transcript'}
           >
             {transcript.fileName || 'Untitled Transcript'}
           </h3>
@@ -175,10 +184,7 @@ function TranscriptCard({ transcript, isActive }) {
         {/* Action buttons - Show on hover */}
         <div className="flex items-center gap-0.5 ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDoubleClick(e);
-            }}
+            onClick={handleRenameClick}
             className="p-1 hover:bg-surface-tertiary rounded transition-all duration-200"
             aria-label="Rename"
             title="Rename transcript"
