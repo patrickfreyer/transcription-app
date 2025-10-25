@@ -3,30 +3,26 @@ import { useApp } from '../../context/AppContext';
 import ModeSwitcher from './ModeSwitcher';
 import DropZone from './DropZone';
 import FileInfo from './FileInfo';
-import Dropdown from '../Common/Dropdown';
-import CollapsibleSection from './CollapsibleSection';
 import RecordingInterface from './RecordingInterface';
-import TranscribeButton from './TranscribeButton';
 import RecentRecordingsSection from './RecentRecordingsSection';
 import TranscriptViewer from '../Analysis/TranscriptViewer';
-import MicrophoneSelector from './MicrophoneSelector';
 
 const MODELS = [
   {
-    id: 'whisper-1',
-    name: 'Whisper',
-    description: 'Fast and accurate transcription for general use cases',
-  },
-  {
     id: 'gpt-4o-transcribe',
-    name: 'GPT-4o Transcribe',
+    name: 'Standard Quality',
     badge: 'Recommended',
-    description: 'Enhanced accuracy with better context understanding',
+    description: 'High-quality text transcription with timestamps',
   },
   {
     id: 'gpt-4o-transcribe-diarize',
-    name: 'GPT-4o Transcribe (Diarized)',
-    description: 'Auto-detects and labels different speakers (Speaker 1, Speaker 2, etc.)',
+    name: 'Speaker Identification',
+    description: 'Identifies who is speaking with labeled segments',
+  },
+  {
+    id: 'whisper-1',
+    name: 'Fast Mode',
+    description: 'Faster transcription with good accuracy',
   },
 ];
 
@@ -472,6 +468,20 @@ function RecordingPanel({ isActive }) {
               disabled={isDisabled}
               selectedMicrophoneId={selectedMicrophoneId}
               onMicrophoneChange={setSelectedMicrophoneId}
+              // Configuration props
+              models={MODELS}
+              selectedModel={selectedModel}
+              onModelChange={setSelectedModel}
+              summaryTemplates={summaryTemplates}
+              selectedSummaryTemplate={selectedSummaryTemplate}
+              onSummaryTemplateChange={setSelectedSummaryTemplate}
+              prompt={prompt}
+              onPromptChange={setPrompt}
+              promptOpen={promptOpen}
+              onPromptToggle={() => setPromptOpen(!promptOpen)}
+              onTranscribe={handleTranscribe}
+              canTranscribe={canTranscribe}
+              isProcessing={isProcessing}
             />
           )}
 
@@ -486,127 +496,23 @@ function RecordingPanel({ isActive }) {
                   file={selectedFile}
                   onRemove={handleRemoveFile}
                   disabled={isDisabled}
+                  // Configuration props
+                  models={MODELS}
+                  selectedModel={selectedModel}
+                  onModelChange={setSelectedModel}
+                  summaryTemplates={summaryTemplates}
+                  selectedSummaryTemplate={selectedSummaryTemplate}
+                  onSummaryTemplateChange={setSelectedSummaryTemplate}
+                  prompt={prompt}
+                  onPromptChange={setPrompt}
+                  promptOpen={promptOpen}
+                  onPromptToggle={() => setPromptOpen(!promptOpen)}
+                  onTranscribe={handleTranscribe}
+                  canTranscribe={canTranscribe}
+                  isProcessing={isProcessing}
                 />
               )}
             </>
-          )}
-
-          {/* Model Selection & Advanced Options - Only show when audio is ready */}
-          {audioReady && (
-            <div className="animate-slide-down space-y-8">
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border"></div>
-                </div>
-                <div className="relative flex justify-center text-sm uppercase">
-                  <span className="bg-surface-tertiary px-6 text-primary font-bold tracking-wide">Configure Transcription</span>
-                </div>
-              </div>
-
-              {/* Model Selection */}
-              <div className="space-y-3">
-                <label className="block">
-                  <span className="text-lg font-bold text-text-dark mb-3 block flex items-center gap-2">
-                    <svg className="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 2v20M2 12h20"/>
-                      <circle cx="12" cy="12" r="9"/>
-                    </svg>
-                    Transcription Model
-                  </span>
-                  <Dropdown
-                    options={MODELS}
-                    value={selectedModel}
-                    onChange={setSelectedModel}
-                    disabled={isDisabled}
-                    placeholder="Select a transcription model"
-                  />
-                </label>
-              </div>
-
-              {/* Summary Type Selection */}
-              <div className="space-y-3">
-                <label className="block">
-                  <span className="text-lg font-bold text-text-dark mb-3 block flex items-center gap-2">
-                    <svg className="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M4 6h16M4 12h16M4 18h16"/>
-                    </svg>
-                    Summary Type
-                  </span>
-                  <Dropdown
-                    options={summaryTemplates.map(template => ({
-                      id: template.id,
-                      name: template.name,
-                      description: template.description,
-                      badge: template.id === 'default' ? null : undefined
-                    }))}
-                    value={selectedSummaryTemplate}
-                    onChange={setSelectedSummaryTemplate}
-                    disabled={isDisabled}
-                    placeholder="Select summary type"
-                  />
-                </label>
-              </div>
-
-              {/* Advanced Options */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold text-text-dark flex items-center gap-2">
-                  <svg className="w-5 h-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"/>
-                  </svg>
-                  Advanced Options
-                </h3>
-
-                {/* Prompt Section */}
-                <CollapsibleSection
-                  title="Custom Prompt (Optional)"
-                  isOpen={promptOpen}
-                  onToggle={() => !isDisabled && setPromptOpen(!promptOpen)}
-                  disabled={isDisabled}
-                >
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    disabled={isDisabled}
-                    placeholder="Provide context or specific terms to improve accuracy..."
-                    className="w-full px-4 py-3 border border-border rounded-xl text-sm bg-surface text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
-                    rows={4}
-                  />
-                  <p className="mt-3 text-xs text-text-gray leading-relaxed">
-                    Help the model understand industry-specific terms, names, or context to improve transcription accuracy
-                  </p>
-                </CollapsibleSection>
-
-                {/* Diarization Info (only for diarized model) */}
-                {selectedModel === 'gpt-4o-transcribe-diarize' && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                    <div className="flex items-start gap-3">
-                      <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 16v-4" />
-                        <path d="M12 8h.01" />
-                      </svg>
-                      <div>
-                        <h4 className="text-sm font-bold text-blue-900 mb-1">Speaker Diarization Enabled</h4>
-                        <p className="text-xs text-blue-700 leading-relaxed">
-                          This model will automatically detect and label different speakers in your audio as "Speaker 1", "Speaker 2", etc. Each speaker's dialogue will be clearly identified in the transcript.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Transcribe Button */}
-              <div className="pt-4">
-                <TranscribeButton
-                  onClick={handleTranscribe}
-                  disabled={!canTranscribe}
-                  isProcessing={isProcessing}
-                />
-              </div>
-            </div>
           )}
         </div>
         )}

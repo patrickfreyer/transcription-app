@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MicrophoneSelector from './MicrophoneSelector';
+import CompactDropdown from '../Common/CompactDropdown';
+import CollapsibleSection from './CollapsibleSection';
 
 function RecordingInterface({
   isRecording,
@@ -13,7 +15,21 @@ function RecordingInterface({
   onRecordAgain,
   disabled,
   selectedMicrophoneId,
-  onMicrophoneChange
+  onMicrophoneChange,
+  // Configuration props
+  models,
+  selectedModel,
+  onModelChange,
+  summaryTemplates,
+  selectedSummaryTemplate,
+  onSummaryTemplateChange,
+  prompt,
+  onPromptChange,
+  promptOpen,
+  onPromptToggle,
+  onTranscribe,
+  canTranscribe,
+  isProcessing
 }) {
   const [elapsedTime, setElapsedTime] = useState(0);
 
@@ -36,54 +52,131 @@ function RecordingInterface({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Show recording complete state
+  // Show recording complete state with inline configuration
   if (hasRecording && !isRecording) {
     return (
-      <div className="rounded-2xl border border-primary/30 bg-surface-elevated p-8 shadow-xl min-h-[400px] flex items-center justify-center animate-fade-in">
-        <div className="flex flex-col items-center gap-6">
-          {/* Success Icon with animation */}
-          <div className="relative">
-            <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center shadow-lg animate-scale-in">
-              <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-            {/* Pulse ring */}
-            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>
-          </div>
-
-          {/* Recording Info */}
-          <div className="text-center space-y-2">
-            <h3 className="text-2xl font-bold text-text-dark">
-              Recording Complete!
-            </h3>
-            <div className="flex items-center justify-center gap-4 text-sm">
-              <div className="flex items-center gap-2 px-4 py-2 bg-surface rounded-full border border-border">
-                <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
+      <div className="rounded-2xl border border-primary/30 bg-surface-elevated shadow-xl animate-fade-in overflow-hidden">
+        {/* Compact Header */}
+        <div className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-primary/20 px-6 py-4">
+          <div className="flex items-center gap-4">
+            {/* Success Icon - Smaller */}
+            <div className="relative flex-shrink-0">
+              <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center shadow-lg">
+                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span className="font-semibold text-text-dark">{formatTime(recordingDuration || 0)}</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-surface rounded-full border border-border">
-                <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                  <line x1="12" y1="19" x2="12" y2="22" />
-                </svg>
-                <span className="font-semibold text-text-dark">Microphone</span>
               </div>
             </div>
-          </div>
 
-          {/* Record Again Button - Fixed width */}
-          <button
-            onClick={onRecordAgain}
+            {/* Recording Info - Horizontal */}
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg font-bold text-text-dark mb-1">
+                Recording Complete!
+              </h3>
+              <div className="flex items-center gap-3 text-xs text-foreground-secondary">
+                <div className="flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span className="font-semibold">{formatTime(recordingDuration || 0)}</span>
+                </div>
+                <span className="text-foreground-tertiary">•</span>
+                <div className="flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  </svg>
+                  <span className="font-semibold">Microphone</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Configuration Section */}
+        <div className="p-6 space-y-4">
+          {/* Model Selection */}
+          <CompactDropdown
+            label="Transcription Model"
+            options={models}
+            value={selectedModel}
+            onChange={onModelChange}
             disabled={disabled}
-            className="w-40 py-3 rounded-xl border border-strong text-foreground font-semibold text-sm transition-all duration-200 hover:bg-surface-tertiary hover:border-strong hover:shadow-md"
+          />
+
+          {/* Summary Type Selection */}
+          <CompactDropdown
+            label="Summary Type"
+            options={summaryTemplates.map(template => ({
+              id: template.id,
+              name: template.name,
+              description: template.description,
+              badge: template.id === 'default' ? null : undefined
+            }))}
+            value={selectedSummaryTemplate}
+            onChange={onSummaryTemplateChange}
+            disabled={disabled}
+          />
+
+          {/* Advanced Options - Collapsible */}
+          <CollapsibleSection
+            title="Advanced Options"
+            isOpen={promptOpen}
+            onToggle={onPromptToggle}
+            disabled={disabled}
           >
-            Record Again
-          </button>
+            <textarea
+              value={prompt}
+              onChange={(e) => onPromptChange(e.target.value)}
+              disabled={disabled}
+              placeholder="Provide context or specific terms to improve accuracy..."
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-surface text-foreground placeholder:text-foreground-tertiary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
+              rows={3}
+            />
+            <p className="mt-2 text-xs text-foreground-tertiary leading-relaxed">
+              Help the model understand industry-specific terms or context
+            </p>
+          </CollapsibleSection>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-3 pt-2">
+            {/* Primary: Transcribe */}
+            <button
+              onClick={onTranscribe}
+              disabled={!canTranscribe || isProcessing}
+              className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-200 shadow-lg flex items-center justify-center gap-2 ${
+                !canTranscribe || isProcessing
+                  ? 'bg-surface-secondary text-foreground-tertiary cursor-not-allowed'
+                  : 'bg-primary hover:bg-primary-hover text-white hover:shadow-xl hover:scale-[1.02]'
+              }`}
+            >
+              {isProcessing ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  Transcribing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M5 3v18l15-9z" />
+                  </svg>
+                  Transcribe
+                </>
+              )}
+            </button>
+
+            {/* Secondary: Record Again */}
+            <button
+              onClick={onRecordAgain}
+              disabled={disabled || isProcessing}
+              className="px-6 py-3 rounded-xl border border-border text-foreground font-semibold text-sm transition-all duration-200 hover:bg-surface-tertiary hover:border-strong"
+            >
+              Record Again
+            </button>
+          </div>
         </div>
       </div>
     );
