@@ -4,32 +4,9 @@ import { useApp } from '../../context/AppContext';
 function APIKeyModal() {
   const { showAPIKeyModal, closeAPIKeyModal, updateAPIKeyStatus, platform } = useApp();
   const [apiKeyInput, setApiKeyInput] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [validationStatus, setValidationStatus] = useState(null); // null, 'validating', 'success', 'error'
   const [validationMessage, setValidationMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingKey, setIsLoadingKey] = useState(false);
-
-  // Load existing API key when modal opens
-  useEffect(() => {
-    const loadExistingKey = async () => {
-      if (showAPIKeyModal) {
-        setIsLoadingKey(true);
-        try {
-          const result = await window.electron.getApiKey();
-          if (result.success && result.apiKey) {
-            setApiKeyInput(result.apiKey);
-          }
-        } catch (error) {
-          console.error('Failed to load API key:', error);
-        } finally {
-          setIsLoadingKey(false);
-        }
-      }
-    };
-
-    loadExistingKey();
-  }, [showAPIKeyModal]);
 
   // Close on Escape key
   useEffect(() => {
@@ -51,12 +28,36 @@ function APIKeyModal() {
     }
   };
 
-  const handlePaste = async () => {
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete your API key? You will need to enter a new one to use the app.')) {
+      return;
+    }
+
+    setIsSaving(true);
+    setValidationStatus('validating');
+    setValidationMessage('Deleting API key...');
+
     try {
-      const text = await navigator.clipboard.readText();
-      setApiKeyInput(text.trim());
+      const result = await window.electron.deleteApiKeySecure();
+
+      if (result.success) {
+        setValidationStatus('success');
+        setValidationMessage('✓ API key deleted successfully');
+        updateAPIKeyStatus('missing');
+
+        // Close modal after short delay
+        setTimeout(() => {
+          handleClose();
+        }, 1000);
+      } else {
+        throw new Error('Failed to delete API key');
+      }
     } catch (error) {
-      console.error('Failed to read clipboard:', error);
+      console.error('API key deletion error:', error);
+      setValidationStatus('error');
+      setValidationMessage(error.message || 'Failed to delete API key');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -143,53 +144,18 @@ function APIKeyModal() {
           {/* Input */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              API Key
+              Enter New API Key
             </label>
-            <div className="relative">
-              <input
-                type={isPasswordVisible ? 'text' : 'password'}
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                className="w-full px-4 py-3 pr-24 bg-surface border border-strong rounded-xl text-foreground placeholder:text-foreground-tertiary focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-                placeholder={isLoadingKey ? 'Loading...' : 'sk-proj-...'}
-                autoComplete="off"
-                spellCheck="false"
-                disabled={isSaving || isLoadingKey}
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                <button
-                  className="p-2 hover:bg-surface-secondary rounded-lg transition-colors text-foreground-secondary hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => setIsPasswordVisible(!isPasswordVisible)}
-                  type="button"
-                  aria-label={isPasswordVisible ? 'Hide API key' : 'Show API key'}
-                  disabled={isSaving || isLoadingKey || !apiKeyInput}
-                >
-                  {isPasswordVisible ? (
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  )}
-                </button>
-                <button
-                  className="p-2 hover:bg-surface-secondary rounded-lg transition-colors text-foreground-secondary hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={handlePaste}
-                  type="button"
-                  aria-label="Paste from clipboard"
-                  disabled={isSaving || isLoadingKey}
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
+            <input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              className="w-full px-4 py-3 bg-surface border border-strong rounded-xl text-foreground placeholder:text-foreground-tertiary focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+              placeholder="sk-proj-..."
+              autoComplete="off"
+              spellCheck="false"
+              disabled={isSaving}
+            />
           </div>
 
           {/* Info Box */}
@@ -240,21 +206,33 @@ function APIKeyModal() {
         </div>
 
         {/* Modal Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-border bg-surface">
+        <div className="flex items-center justify-between p-6 border-t border-border bg-surface">
+          {/* Delete button on left */}
           <button
-            className="px-6 py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-tertiary border border-strong transition-all font-medium text-foreground"
-            onClick={handleClose}
+            className="px-6 py-2.5 rounded-xl bg-error/10 hover:bg-error/20 border border-error/30 text-error hover:text-error transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleDelete}
             disabled={isSaving}
           >
-            Cancel
+            Delete API Key
           </button>
-          <button
-            className="px-6 py-2.5 rounded-xl bg-primary text-white hover:shadow-lg hover:scale-105 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-            onClick={handleSave}
-            disabled={!apiKeyInput.trim() || apiKeyInput.trim().length < 10 || isSaving}
-          >
-            {isSaving ? 'Validating...' : 'Save & Validate'}
-          </button>
+
+          {/* Cancel and Save on right */}
+          <div className="flex items-center gap-3">
+            <button
+              className="px-6 py-2.5 rounded-xl bg-surface-secondary hover:bg-surface-tertiary border border-strong transition-all font-medium text-foreground"
+              onClick={handleClose}
+              disabled={isSaving}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-6 py-2.5 rounded-xl bg-primary text-white hover:shadow-lg hover:scale-105 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+              onClick={handleSave}
+              disabled={!apiKeyInput.trim() || apiKeyInput.trim().length < 10 || isSaving}
+            >
+              {isSaving ? 'Validating...' : 'Save & Validate'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

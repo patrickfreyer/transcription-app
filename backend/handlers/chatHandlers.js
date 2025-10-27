@@ -33,7 +33,7 @@ function registerChatHandlers() {
   logger.info('Registering chat IPC handlers');
 
   // Chat with AI using Agents SDK with streaming
-  ipcMain.on('chat-with-ai-stream', async (event, messages, systemPrompt, contextIds) => {
+  ipcMain.on('chat-with-ai-stream', async (event, messages, systemPrompt, contextIds, searchAllTranscripts = false) => {
     logger.info('=== CHAT STREAM REQUEST RECEIVED ===');
 
     try {
@@ -50,9 +50,10 @@ function registerChatHandlers() {
 
       logger.info(`Transcript ID: ${transcriptId}`);
       logger.info(`Context IDs: ${JSON.stringify(contextIds)}`);
+      logger.info(`Search All Transcripts (RAG): ${searchAllTranscripts}`);
       logger.info(`User message: ${userMessage.substring(0, 100)}...`);
 
-      if (!transcriptId) {
+      if (!transcriptId && !searchAllTranscripts) {
         logger.error('No transcript selected');
         event.sender.send('chat-stream-error', {
           error: 'No transcript selected'
@@ -64,7 +65,7 @@ function registerChatHandlers() {
       const messageHistory = messages.slice(0, -1);
       logger.info(`Message history length: ${messageHistory.length}`);
 
-      logger.info('Calling ChatService.sendMessage with streaming...');
+      logger.info(`Calling ChatService.sendMessage with streaming (${searchAllTranscripts ? 'RAG mode' : 'Direct mode'})...`);
 
       let tokensSent = 0;
 
@@ -75,6 +76,7 @@ function registerChatHandlers() {
         userMessage,
         messageHistory,
         contextIds: contextIds || [transcriptId],
+        searchAllTranscripts,
         onToken: (token) => {
           tokensSent++;
           logger.info(`Sending token #${tokensSent} to renderer: "${token.substring(0, 20)}..."`);

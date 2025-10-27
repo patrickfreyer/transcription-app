@@ -3,6 +3,7 @@
  */
 
 const StorageService = require('./StorageService');
+const VectorStoreService = require('./VectorStoreService');
 const { estimateTokens } = require('../utils/tokenCounter');
 const { createLogger } = require('../utils/logger');
 
@@ -11,15 +12,17 @@ const logger = createLogger('TranscriptService');
 class TranscriptService {
   constructor() {
     this.storage = new StorageService();
+    this.vectorStoreService = new VectorStoreService();
     logger.info('TranscriptService initialized');
   }
 
   /**
    * Save a new transcript from recording
    * @param {Object} transcriptData - Transcript data from recording
+   * @param {string} apiKey - OpenAI API key (optional, for vector store upload)
    * @returns {Object} Saved transcript with ID
    */
-  async saveFromRecording(transcriptData) {
+  async saveFromRecording(transcriptData, apiKey = null) {
     const transcript = {
       id: `transcript-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       fileName: transcriptData.fileName || 'Untitled',
@@ -35,16 +38,65 @@ class TranscriptService {
       starred: false,
       tags: [],
       tokens: estimateTokens(transcriptData.rawTranscript || ''),
+      vectorStoreFileId: null,        // NEW - OpenAI file ID
+      vectorStoreStatus: 'pending',   // NEW - upload status
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
 
+    // Save to local storage first (immediate)
     const transcripts = this.storage.getTranscripts();
     transcripts.unshift(transcript); // Add to beginning
     this.storage.saveTranscripts(transcripts);
 
     logger.success(`Saved transcript: ${transcript.fileName} (${transcript.tokens} tokens)`);
+
+    // Vector store upload disabled (RAG mode disabled)
+    // if (apiKey) {
+    //   this.uploadToVectorStore(transcript, apiKey).catch(error => {
+    //     logger.error(`Background vector store upload failed for ${transcript.id}:`, error);
+    //   });
+    // } else {
+    //   logger.info('No API key provided, skipping vector store upload');
+    // }
+    logger.info('Vector store upload disabled - RAG mode not in use');
+
     return transcript;
+  }
+
+  /**
+   * Upload transcript to vector store (background operation)
+   * @param {Object} transcript - Transcript object
+   * @param {string} apiKey - OpenAI API key
+   */
+  async uploadToVectorStore(transcript, apiKey) {
+    try {
+      logger.info(`Starting background vector store upload: ${transcript.fileName}`);
+
+      // Initialize vector store service if needed
+      if (!this.vectorStoreService.getVectorStoreId()) {
+        logger.info('Initializing vector store...');
+        await this.vectorStoreService.initialize(apiKey);
+      }
+
+      // Upload transcript
+      const result = await this.vectorStoreService.uploadTranscript(transcript);
+
+      // Update transcript with file ID
+      this.update(transcript.id, {
+        vectorStoreFileId: result.fileId,
+        vectorStoreStatus: result.status
+      });
+
+      logger.success(`Vector store upload complete: ${transcript.fileName} (${result.fileId})`);
+    } catch (error) {
+      logger.error(`Vector store upload failed: ${transcript.fileName}`, error);
+
+      // Mark as failed
+      this.update(transcript.id, {
+        vectorStoreStatus: 'failed'
+      });
+    }
   }
 
   /**
@@ -110,15 +162,24 @@ class TranscriptService {
    * @param {string} transcriptId - Transcript ID
    * @returns {boolean} True if deleted
    */
-  delete(transcriptId) {
+  async delete(transcriptId) {
     const transcripts = this.storage.getTranscripts();
-    const filtered = transcripts.filter(t => t.id !== transcriptId);
+    const transcript = transcripts.find(t => t.id === transcriptId);
 
-    if (filtered.length === transcripts.length) {
+    if (!transcript) {
       logger.warn(`Transcript not found for deletion: ${transcriptId}`);
       return false;
     }
 
+    // Delete from vector store if exists (async, non-blocking)
+    if (transcript.vectorStoreFileId) {
+      this.vectorStoreService.deleteTranscript(transcript.vectorStoreFileId).catch(error => {
+        logger.error(`Failed to delete from vector store: ${transcript.vectorStoreFileId}`, error);
+      });
+    }
+
+    // Delete from local storage
+    const filtered = transcripts.filter(t => t.id !== transcriptId);
     this.storage.saveTranscripts(filtered);
 
     // Also delete associated chat history

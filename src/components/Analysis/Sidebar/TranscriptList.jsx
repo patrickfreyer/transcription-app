@@ -9,7 +9,6 @@ function TranscriptList() {
     filterMode,
     setSearchQuery,
     selectedContextIds,
-    searchAllTranscripts,
     selectAllVisibleTranscripts,
     clearAllSelections
   } = useApp();
@@ -125,13 +124,8 @@ function TranscriptList() {
 
             {selectedCount > 0 && (
               <div className="flex items-center gap-3">
-                <span className="text-xs font-medium text-primary flex items-center gap-1.5">
-                  <span>{selectedCount} selected</span>
-                  {searchAllTranscripts && (
-                    <span className="px-1.5 py-0.5 bg-primary text-white text-[10px] rounded uppercase font-bold">
-                      All
-                    </span>
-                  )}
+                <span className="text-xs font-medium text-primary">
+                  {selectedCount} selected
                 </span>
                 <button
                   onClick={clearAllSelections}

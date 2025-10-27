@@ -2,9 +2,10 @@
  * ChatService - Handles chat operations using OpenAI Agents SDK
  */
 
-const { Agent, run, setDefaultOpenAIKey } = require('@openai/agents');
+const { Agent, run, setDefaultOpenAIKey, fileSearchTool } = require('@openai/agents');
 const TranscriptService = require('./TranscriptService');
 const StorageService = require('./StorageService');
+const VectorStoreService = require('./VectorStoreService');
 const guardrails = require('../guardrails');
 const { createLogger } = require('../utils/logger');
 
@@ -14,48 +15,78 @@ class ChatService {
   constructor() {
     this.transcriptService = new TranscriptService();
     this.storage = new StorageService();
-    this.agent = null;
+    this.vectorStoreService = new VectorStoreService();
+    this.agentDirect = null;    // Agent without fileSearchTool (for 1-10 specific transcripts)
+    this.agentRAG = null;        // Agent with fileSearchTool (for "All Transcripts" search)
     this.apiKey = null;
 
     logger.info('ChatService initialized');
   }
 
   /**
-   * Initialize agent with API key
+   * Initialize both agents (direct and RAG)
    * @param {string} apiKey - OpenAI API key
    */
-  initializeAgent(apiKey) {
-    if (!this.agent || this.apiKey !== apiKey) {
+  async initializeAgents(apiKey) {
+    if (this.apiKey !== apiKey) {
       this.apiKey = apiKey;
 
       // Set the API key globally for the Agents SDK
       logger.info('Setting default OpenAI API key for Agents SDK...');
       setDefaultOpenAIKey(apiKey);
       logger.info('API key set successfully');
+    }
 
-      this.agent = new Agent({
+    // Initialize Direct Mode Agent (no fileSearchTool)
+    if (!this.agentDirect) {
+      this.agentDirect = new Agent({
         name: 'Transcript Analyst',
         instructions: `You are an expert AI assistant specialized in analyzing audio transcripts.
 
 Your capabilities:
-- Answer questions accurately based on transcript content
+- Answer questions accurately based on the specific transcripts provided in the context
 - Identify key themes, decisions, and action items
 - Summarize discussions and meetings
-- Compare multiple transcripts when provided
+- Compare transcripts when multiple are provided
 - Extract speaker insights from diarized transcripts
 
 Guidelines:
-- ONLY answer based on the provided transcript content
-- If information isn't in the transcripts, state that clearly - do not make up information
-- Cite specific speakers or timestamps when available
+- ONLY answer based on the transcripts provided in the context below
+- Do not search for or reference transcripts not in the context
+- If information isn't in the provided transcripts, state that clearly
+- Cite specific transcript names, speakers, or timestamps when providing answers
 - Be concise but thorough in your responses
 - Always provide evidence from the transcripts to support your answers`,
-        model: 'gpt-4o',
-        tools: [], // No tools for now - will add incrementally
-        temperature: 0.7
+        model: 'gpt-4.1-mini',
+        tools: [],  // NO fileSearchTool - direct context only
+        temperature: 0.2
       });
-      logger.info('Agent initialized with GPT-4o model');
+      logger.info('Direct mode agent initialized (no fileSearchTool)');
     }
+
+    // RAG Mode disabled - comment out initialization
+    // if (!this.agentRAG) {
+    //   try {
+    //     await this.vectorStoreService.initialize(apiKey);
+    //     const vectorStoreId = this.vectorStoreService.getVectorStoreId();
+    //
+    //     if (vectorStoreId) {
+    //       this.agentRAG = new Agent({
+    //         name: 'Transcript Analyst',
+    //         instructions: `You are an expert AI assistant specialized in analyzing audio transcripts...`,
+    //         model: 'gpt-5',
+    //         tools: [fileSearchTool(vectorStoreId, { max_num_results: 5 })],
+    //         temperature: 0.2
+    //       });
+    //       logger.info(`RAG mode agent initialized with fileSearchTool (vector store: ${vectorStoreId})`);
+    //     } else {
+    //       logger.warn('Vector store not available, RAG mode agent not initialized');
+    //     }
+    //   } catch (error) {
+    //     logger.error('Failed to initialize RAG mode agent:', error);
+    //   }
+    // }
+    logger.info('RAG mode disabled - skipping agentRAG initialization');
   }
 
   /**
@@ -79,14 +110,43 @@ Guidelines:
 
   /**
    * Send a chat message with streaming using Agents SDK
+   * Routes to either direct or RAG mode based on searchAllTranscripts flag
    * @param {Object} params - Message parameters
    * @param {Function} onToken - Callback for streaming tokens
    * @returns {Object} Response object
    */
-  async sendMessage({ apiKey, transcriptId, userMessage, messageHistory = [], contextIds = [], onToken }) {
+  async sendMessage({ apiKey, transcriptId, userMessage, messageHistory = [], contextIds = [], searchAllTranscripts = false, onToken }) {
     try {
-      // Initialize Agent
-      this.initializeAgent(apiKey);
+      // Initialize both agents
+      await this.initializeAgents(apiKey);
+
+      // Route to appropriate mode
+      if (searchAllTranscripts) {
+        logger.info('Routing to RAG mode (All Transcripts)');
+        return await this.sendMessageRAG({ userMessage, messageHistory, onToken });
+      } else {
+        logger.info('Routing to Direct mode (Specific Transcripts)');
+        return await this.sendMessageDirect({ transcriptId, userMessage, messageHistory, contextIds, onToken });
+      }
+    } catch (error) {
+      logger.error('Chat error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to generate response'
+      };
+    }
+  }
+
+  /**
+   * Direct Mode: Send message with full transcripts in context (1-10 transcripts)
+   * @param {Object} params - Message parameters
+   * @returns {Object} Response object
+   */
+  async sendMessageDirect({ transcriptId, userMessage, messageHistory = [], contextIds = [], onToken }) {
+    try {
+      if (!this.agentDirect) {
+        throw new Error('Direct mode agent not initialized');
+      }
 
       // Get context transcripts
       const transcripts = contextIds.length > 0
@@ -96,6 +156,9 @@ Guidelines:
       if (!transcripts || transcripts.length === 0) {
         throw new Error('No transcripts found for context');
       }
+
+      // No limit on transcript count - dump all into context
+      logger.info(`Processing ${transcripts.length} transcript(s) in direct mode`);
 
       // Run guardrails
       const context = {
@@ -121,7 +184,7 @@ Guidelines:
         };
       }
 
-      logger.info(`Processing message with ${transcripts.length} transcript(s) in context`);
+      logger.info(`Processing message in Direct mode with ${transcripts.length} transcript(s)`);
 
       // Build full context message with transcript content
       const transcriptContent = this.buildTranscriptContext(transcripts);
@@ -140,10 +203,10 @@ Guidelines:
 
 Current question: ${userMessage}`;
 
-      logger.info('Starting streaming agent run...');
+      logger.info('Starting streaming agent run (Direct mode)...');
 
       // Run agent with streaming (API key already set globally)
-      const stream = await run(this.agent, fullMessage, {
+      const stream = await run(this.agentDirect, fullMessage, {
         stream: true
       });
 
@@ -158,7 +221,7 @@ Current question: ${userMessage}`;
         eventCount++;
 
         if (event.type === 'raw_model_stream_event') {
-          // Extract text delta from the event - check for 'output_text_delta' (not 'response.output_text.delta')
+          // Extract text delta from the event
           if (event.data?.type === 'output_text_delta' && event.data?.delta) {
             const token = event.data.delta;
             fullResponse += token;
@@ -179,18 +242,105 @@ Current question: ${userMessage}`;
       // Wait for completion
       await stream.completed;
 
-      logger.success(`Response generated successfully with streaming. Final response length: ${fullResponse.length}`);
+      logger.success(`Response generated successfully with streaming (Direct mode). Final response length: ${fullResponse.length}`);
 
       return {
         success: true,
         message: fullResponse,
         metadata: {
-          contextUsed: contextIds.length > 0 ? contextIds : [transcriptId]
+          contextUsed: contextIds.length > 0 ? contextIds : [transcriptId],
+          mode: 'direct'
         }
       };
 
     } catch (error) {
-      logger.error('Chat error:', error);
+      logger.error('Direct mode chat error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to generate response'
+      };
+    }
+  }
+
+  /**
+   * RAG Mode: Send message using fileSearchTool (All Transcripts)
+   * @param {Object} params - Message parameters
+   * @returns {Object} Response object
+   */
+  async sendMessageRAG({ userMessage, messageHistory = [], onToken }) {
+    try {
+      if (!this.agentRAG) {
+        return {
+          success: false,
+          error: 'RAG mode not available. Please ensure transcripts are uploaded to vector store.'
+        };
+      }
+
+      logger.info('Processing message in RAG mode (All Transcripts)');
+
+      // Build lightweight prompt (no transcript content - agent will use fileSearchTool)
+      let conversationHistory = '';
+      if (messageHistory.length > 0) {
+        conversationHistory = 'Previous conversation:\n';
+        messageHistory.forEach(msg => {
+          conversationHistory += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
+        });
+        conversationHistory += '\n';
+      }
+
+      const fullMessage = `${conversationHistory}Current question: ${userMessage}`;
+
+      logger.info('Starting streaming agent run (RAG mode)...');
+
+      // Run agent with streaming (will automatically use fileSearchTool)
+      const stream = await run(this.agentRAG, fullMessage, {
+        stream: true
+      });
+
+      logger.info('Stream created, processing events...');
+
+      let fullResponse = '';
+      let eventCount = 0;
+      let tokenCount = 0;
+
+      // Process stream events
+      for await (const event of stream) {
+        eventCount++;
+
+        if (event.type === 'raw_model_stream_event') {
+          // Extract text delta from the event
+          if (event.data?.type === 'output_text_delta' && event.data?.delta) {
+            const token = event.data.delta;
+            fullResponse += token;
+            tokenCount++;
+
+            logger.info(`Token #${tokenCount}: "${token}"`);
+
+            // Call onToken callback if provided
+            if (onToken) {
+              onToken(token);
+            }
+          }
+        }
+      }
+
+      logger.info(`Stream loop ended. Total events: ${eventCount}, tokens: ${tokenCount}`);
+
+      // Wait for completion
+      await stream.completed;
+
+      logger.success(`Response generated successfully with streaming (RAG mode). Final response length: ${fullResponse.length}`);
+
+      return {
+        success: true,
+        message: fullResponse,
+        metadata: {
+          mode: 'rag'
+        }
+      };
+
+    } catch (error) {
+      logger.error('RAG mode chat error:', error);
       return {
         success: false,
         error: error.message || 'Failed to generate response'

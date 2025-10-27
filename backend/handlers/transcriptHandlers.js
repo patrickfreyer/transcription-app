@@ -4,11 +4,17 @@
  */
 
 const { ipcMain } = require('electron');
+const keytar = require('keytar');
 const TranscriptService = require('../services/TranscriptService');
+const { bulkUploadTranscripts, retryFailedTranscripts, getUploadStatus } = require('../utils/bulkUploadTranscripts');
 const { createLogger } = require('../utils/logger');
 
 const logger = createLogger('TranscriptHandlers');
 const transcriptService = new TranscriptService();
+
+// Keytar constants (MUST match main.js exactly!)
+const SERVICE_NAME = 'Audio Transcription App';
+const ACCOUNT_NAME = 'openai-api-key';
 
 /**
  * Register all transcript-related IPC handlers
@@ -43,7 +49,19 @@ function registerTranscriptHandlers() {
   // Save a new transcript from recording (auto-save)
   ipcMain.handle('save-transcript-to-analysis', async (event, transcriptData) => {
     try {
-      const savedTranscript = await transcriptService.saveFromRecording(transcriptData);
+      // Get API key for vector store upload
+      let apiKey = null;
+      try {
+        apiKey = await keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
+        if (apiKey) {
+          logger.info('Retrieved API key for vector store upload');
+        }
+      } catch (error) {
+        logger.warn('Could not retrieve API key, transcript will be saved without vector store upload:', error);
+      }
+
+      // Save transcript (with or without vector store upload)
+      const savedTranscript = await transcriptService.saveFromRecording(transcriptData, apiKey);
       logger.success(`Auto-saved transcript: ${savedTranscript.fileName}`);
       return {
         success: true,
@@ -59,7 +77,7 @@ function registerTranscriptHandlers() {
   // Delete a transcript
   ipcMain.handle('delete-transcript', async (event, transcriptId) => {
     try {
-      const deleted = transcriptService.delete(transcriptId);
+      const deleted = await transcriptService.delete(transcriptId);
       if (deleted) {
         logger.success(`Deleted transcript: ${transcriptId}`);
         return { success: true };
@@ -151,6 +169,55 @@ function registerTranscriptHandlers() {
 
       logger.info(`Using fallback name: "${fallbackName}"`);
       return { success: true, name: fallbackName, fallback: true };
+    }
+  });
+
+  // Bulk upload transcripts to vector store
+  ipcMain.handle('bulk-upload-transcripts', async (event, options = {}) => {
+    try {
+      // Get API key
+      const apiKey = await keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
+      if (!apiKey) {
+        return { success: false, error: 'API key not found' };
+      }
+
+      logger.info('Starting bulk upload of transcripts to vector store...');
+      const stats = await bulkUploadTranscripts(apiKey, options);
+
+      return { success: true, stats };
+    } catch (error) {
+      logger.error('Bulk upload error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Retry failed transcript uploads
+  ipcMain.handle('retry-failed-uploads', async () => {
+    try {
+      // Get API key
+      const apiKey = await keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
+      if (!apiKey) {
+        return { success: false, error: 'API key not found' };
+      }
+
+      logger.info('Retrying failed transcript uploads...');
+      const stats = await retryFailedTranscripts(apiKey);
+
+      return { success: true, stats };
+    } catch (error) {
+      logger.error('Retry failed uploads error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get upload status
+  ipcMain.handle('get-upload-status', async () => {
+    try {
+      const status = getUploadStatus();
+      return { success: true, status };
+    } catch (error) {
+      logger.error('Get upload status error:', error);
+      return { success: false, error: error.message };
     }
   });
 

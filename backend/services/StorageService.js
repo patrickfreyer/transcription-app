@@ -296,6 +296,32 @@ class StorageService {
       storagePath: this.store.path
     };
   }
+
+  /**
+   * Get vector store ID
+   * @returns {string|null} Vector store ID or null
+   */
+  getVectorStoreId() {
+    return this.store.get('vector-store-id', null);
+  }
+
+  /**
+   * Save vector store ID
+   * @param {string} vectorStoreId - OpenAI vector store ID
+   */
+  saveVectorStoreId(vectorStoreId) {
+    this.store.set('vector-store-id', vectorStoreId);
+    this.store.set('vector-store-created-at', Date.now());
+    logger.info(`Saved vector store ID: ${vectorStoreId}`);
+  }
+
+  /**
+   * Get vector store creation timestamp
+   * @returns {number|null} Timestamp or null
+   */
+  getVectorStoreCreatedAt() {
+    return this.store.get('vector-store-created-at', null);
+  }
 }
 
 module.exports = StorageService;

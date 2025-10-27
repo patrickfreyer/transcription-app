@@ -60,14 +60,18 @@ export function AppProvider({ children }) {
   // Chat management state
   const [chatHistory, setChatHistory] = useState({}); // Object keyed by transcriptId
   const [selectedContextIds, setSelectedContextIds] = useState([]); // Array of transcript IDs
-  const [searchAllTranscripts, setSearchAllTranscripts] = useState(false); // RAG mode toggle
+  // const [searchAllTranscripts, setSearchAllTranscripts] = useState(false); // RAG mode toggle - DISABLED
+  const searchAllTranscripts = false; // Always false - just dump all into context
   const [isChatPanelOpen, setIsChatPanelOpen] = useState(true);
   const [isChatStreaming, setIsChatStreaming] = useState(false);
 
   // Computed values
   const selectedTranscript = transcripts.find(t => t.id === selectedTranscriptId) || null;
   const detailViewTranscript = transcripts.find(t => t.id === detailViewTranscriptId) || null;
-  const currentChatMessages = selectedTranscriptId ? (chatHistory[selectedTranscriptId]?.messages || []) : [];
+
+  // Get current chat messages based on active chat key
+  const chatKey = selectedTranscriptId || '__multi_transcript_chat__';
+  const currentChatMessages = chatHistory[chatKey]?.messages || [];
 
   // Transcript Management Functions
   const loadTranscripts = async () => {
@@ -159,37 +163,37 @@ export function AppProvider({ children }) {
       // Uncheck: remove from selection
       setSelectedContextIds(selectedContextIds.filter(id => id !== transcriptId));
 
-      // If RAG mode was active, disable it (user is manually deselecting)
-      if (searchAllTranscripts) {
-        setSearchAllTranscripts(false);
-      }
+      // RAG mode disabled - no need to update
+      // if (searchAllTranscripts) {
+      //   setSearchAllTranscripts(false);
+      // }
     } else {
       // Check: add to selection
-      // Block manual selection at 10 - user must use "Select All" for more
-      if (selectedContextIds.length >= MAX_SELECTED_TRANSCRIPTS) {
-        alert(`You can select up to ${MAX_SELECTED_TRANSCRIPTS} transcripts individually. Use "Select All" for more.`);
-        return;
-      }
+      // No limit - just dump everything into context
+      // if (selectedContextIds.length >= MAX_SELECTED_TRANSCRIPTS) {
+      //   alert(`You can select up to ${MAX_SELECTED_TRANSCRIPTS} transcripts individually. Use "Select All" for more.`);
+      //   return;
+      // }
       // Add to selection
       setSelectedContextIds([...selectedContextIds, transcriptId]);
     }
   };
 
   const selectAllVisibleTranscripts = (visibleTranscriptIds) => {
-    // Always select all visible transcripts for UI feedback (checkboxes)
+    // Just select all visible transcripts - dump into context
     setSelectedContextIds(visibleTranscriptIds);
 
-    // Enable RAG mode if more than 10 transcripts
-    if (visibleTranscriptIds.length > MAX_SELECTED_TRANSCRIPTS) {
-      setSearchAllTranscripts(true);
-    } else {
-      setSearchAllTranscripts(false);
-    }
+    // RAG mode disabled
+    // if (visibleTranscriptIds.length > MAX_SELECTED_TRANSCRIPTS) {
+    //   setSearchAllTranscripts(true);
+    // } else {
+    //   setSearchAllTranscripts(false);
+    // }
   };
 
   const clearAllSelections = () => {
     setSelectedContextIds([]);
-    setSearchAllTranscripts(false); // Also disable RAG mode
+    // setSearchAllTranscripts(false); // RAG mode disabled
   };
 
   const isTranscriptSelected = (transcriptId) => {
@@ -205,7 +209,8 @@ export function AppProvider({ children }) {
   };
 
   const sendChatMessage = async (messageContent) => {
-    if (!selectedTranscriptId || isChatStreaming) return;
+    // Allow sending if we have context selected (selectedTranscriptId OR selectedContextIds)
+    if ((!selectedTranscriptId && selectedContextIds.length === 0) || isChatStreaming) return;
 
     const userMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -218,13 +223,16 @@ export function AppProvider({ children }) {
     // Add user message to chat (but NOT the assistant message yet)
     const updatedMessages = [...currentChatMessages, userMessage];
 
+    // Use special key when no specific transcript selected (multi-select)
+    const chatKey = selectedTranscriptId || '__multi_transcript_chat__';
+
     // Update chat history with only user message
     let workingChatHistory = {
       ...chatHistory,
-      [selectedTranscriptId]: {
-        transcriptId: selectedTranscriptId,
+      [chatKey]: {
+        transcriptId: chatKey,
         messages: updatedMessages,
-        createdAt: chatHistory[selectedTranscriptId]?.createdAt || Date.now(),
+        createdAt: chatHistory[chatKey]?.createdAt || Date.now(),
         updatedAt: Date.now()
       }
     };
@@ -232,7 +240,7 @@ export function AppProvider({ children }) {
 
     // Create assistant message metadata (but don't add to chat yet)
     const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const contextIds = selectedContextIds.length > 0 ? selectedContextIds : [selectedTranscriptId];
+    const contextIds = selectedContextIds.length > 0 ? selectedContextIds : (selectedTranscriptId ? [selectedTranscriptId] : []);
 
     const placeholderAssistantMessage = {
       id: assistantMessageId,
@@ -269,10 +277,10 @@ export function AppProvider({ children }) {
 
       workingChatHistory = {
         ...chatHistory,
-        [selectedTranscriptId]: {
-          transcriptId: selectedTranscriptId,
+        [chatKey]: {
+          transcriptId: chatKey,
           messages: updatedMessagesWithStream,
-          createdAt: chatHistory[selectedTranscriptId]?.createdAt || Date.now(),
+          createdAt: chatHistory[chatKey]?.createdAt || Date.now(),
           updatedAt: Date.now()
         }
       };
@@ -295,10 +303,10 @@ export function AppProvider({ children }) {
       const finalMessages = [...updatedMessages, finalAssistantMessage];
       const finalChatHistory = {
         ...chatHistory,
-        [selectedTranscriptId]: {
-          transcriptId: selectedTranscriptId,
+        [chatKey]: {
+          transcriptId: chatKey,
           messages: finalMessages,
-          createdAt: chatHistory[selectedTranscriptId]?.createdAt || Date.now(),
+          createdAt: chatHistory[chatKey]?.createdAt || Date.now(),
           updatedAt: Date.now()
         }
       };
@@ -318,10 +326,10 @@ export function AppProvider({ children }) {
       // Remove placeholder message on error
       const errorChatHistory = {
         ...chatHistory,
-        [selectedTranscriptId]: {
-          transcriptId: selectedTranscriptId,
+        [chatKey]: {
+          transcriptId: chatKey,
           messages: updatedMessages,
-          createdAt: chatHistory[selectedTranscriptId]?.createdAt || Date.now(),
+          createdAt: chatHistory[chatKey]?.createdAt || Date.now(),
           updatedAt: Date.now()
         }
       };
@@ -664,8 +672,7 @@ export function AppProvider({ children }) {
     chatHistory,
     selectedContextIds,
     setSelectedContextIds,
-    searchAllTranscripts,
-    setSearchAllTranscripts,
+    searchAllTranscripts, // Always false - RAG disabled
     isChatPanelOpen,
     setIsChatPanelOpen,
     isChatStreaming,

@@ -17,7 +17,8 @@ const ChatInput = () => {
 
   const handleSend = () => {
     const trimmed = inputValue.trim();
-    if (!trimmed || !selectedTranscriptId || isChatStreaming) return;
+    // Allow sending if: (selectedTranscriptId OR selectedContextIds) AND not streaming
+    if (!trimmed || (!selectedTranscriptId && selectedContextIds.length === 0) || isChatStreaming) return;
 
     sendChatMessage(trimmed);
     setInputValue('');
@@ -52,10 +53,10 @@ const ChatInput = () => {
           value={inputValue}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
-          disabled={!selectedTranscriptId || isChatStreaming}
+          disabled={(!selectedTranscriptId && selectedContextIds.length === 0) || isChatStreaming}
           placeholder={
-            !selectedTranscriptId
-              ? 'Select a transcript to start chatting...'
+            !selectedTranscriptId && selectedContextIds.length === 0
+              ? 'Select transcripts to start chatting...'
               : selectedContextIds.length > 1
               ? `Ask me anything about these ${selectedContextIds.length} transcripts...`
               : 'Ask me anything about this transcript...'
@@ -67,7 +68,7 @@ const ChatInput = () => {
 
         <button
           onClick={handleSend}
-          disabled={!inputValue.trim() || !selectedTranscriptId || isChatStreaming}
+          disabled={!inputValue.trim() || (!selectedTranscriptId && selectedContextIds.length === 0) || isChatStreaming}
           className="px-4 py-3 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary-hover transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 flex-shrink-0 h-[44px]"
         >
           {isChatStreaming ? (

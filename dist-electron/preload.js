@@ -56,8 +56,8 @@ contextBridge.exposeInMainWorld("electron", {
   getChatHistory: () => ipcRenderer.invoke("get-chat-history"),
   saveChatHistory: (chatHistory) => ipcRenderer.invoke("save-chat-history", chatHistory),
   // Streaming chat with Agents SDK
-  chatWithAIStream: (messages, systemPrompt, contextIds) => {
-    ipcRenderer.send("chat-with-ai-stream", messages, systemPrompt, contextIds);
+  chatWithAIStream: (messages, systemPrompt, contextIds, searchAllTranscripts = false) => {
+    ipcRenderer.send("chat-with-ai-stream", messages, systemPrompt, contextIds, searchAllTranscripts);
   },
   onChatStreamToken: (callback) => {
     ipcRenderer.on("chat-stream-token", (event, data) => callback(data));
@@ -72,5 +72,9 @@ contextBridge.exposeInMainWorld("electron", {
     ipcRenderer.removeAllListeners("chat-stream-token");
     ipcRenderer.removeAllListeners("chat-stream-complete");
     ipcRenderer.removeAllListeners("chat-stream-error");
-  }
+  },
+  // Vector store bulk upload
+  bulkUploadTranscripts: (options) => ipcRenderer.invoke("bulk-upload-transcripts", options),
+  retryFailedUploads: () => ipcRenderer.invoke("retry-failed-uploads"),
+  getUploadStatus: () => ipcRenderer.invoke("get-upload-status")
 });

@@ -79,7 +79,7 @@ function AppHeader() {
           <div className="inline-flex items-center bg-surface-secondary rounded-lg sm:rounded-xl p-1">
             <button
               onClick={() => switchTab('recording')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 rounded-md sm:rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 rounded-md sm:rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 min-w-[120px] sm:min-w-[140px] ${
                 currentTab === 'recording'
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-foreground-secondary hover:text-foreground'
@@ -95,7 +95,7 @@ function AppHeader() {
 
             <button
               onClick={() => switchTab('analysis')}
-              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 rounded-md sm:rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 rounded-md sm:rounded-lg font-medium text-xs sm:text-sm transition-all duration-200 min-w-[120px] sm:min-w-[140px] ${
                 currentTab === 'analysis'
                   ? 'bg-primary text-white shadow-sm'
                   : 'text-foreground-secondary hover:text-foreground'
