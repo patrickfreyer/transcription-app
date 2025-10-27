@@ -8,6 +8,28 @@ function APIKeyModal() {
   const [validationStatus, setValidationStatus] = useState(null); // null, 'validating', 'success', 'error'
   const [validationMessage, setValidationMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingKey, setIsLoadingKey] = useState(false);
+
+  // Load existing API key when modal opens
+  useEffect(() => {
+    const loadExistingKey = async () => {
+      if (showAPIKeyModal) {
+        setIsLoadingKey(true);
+        try {
+          const result = await window.electron.getApiKey();
+          if (result.success && result.apiKey) {
+            setApiKeyInput(result.apiKey);
+          }
+        } catch (error) {
+          console.error('Failed to load API key:', error);
+        } finally {
+          setIsLoadingKey(false);
+        }
+      }
+    };
+
+    loadExistingKey();
+  }, [showAPIKeyModal]);
 
   // Close on Escape key
   useEffect(() => {
@@ -129,18 +151,18 @@ function APIKeyModal() {
                 value={apiKeyInput}
                 onChange={(e) => setApiKeyInput(e.target.value)}
                 className="w-full px-4 py-3 pr-24 bg-surface border border-strong rounded-xl text-foreground placeholder:text-foreground-tertiary focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
-                placeholder="sk-proj-..."
+                placeholder={isLoadingKey ? 'Loading...' : 'sk-proj-...'}
                 autoComplete="off"
                 spellCheck="false"
-                disabled={isSaving}
+                disabled={isSaving || isLoadingKey}
               />
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                 <button
-                  className="p-2 hover:bg-surface-secondary rounded-lg transition-colors text-foreground-secondary hover:text-foreground"
+                  className="p-2 hover:bg-surface-secondary rounded-lg transition-colors text-foreground-secondary hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setIsPasswordVisible(!isPasswordVisible)}
                   type="button"
                   aria-label={isPasswordVisible ? 'Hide API key' : 'Show API key'}
-                  disabled={isSaving}
+                  disabled={isSaving || isLoadingKey || !apiKeyInput}
                 >
                   {isPasswordVisible ? (
                     <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -155,11 +177,11 @@ function APIKeyModal() {
                   )}
                 </button>
                 <button
-                  className="p-2 hover:bg-surface-secondary rounded-lg transition-colors text-foreground-secondary hover:text-foreground"
+                  className="p-2 hover:bg-surface-secondary rounded-lg transition-colors text-foreground-secondary hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={handlePaste}
                   type="button"
                   aria-label="Paste from clipboard"
-                  disabled={isSaving}
+                  disabled={isSaving || isLoadingKey}
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
