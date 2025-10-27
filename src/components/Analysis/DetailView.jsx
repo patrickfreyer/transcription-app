@@ -70,8 +70,8 @@ function DetailView() {
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-hidden">
+      {/* Content Area - Scrollable */}
+      <div className="flex-1 overflow-y-auto">
         <TranscriptViewer transcription={detailViewTranscript} />
       </div>
     </div>

@@ -70,7 +70,7 @@ function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAn
   };
 
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-sm overflow-hidden">
+    <div className="bg-surface rounded-xl border border-border shadow-sm">
       {/* Header with File Info */}
       <div className="bg-surface border-b border-border px-4 py-3">
         {/* File Info */}

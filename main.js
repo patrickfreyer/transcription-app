@@ -716,20 +716,16 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         chunkDurations.push(duration);
       }
 
-      // Process each chunk
+      // Process each chunk with retry logic
       const transcripts = [];
+      const failedChunks = [];
+      const MAX_RETRIES = 3;
+      const RATE_LIMIT_DELAY = 2000; // 2 seconds between chunks
+
       for (let i = 0; i < chunkPaths.length; i++) {
         const chunkPath = chunkPaths[i];
-
-        // Send progress update
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('transcription-progress', {
-            status: 'transcribing',
-            message: `Transcribing chunk ${i + 1} of ${chunkPaths.length}...`,
-            current: i + 1,
-            total: chunkPaths.length,
-          });
-        }
+        let transcription = null;
+        let lastError = null;
 
         // Build prompt for this chunk
         let chunkPrompt = null;
@@ -739,12 +735,27 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         } else if (i > 0 && transcripts[i - 1]) {
           // Subsequent chunks: use last portion of previous transcript for context
           const prevTranscript = transcripts[i - 1];
-          // Extract plain text from VTT (remove timestamps and headers)
-          const plainText = prevTranscript
-            .split('\n')
-            .filter(line => !line.includes('-->') && !line.startsWith('WEBVTT') && line.trim() !== '' && !/^\d+$/.test(line.trim()))
-            .join(' ')
-            .trim();
+
+          // Extract plain text based on model format
+          let plainText;
+          if (model === 'whisper-1') {
+            // VTT format: remove timestamps and headers
+            plainText = prevTranscript
+              .split('\n')
+              .filter(line => !line.includes('-->') && !line.startsWith('WEBVTT') && line.trim() !== '' && !/^\d+$/.test(line.trim()))
+              .join(' ')
+              .trim();
+          } else if (model === 'gpt-4o-transcribe') {
+            // JSON format: extract text field
+            plainText = prevTranscript.text || '';
+          } else if (model === 'gpt-4o-transcribe-diarize') {
+            // Diarized format: extract text from segments
+            plainText = prevTranscript.segments
+              ? prevTranscript.segments.map(seg => seg.text || '').join(' ')
+              : '';
+          } else {
+            plainText = '';
+          }
 
           // Use last ~200 characters for context (stays well under 224 token limit)
           const contextLength = 200;
@@ -758,52 +769,140 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
           }
         }
 
-        // Transcribe chunk
-        try {
-          const transcriptionParams = {
-            file: fs.createReadStream(chunkPath),
-            model: model,
-          };
-
-          // Set response format and parameters based on model
-          if (model === 'whisper-1') {
-            transcriptionParams.response_format = 'vtt';
-            if (chunkPrompt) {
-              transcriptionParams.prompt = chunkPrompt;
+        // Retry logic with exponential backoff
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            // Send progress update
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('transcription-progress', {
+                status: 'transcribing',
+                message: attempt === 1
+                  ? `Transcribing chunk ${i + 1} of ${chunkPaths.length}...`
+                  : `Retrying chunk ${i + 1} (attempt ${attempt}/${MAX_RETRIES})...`,
+                current: i + 1,
+                total: chunkPaths.length,
+                attempt: attempt,
+              });
             }
-          } else if (model === 'gpt-4o-transcribe') {
-            transcriptionParams.response_format = 'json';
-            if (chunkPrompt) {
-              transcriptionParams.prompt = chunkPrompt;
-            }
-          } else if (model === 'gpt-4o-transcribe-diarize') {
-            transcriptionParams.response_format = 'diarized_json';
-            transcriptionParams.chunking_strategy = 'auto';
 
-            // Add speaker references if provided
-            if (speakers && speakers.length > 0 && i === 0) {
-              // Only add speaker references for the first chunk
-              const speakerNames = [];
-              const speakerReferences = [];
+            const transcriptionParams = {
+              file: fs.createReadStream(chunkPath),
+              model: model,
+            };
 
-              for (const speaker of speakers) {
-                speakerNames.push(speaker.name);
-                const dataURL = fileToDataURL(speaker.path);
-                speakerReferences.push(dataURL);
+            // Set response format and parameters based on model
+            if (model === 'whisper-1') {
+              transcriptionParams.response_format = 'vtt';
+              if (chunkPrompt) {
+                transcriptionParams.prompt = chunkPrompt;
               }
+            } else if (model === 'gpt-4o-transcribe') {
+              transcriptionParams.response_format = 'json';
+              if (chunkPrompt) {
+                transcriptionParams.prompt = chunkPrompt;
+              }
+            } else if (model === 'gpt-4o-transcribe-diarize') {
+              transcriptionParams.response_format = 'diarized_json';
+              transcriptionParams.chunking_strategy = 'auto';
 
-              transcriptionParams.known_speaker_names = speakerNames;
-              transcriptionParams.known_speaker_references = speakerReferences;
+              // Add speaker references if provided
+              if (speakers && speakers.length > 0 && i === 0) {
+                // Only add speaker references for the first chunk
+                const speakerNames = [];
+                const speakerReferences = [];
+
+                for (const speaker of speakers) {
+                  speakerNames.push(speaker.name);
+                  const dataURL = fileToDataURL(speaker.path);
+                  speakerReferences.push(dataURL);
+                }
+
+                transcriptionParams.known_speaker_names = speakerNames;
+                transcriptionParams.known_speaker_references = speakerReferences;
+              }
+            }
+
+            transcription = await openai.audio.transcriptions.create(transcriptionParams);
+
+            // Validate that we got non-empty content
+            let hasContent = false;
+            if (model === 'whisper-1') {
+              hasContent = transcription && transcription.trim().length > 0;
+            } else if (model === 'gpt-4o-transcribe') {
+              hasContent = transcription && transcription.text && transcription.text.trim().length > 0;
+            } else if (model === 'gpt-4o-transcribe-diarize') {
+              hasContent = transcription && transcription.segments && transcription.segments.length > 0;
+            }
+
+            if (!hasContent) {
+              throw new Error('Received empty transcription from API');
+            }
+
+            // Success! Break out of retry loop
+            console.log(`✓ Chunk ${i + 1} transcribed successfully${attempt > 1 ? ` (after ${attempt} attempts)` : ''}`);
+            break;
+
+          } catch (error) {
+            lastError = error;
+            console.error(`✗ Error transcribing chunk ${i + 1} (attempt ${attempt}/${MAX_RETRIES}):`, error.message);
+
+            // If this was the last attempt, record the failure
+            if (attempt === MAX_RETRIES) {
+              failedChunks.push({
+                index: i + 1,
+                error: error.message,
+                duration: chunkDurations[i] || 0
+              });
+              console.error(`✗✗✗ Chunk ${i + 1} FAILED after ${MAX_RETRIES} attempts`);
+            } else {
+              // Exponential backoff: 2s, 4s, 8s
+              const backoffDelay = 1000 * Math.pow(2, attempt);
+              console.log(`Waiting ${backoffDelay / 1000}s before retry...`);
+              await new Promise(resolve => setTimeout(resolve, backoffDelay));
             }
           }
+        }
 
-          const transcription = await openai.audio.transcriptions.create(transcriptionParams);
+        // Add the transcription (or empty if all retries failed)
+        if (transcription) {
           transcripts.push(transcription);
-        } catch (error) {
-          console.error(`Error transcribing chunk ${i + 1}:`, error);
-          // Add empty transcript for failed chunk
+        } else {
+          // All retries failed, add empty transcript
           transcripts.push(model === 'whisper-1' ? '' : { text: '' });
         }
+
+        // Rate limiting: delay between chunks (except after last chunk)
+        if (i < chunkPaths.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY));
+        }
+      }
+
+      // Check if any chunks failed
+      if (failedChunks.length > 0) {
+        // Clean up files
+        cleanupChunks(chunkPaths);
+        if (convertedFilePath && fs.existsSync(convertedFilePath)) {
+          fs.unlinkSync(convertedFilePath);
+        }
+
+        // Calculate how much content is missing
+        const totalDuration = chunkDurations.reduce((sum, d) => sum + d, 0);
+        const missingDuration = failedChunks.reduce((sum, chunk) => sum + chunk.duration, 0);
+        const missingPercent = ((missingDuration / totalDuration) * 100).toFixed(1);
+
+        const errorMessage = `Transcription incomplete: ${failedChunks.length} of ${chunkPaths.length} chunks failed after multiple retries.\n\n` +
+          `Missing approximately ${Math.floor(missingDuration / 60)} minutes (${missingPercent}% of total audio).\n\n` +
+          `Failed chunks: ${failedChunks.map(c => `#${c.index}`).join(', ')}\n\n` +
+          `This may be due to:\n` +
+          `• OpenAI API rate limits\n` +
+          `• Network connectivity issues\n` +
+          `• Temporary API service issues\n\n` +
+          `Please try again in a few minutes, or split your file into smaller segments.`;
+
+        return {
+          success: false,
+          error: errorMessage,
+        };
       }
 
       // Send progress update for combining

@@ -526,22 +526,28 @@ Please use a file smaller than 25MB, or try re-downloading the application.`
         chunkDurations.push(duration);
       }
       const transcripts = [];
+      const failedChunks = [];
+      const MAX_RETRIES = 3;
+      const RATE_LIMIT_DELAY = 2e3;
       for (let i = 0; i < chunkPaths.length; i++) {
         const chunkPath = chunkPaths[i];
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send("transcription-progress", {
-            status: "transcribing",
-            message: `Transcribing chunk ${i + 1} of ${chunkPaths.length}...`,
-            current: i + 1,
-            total: chunkPaths.length
-          });
-        }
+        let transcription = null;
+        let lastError = null;
         let chunkPrompt = null;
         if (i === 0 && prompt) {
           chunkPrompt = prompt;
         } else if (i > 0 && transcripts[i - 1]) {
           const prevTranscript = transcripts[i - 1];
-          const plainText = prevTranscript.split("\n").filter((line) => !line.includes("-->") && !line.startsWith("WEBVTT") && line.trim() !== "" && !/^\d+$/.test(line.trim())).join(" ").trim();
+          let plainText;
+          if (model === "whisper-1") {
+            plainText = prevTranscript.split("\n").filter((line) => !line.includes("-->") && !line.startsWith("WEBVTT") && line.trim() !== "" && !/^\d+$/.test(line.trim())).join(" ").trim();
+          } else if (model === "gpt-4o-transcribe") {
+            plainText = prevTranscript.text || "";
+          } else if (model === "gpt-4o-transcribe-diarize") {
+            plainText = prevTranscript.segments ? prevTranscript.segments.map((seg) => seg.text || "").join(" ") : "";
+          } else {
+            plainText = "";
+          }
           const contextLength = 200;
           const contextText = plainText.slice(-contextLength);
           if (prompt) {
@@ -552,42 +558,110 @@ Previous context: ${contextText}`;
             chunkPrompt = contextText;
           }
         }
-        try {
-          const transcriptionParams = {
-            file: fs.createReadStream(chunkPath),
-            model
-          };
-          if (model === "whisper-1") {
-            transcriptionParams.response_format = "vtt";
-            if (chunkPrompt) {
-              transcriptionParams.prompt = chunkPrompt;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send("transcription-progress", {
+                status: "transcribing",
+                message: attempt === 1 ? `Transcribing chunk ${i + 1} of ${chunkPaths.length}...` : `Retrying chunk ${i + 1} (attempt ${attempt}/${MAX_RETRIES})...`,
+                current: i + 1,
+                total: chunkPaths.length,
+                attempt
+              });
             }
-          } else if (model === "gpt-4o-transcribe") {
-            transcriptionParams.response_format = "json";
-            if (chunkPrompt) {
-              transcriptionParams.prompt = chunkPrompt;
-            }
-          } else if (model === "gpt-4o-transcribe-diarize") {
-            transcriptionParams.response_format = "diarized_json";
-            transcriptionParams.chunking_strategy = "auto";
-            if (speakers && speakers.length > 0 && i === 0) {
-              const speakerNames = [];
-              const speakerReferences = [];
-              for (const speaker of speakers) {
-                speakerNames.push(speaker.name);
-                const dataURL = fileToDataURL(speaker.path);
-                speakerReferences.push(dataURL);
+            const transcriptionParams = {
+              file: fs.createReadStream(chunkPath),
+              model
+            };
+            if (model === "whisper-1") {
+              transcriptionParams.response_format = "vtt";
+              if (chunkPrompt) {
+                transcriptionParams.prompt = chunkPrompt;
               }
-              transcriptionParams.known_speaker_names = speakerNames;
-              transcriptionParams.known_speaker_references = speakerReferences;
+            } else if (model === "gpt-4o-transcribe") {
+              transcriptionParams.response_format = "json";
+              if (chunkPrompt) {
+                transcriptionParams.prompt = chunkPrompt;
+              }
+            } else if (model === "gpt-4o-transcribe-diarize") {
+              transcriptionParams.response_format = "diarized_json";
+              transcriptionParams.chunking_strategy = "auto";
+              if (speakers && speakers.length > 0 && i === 0) {
+                const speakerNames = [];
+                const speakerReferences = [];
+                for (const speaker of speakers) {
+                  speakerNames.push(speaker.name);
+                  const dataURL = fileToDataURL(speaker.path);
+                  speakerReferences.push(dataURL);
+                }
+                transcriptionParams.known_speaker_names = speakerNames;
+                transcriptionParams.known_speaker_references = speakerReferences;
+              }
+            }
+            transcription = await openai.audio.transcriptions.create(transcriptionParams);
+            let hasContent = false;
+            if (model === "whisper-1") {
+              hasContent = transcription && transcription.trim().length > 0;
+            } else if (model === "gpt-4o-transcribe") {
+              hasContent = transcription && transcription.text && transcription.text.trim().length > 0;
+            } else if (model === "gpt-4o-transcribe-diarize") {
+              hasContent = transcription && transcription.segments && transcription.segments.length > 0;
+            }
+            if (!hasContent) {
+              throw new Error("Received empty transcription from API");
+            }
+            console.log(`✓ Chunk ${i + 1} transcribed successfully${attempt > 1 ? ` (after ${attempt} attempts)` : ""}`);
+            break;
+          } catch (error) {
+            lastError = error;
+            console.error(`✗ Error transcribing chunk ${i + 1} (attempt ${attempt}/${MAX_RETRIES}):`, error.message);
+            if (attempt === MAX_RETRIES) {
+              failedChunks.push({
+                index: i + 1,
+                error: error.message,
+                duration: chunkDurations[i] || 0
+              });
+              console.error(`✗✗✗ Chunk ${i + 1} FAILED after ${MAX_RETRIES} attempts`);
+            } else {
+              const backoffDelay = 1e3 * Math.pow(2, attempt);
+              console.log(`Waiting ${backoffDelay / 1e3}s before retry...`);
+              await new Promise((resolve) => setTimeout(resolve, backoffDelay));
             }
           }
-          const transcription = await openai.audio.transcriptions.create(transcriptionParams);
+        }
+        if (transcription) {
           transcripts.push(transcription);
-        } catch (error) {
-          console.error(`Error transcribing chunk ${i + 1}:`, error);
+        } else {
           transcripts.push(model === "whisper-1" ? "" : { text: "" });
         }
+        if (i < chunkPaths.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY));
+        }
+      }
+      if (failedChunks.length > 0) {
+        cleanupChunks(chunkPaths);
+        if (convertedFilePath && fs.existsSync(convertedFilePath)) {
+          fs.unlinkSync(convertedFilePath);
+        }
+        const totalDuration = chunkDurations.reduce((sum, d) => sum + d, 0);
+        const missingDuration = failedChunks.reduce((sum, chunk) => sum + chunk.duration, 0);
+        const missingPercent = (missingDuration / totalDuration * 100).toFixed(1);
+        const errorMessage = `Transcription incomplete: ${failedChunks.length} of ${chunkPaths.length} chunks failed after multiple retries.
+
+Missing approximately ${Math.floor(missingDuration / 60)} minutes (${missingPercent}% of total audio).
+
+Failed chunks: ${failedChunks.map((c) => `#${c.index}`).join(", ")}
+
+This may be due to:
+• OpenAI API rate limits
+• Network connectivity issues
+• Temporary API service issues
+
+Please try again in a few minutes, or split your file into smaller segments.`;
+        return {
+          success: false,
+          error: errorMessage
+        };
       }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("transcription-progress", {
