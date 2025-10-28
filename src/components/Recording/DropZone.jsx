@@ -107,7 +107,7 @@ function DropZone({ onFileSelect, disabled }) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="audio/mpeg,audio/wav,audio/mp4,audio/webm,audio/x-m4a,.mp3,.wav,.m4a,.webm"
+        accept="audio/mpeg,audio/wav,audio/mp4,audio/webm,audio/x-m4a,audio/ogg,audio/flac,.mp3,.wav,.m4a,.webm,.mp4,.mpeg,.mpga,.ogg,.flac,.aac"
         onChange={handleFileChange}
         disabled={disabled}
         className="hidden"

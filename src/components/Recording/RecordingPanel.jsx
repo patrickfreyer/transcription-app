@@ -388,7 +388,9 @@ function RecordingPanel({ isActive }) {
         timestamp: Date.now(),
         vttTranscript: transcriptionResult.transcript, // VTT format
         isDiarized: transcriptionResult.isDiarized || false,
-        fileSize: selectedFile ? selectedFile.size / (1024 * 1024) : null // Size in MB
+        fileSize: selectedFile ? selectedFile.size / (1024 * 1024) : null, // Size in MB
+        warning: transcriptionResult.warning || null, // Warning message if chunks failed
+        failedChunks: transcriptionResult.failedChunks || null // Failed chunk details
       };
 
       // Store in global context for Analysis tab

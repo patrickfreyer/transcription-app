@@ -108,7 +108,22 @@ async function convertToMP3(filePath) {
   return new Promise((resolve, reject) => {
     const tempDir = os.tmpdir();
     const outputPath = path.join(tempDir, `converted-${Date.now()}.mp3`);
-    ffmpeg(filePath).output(outputPath).audioCodec("libmp3lame").audioBitrate("192k").audioFrequency(44100).on("end", () => resolve(outputPath)).on("error", (err) => reject(new Error(`Audio conversion failed: ${err.message}`))).run();
+    if (!fs.existsSync(filePath)) {
+      return reject(new Error(`Input file does not exist: ${filePath}`));
+    }
+    const stats = fs.statSync(filePath);
+    if (stats.size === 0) {
+      return reject(new Error(`Input file is empty (0 bytes): ${filePath}`));
+    }
+    console.log(`Converting ${filePath} (${(stats.size / 1024).toFixed(2)} KB) to MP3...`);
+    ffmpeg(filePath).output(outputPath).audioCodec("libmp3lame").audioBitrate("192k").audioFrequency(44100).on("end", () => {
+      console.log(`✓ Conversion complete: ${outputPath}`);
+      resolve(outputPath);
+    }).on("error", (err, stdout, stderr) => {
+      console.error("✗ FFmpeg conversion error:", err.message);
+      console.error("FFmpeg stderr:", stderr);
+      reject(new Error(`Audio conversion failed: ${err.message}`));
+    }).run();
   });
 }
 async function splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
@@ -122,8 +137,11 @@ async function splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
     const tempDir = os.tmpdir();
     const chunksDir = path.join(tempDir, `chunks-${Date.now()}`);
     fs.mkdirSync(chunksDir, { recursive: true });
-    const chunkDuration = Math.floor(duration * chunkSizeInMB / fileSizeInMB);
+    const MAX_CHUNK_DURATION = 1200;
+    const chunkDurationBySize = Math.floor(duration * chunkSizeInMB / fileSizeInMB);
+    const chunkDuration = Math.min(chunkDurationBySize, MAX_CHUNK_DURATION);
     const numChunks = Math.ceil(duration / chunkDuration);
+    console.log(`Splitting ${Math.floor(duration / 60)}min audio into ${numChunks} chunks of ~${Math.floor(chunkDuration / 60)}min each`);
     const chunkPaths = [];
     for (let i = 0; i < numChunks; i++) {
       const startTime = i * chunkDuration;
@@ -408,12 +426,24 @@ ipcMain.handle("save-recording", async (event, arrayBuffer) => {
     const tempDir = os.tmpdir();
     const tempFilePath = path.join(tempDir, `recording-${Date.now()}.webm`);
     const buffer = Buffer.from(arrayBuffer);
+    if (!buffer || buffer.length === 0) {
+      throw new Error("Recording is empty - no audio data captured");
+    }
+    if (buffer.length < 1e3) {
+      throw new Error(`Recording file is too small (${buffer.length} bytes) - likely corrupted or empty`);
+    }
+    const hasValidWebMHeader = buffer[0] === 26 && buffer[1] === 69 && buffer[2] === 223 && buffer[3] === 163;
+    if (!hasValidWebMHeader) {
+      throw new Error("Recording file is not a valid WebM format - header signature missing");
+    }
     fs.writeFileSync(tempFilePath, buffer);
+    console.log(`✓ Recording saved: ${tempFilePath} (${(buffer.length / 1024).toFixed(2)} KB)`);
     return {
       success: true,
       filePath: tempFilePath
     };
   } catch (error) {
+    console.error("✗ Failed to save recording:", error.message);
     return {
       success: false,
       error: error.message || "Failed to save recording"
@@ -431,7 +461,11 @@ function fileToDataURL(filePath) {
     ".webm": "audio/webm",
     ".mp4": "audio/mp4",
     ".mpeg": "audio/mpeg",
-    ".mpga": "audio/mpeg"
+    ".mpga": "audio/mpeg",
+    ".ogg": "audio/ogg",
+    ".flac": "audio/flac",
+    ".aac": "audio/aac",
+    ".wma": "audio/x-ms-wma"
   };
   const mimeType = mimeTypes[ext] || "audio/mpeg";
   return `data:${mimeType};base64,${base64}`;
@@ -466,10 +500,42 @@ function diarizedJsonToVTT(diarizedTranscript) {
 }
 function vttToPlainText(vtt) {
   if (!vtt) return "";
-  return vtt.split("\n").filter((line) => {
+  const lines = vtt.split("\n").filter((line) => {
     const trimmed = line.trim();
     return trimmed !== "" && !trimmed.startsWith("WEBVTT") && !trimmed.includes("-->") && !/^\d+$/.test(trimmed);
-  }).join("\n").trim();
+  });
+  const hasSpeakerLabels = lines.some((line) => /^\[.+?\]/.test(line.trim()));
+  if (hasSpeakerLabels) {
+    let result = "";
+    let currentSpeaker = null;
+    let currentText = [];
+    for (const line of lines) {
+      const speakerMatch = line.match(/^\[([^\]]+)\]\s*(.*)$/);
+      if (speakerMatch) {
+        const [, speaker, text] = speakerMatch;
+        if (currentSpeaker && currentSpeaker !== speaker) {
+          result += `${currentSpeaker}:
+${currentText.join(" ").trim()}
+
+`;
+          currentText = [];
+        }
+        currentSpeaker = speaker;
+        if (text.trim()) {
+          currentText.push(text.trim());
+        }
+      }
+    }
+    if (currentSpeaker && currentText.length > 0) {
+      result += `${currentSpeaker}:
+${currentText.join(" ").trim()}
+
+`;
+    }
+    return result.trim();
+  } else {
+    return lines.join("\n").trim();
+  }
 }
 ipcMain.handle("transcribe-audio", async (event, filePath, apiKey, options) => {
   let chunkPaths = [];
@@ -481,21 +547,30 @@ ipcMain.handle("transcribe-audio", async (event, filePath, apiKey, options) => {
   try {
     const openai = new OpenAI({ apiKey });
     let processFilePath = filePath;
-    if (filePath.toLowerCase().endsWith(".webm")) {
+    const fileExt = filePath.toLowerCase();
+    const needsConversion = fileExt.endsWith(".webm") || fileExt.endsWith(".ogg") || fileExt.endsWith(".flac") || fileExt.endsWith(".aac") || fileExt.endsWith(".wma");
+    if (needsConversion) {
       if (!ffmpegAvailable) {
+        const formatName = path.extname(filePath).toUpperCase().replace(".", "");
         return {
           success: false,
-          error: "WebM recordings require FFmpeg for conversion, which could not be loaded on this system.\n\nPlease try uploading an MP3 or WAV file instead, or try re-downloading the application."
+          error: `${formatName} files require FFmpeg for conversion to MP3, which could not be loaded on this system.
+
+Please try uploading an MP3, WAV, or M4A file instead, or try re-downloading the application.`
         };
       }
       if (mainWindow && !mainWindow.isDestroyed()) {
+        const formatName = path.extname(filePath).toUpperCase().replace(".", "");
         mainWindow.webContents.send("transcription-progress", {
           status: "converting",
-          message: "Converting recording to MP3 format..."
+          message: `Converting ${formatName} to MP3 format...`
         });
       }
+      console.log(`Converting ${path.extname(filePath)} file to MP3 for compatibility...`);
       convertedFilePath = await convertToMP3(filePath);
       processFilePath = convertedFilePath;
+    } else {
+      console.log(`Using ${path.extname(filePath)} file directly (OpenAI native support)`);
     }
     const stats = fs.statSync(processFilePath);
     const fileSizeInMB = stats.size / (1024 * 1024);
@@ -638,15 +713,12 @@ Previous context: ${contextText}`;
           await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY));
         }
       }
+      let warningMessage = null;
       if (failedChunks.length > 0) {
-        cleanupChunks(chunkPaths);
-        if (convertedFilePath && fs.existsSync(convertedFilePath)) {
-          fs.unlinkSync(convertedFilePath);
-        }
         const totalDuration = chunkDurations.reduce((sum, d) => sum + d, 0);
         const missingDuration = failedChunks.reduce((sum, chunk) => sum + chunk.duration, 0);
         const missingPercent = (missingDuration / totalDuration * 100).toFixed(1);
-        const errorMessage = `Transcription incomplete: ${failedChunks.length} of ${chunkPaths.length} chunks failed after multiple retries.
+        warningMessage = `⚠️ PARTIAL TRANSCRIPTION: ${failedChunks.length} of ${chunkPaths.length} chunks failed after multiple retries.
 
 Missing approximately ${Math.floor(missingDuration / 60)} minutes (${missingPercent}% of total audio).
 
@@ -657,11 +729,8 @@ This may be due to:
 • Network connectivity issues
 • Temporary API service issues
 
-Please try again in a few minutes, or split your file into smaller segments.`;
-        return {
-          success: false,
-          error: errorMessage
-        };
+The partial transcription is shown below. You may want to re-transcribe the full file later.`;
+        console.warn("⚠️ Proceeding with partial transcription despite chunk failures");
       }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("transcription-progress", {
@@ -708,7 +777,10 @@ Please try again in a few minutes, or split your file into smaller segments.`;
         // VTT format for download
         chunked: true,
         totalChunks: chunkPaths.length,
-        isDiarized
+        isDiarized,
+        warning: warningMessage,
+        // Include warning if chunks failed
+        failedChunks: failedChunks.length > 0 ? failedChunks : void 0
       };
     } else {
       const transcriptionParams = {

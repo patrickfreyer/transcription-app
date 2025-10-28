@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import MarkdownRenderer from '../Common/MarkdownRenderer';
+import DiarizedTranscriptView from './DiarizedTranscriptView';
 
 function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAnotherButton = false }) {
   const [activeView, setActiveView] = useState('raw'); // 'raw' or 'summary'
@@ -12,10 +13,17 @@ function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAn
     model,
     fileName,
     duration,
-    timestamp
+    timestamp,
+    isDiarized,
+    vttTranscript,
+    warning,
+    failedChunks
   } = transcription;
 
   const hasSummary = summary && summary.trim().length > 0;
+
+  // Check if this is a diarized transcript (either flag or detect from content)
+  const isDiarizedTranscript = isDiarized || (rawTranscript && /^\w+:\n/m.test(rawTranscript));
 
   // Debug logging
   console.log('TranscriptViewer - Transcription data:', {
@@ -203,6 +211,33 @@ function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAn
           )}
       </div>
 
+      {/* Warning Banner - Show if chunks failed */}
+      {warning && (
+        <div className="mx-4 mt-4 p-4 bg-warning-orange/10 border border-warning-orange/30 rounded-lg">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-warning-orange flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="font-semibold text-warning-orange text-sm mb-2">Partial Transcription</h3>
+              <p className="text-xs text-foreground-secondary whitespace-pre-line">{warning}</p>
+              {failedChunks && failedChunks.length > 0 && (
+                <div className="mt-2 text-xs text-foreground-tertiary">
+                  <span className="font-medium">Failed chunk details:</span>
+                  <ul className="list-disc list-inside mt-1">
+                    {failedChunks.map((chunk, i) => (
+                      <li key={i}>Chunk #{chunk.index}: {chunk.error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Transcript Content */}
       <div className="p-6 bg-surface-tertiary">
         {activeView === 'summary' ? (
@@ -211,7 +246,11 @@ function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAn
             className="prose prose-sm max-w-none"
             enableGFM={true}
           />
+        ) : isDiarizedTranscript && vttTranscript ? (
+          /* Diarized transcript with enhanced speaker view */
+          <DiarizedTranscriptView vttTranscript={vttTranscript} />
         ) : (
+          /* Regular transcript */
           <div className="prose prose-sm max-w-none">
             <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">
               {rawTranscript}

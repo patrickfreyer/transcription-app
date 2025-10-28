@@ -133,13 +133,32 @@ async function convertToMP3(filePath) {
     const tempDir = os.tmpdir();
     const outputPath = path.join(tempDir, `converted-${Date.now()}.mp3`);
 
+    // Verify input file exists and has content
+    if (!fs.existsSync(filePath)) {
+      return reject(new Error(`Input file does not exist: ${filePath}`));
+    }
+
+    const stats = fs.statSync(filePath);
+    if (stats.size === 0) {
+      return reject(new Error(`Input file is empty (0 bytes): ${filePath}`));
+    }
+
+    console.log(`Converting ${filePath} (${(stats.size / 1024).toFixed(2)} KB) to MP3...`);
+
     ffmpeg(filePath)
       .output(outputPath)
       .audioCodec('libmp3lame')
       .audioBitrate('192k')
       .audioFrequency(44100)
-      .on('end', () => resolve(outputPath))
-      .on('error', (err) => reject(new Error(`Audio conversion failed: ${err.message}`)))
+      .on('end', () => {
+        console.log(`✓ Conversion complete: ${outputPath}`);
+        resolve(outputPath);
+      })
+      .on('error', (err, stdout, stderr) => {
+        console.error('✗ FFmpeg conversion error:', err.message);
+        console.error('FFmpeg stderr:', stderr);
+        reject(new Error(`Audio conversion failed: ${err.message}`));
+      })
       .run();
   });
 }
@@ -161,8 +180,13 @@ async function splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
     fs.mkdirSync(chunksDir, { recursive: true });
 
     // Calculate chunk duration based on file size and desired chunk size
-    const chunkDuration = Math.floor((duration * chunkSizeInMB) / fileSizeInMB);
+    // OpenAI has a maximum duration limit of 1400 seconds (23.3 minutes) per chunk
+    const MAX_CHUNK_DURATION = 1200; // 20 minutes (safe margin below 23.3 minute limit)
+    const chunkDurationBySize = Math.floor((duration * chunkSizeInMB) / fileSizeInMB);
+    const chunkDuration = Math.min(chunkDurationBySize, MAX_CHUNK_DURATION);
     const numChunks = Math.ceil(duration / chunkDuration);
+
+    console.log(`Splitting ${Math.floor(duration / 60)}min audio into ${numChunks} chunks of ~${Math.floor(chunkDuration / 60)}min each`);
 
     const chunkPaths = [];
 
@@ -556,13 +580,32 @@ ipcMain.handle('save-recording', async (event, arrayBuffer) => {
     const tempFilePath = path.join(tempDir, `recording-${Date.now()}.webm`);
     const buffer = Buffer.from(arrayBuffer);
 
+    // Validate that buffer has content
+    if (!buffer || buffer.length === 0) {
+      throw new Error('Recording is empty - no audio data captured');
+    }
+
+    // Check for minimum viable WebM file size (headers + minimal data)
+    if (buffer.length < 1000) {
+      throw new Error(`Recording file is too small (${buffer.length} bytes) - likely corrupted or empty`);
+    }
+
+    // Verify WebM header signature (0x1A 0x45 0xDF 0xA3)
+    const hasValidWebMHeader = buffer[0] === 0x1A && buffer[1] === 0x45 && buffer[2] === 0xDF && buffer[3] === 0xA3;
+    if (!hasValidWebMHeader) {
+      throw new Error('Recording file is not a valid WebM format - header signature missing');
+    }
+
     fs.writeFileSync(tempFilePath, buffer);
+
+    console.log(`✓ Recording saved: ${tempFilePath} (${(buffer.length / 1024).toFixed(2)} KB)`);
 
     return {
       success: true,
       filePath: tempFilePath,
     };
   } catch (error) {
+    console.error('✗ Failed to save recording:', error.message);
     return {
       success: false,
       error: error.message || 'Failed to save recording',
@@ -584,7 +627,11 @@ function fileToDataURL(filePath) {
     '.webm': 'audio/webm',
     '.mp4': 'audio/mp4',
     '.mpeg': 'audio/mpeg',
-    '.mpga': 'audio/mpeg'
+    '.mpga': 'audio/mpeg',
+    '.ogg': 'audio/ogg',
+    '.flac': 'audio/flac',
+    '.aac': 'audio/aac',
+    '.wma': 'audio/x-ms-wma'
   };
 
   const mimeType = mimeTypes[ext] || 'audio/mpeg';
@@ -628,7 +675,7 @@ function diarizedJsonToVTT(diarizedTranscript) {
 function vttToPlainText(vtt) {
   if (!vtt) return '';
 
-  return vtt
+  const lines = vtt
     .split('\n')
     .filter(line => {
       const trimmed = line.trim();
@@ -637,9 +684,46 @@ function vttToPlainText(vtt) {
              !trimmed.startsWith('WEBVTT') &&
              !trimmed.includes('-->') &&
              !/^\d+$/.test(trimmed);
-    })
-    .join('\n')
-    .trim();
+    });
+
+  // Check if this is a diarized transcript (has [Speaker] labels)
+  const hasSpeakerLabels = lines.some(line => /^\[.+?\]/.test(line.trim()));
+
+  if (hasSpeakerLabels) {
+    // Group consecutive speaker turns
+    let result = '';
+    let currentSpeaker = null;
+    let currentText = [];
+
+    for (const line of lines) {
+      const speakerMatch = line.match(/^\[([^\]]+)\]\s*(.*)$/);
+
+      if (speakerMatch) {
+        const [, speaker, text] = speakerMatch;
+
+        // If speaker changed, flush previous speaker's text
+        if (currentSpeaker && currentSpeaker !== speaker) {
+          result += `${currentSpeaker}:\n${currentText.join(' ').trim()}\n\n`;
+          currentText = [];
+        }
+
+        currentSpeaker = speaker;
+        if (text.trim()) {
+          currentText.push(text.trim());
+        }
+      }
+    }
+
+    // Flush last speaker
+    if (currentSpeaker && currentText.length > 0) {
+      result += `${currentSpeaker}:\n${currentText.join(' ').trim()}\n\n`;
+    }
+
+    return result.trim();
+  } else {
+    // Non-diarized transcript: just join lines
+    return lines.join('\n').trim();
+  }
 }
 
 // Handle transcription
@@ -656,28 +740,47 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
   try {
     const openai = new OpenAI({ apiKey });
 
-    // Check if file is WebM and needs conversion
+    // Check if file needs conversion to MP3 for optimal compatibility
     let processFilePath = filePath;
-    if (filePath.toLowerCase().endsWith('.webm')) {
+    const fileExt = filePath.toLowerCase();
+
+    // List of formats that should be converted to MP3 for best compatibility
+    // OpenAI accepts: mp3, mp4, mpeg, mpga, m4a, wav, webm
+    // But some formats may have codec issues, so we convert problematic ones
+    const needsConversion = fileExt.endsWith('.webm') ||
+                           fileExt.endsWith('.ogg') ||
+                           fileExt.endsWith('.flac') ||
+                           fileExt.endsWith('.aac') ||
+                           fileExt.endsWith('.wma');
+
+    if (needsConversion) {
       // Check if ffmpeg is available for conversion
       if (!ffmpegAvailable) {
+        const formatName = path.extname(filePath).toUpperCase().replace('.', '');
         return {
           success: false,
-          error: 'WebM recordings require FFmpeg for conversion, which could not be loaded on this system.\n\nPlease try uploading an MP3 or WAV file instead, or try re-downloading the application.',
+          error: `${formatName} files require FFmpeg for conversion to MP3, which could not be loaded on this system.\n\nPlease try uploading an MP3, WAV, or M4A file instead, or try re-downloading the application.`,
         };
       }
 
       // Send progress update for conversion
       if (mainWindow && !mainWindow.isDestroyed()) {
+        const formatName = path.extname(filePath).toUpperCase().replace('.', '');
         mainWindow.webContents.send('transcription-progress', {
           status: 'converting',
-          message: 'Converting recording to MP3 format...',
+          message: `Converting ${formatName} to MP3 format...`,
         });
       }
 
-      // Convert WebM to MP3
+      console.log(`Converting ${path.extname(filePath)} file to MP3 for compatibility...`);
+
+      // Convert to MP3
       convertedFilePath = await convertToMP3(filePath);
       processFilePath = convertedFilePath;
+    } else {
+      // Formats that OpenAI directly supports: mp3, mp4, m4a, wav, mpeg, mpga
+      // Log which format we're using
+      console.log(`Using ${path.extname(filePath)} file directly (OpenAI native support)`);
     }
 
     const stats = fs.statSync(processFilePath);
@@ -877,32 +980,24 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         }
       }
 
-      // Check if any chunks failed
+      // Track if any chunks failed for warning message
+      let warningMessage = null;
       if (failedChunks.length > 0) {
-        // Clean up files
-        cleanupChunks(chunkPaths);
-        if (convertedFilePath && fs.existsSync(convertedFilePath)) {
-          fs.unlinkSync(convertedFilePath);
-        }
-
         // Calculate how much content is missing
         const totalDuration = chunkDurations.reduce((sum, d) => sum + d, 0);
         const missingDuration = failedChunks.reduce((sum, chunk) => sum + chunk.duration, 0);
         const missingPercent = ((missingDuration / totalDuration) * 100).toFixed(1);
 
-        const errorMessage = `Transcription incomplete: ${failedChunks.length} of ${chunkPaths.length} chunks failed after multiple retries.\n\n` +
+        warningMessage = `⚠️ PARTIAL TRANSCRIPTION: ${failedChunks.length} of ${chunkPaths.length} chunks failed after multiple retries.\n\n` +
           `Missing approximately ${Math.floor(missingDuration / 60)} minutes (${missingPercent}% of total audio).\n\n` +
           `Failed chunks: ${failedChunks.map(c => `#${c.index}`).join(', ')}\n\n` +
           `This may be due to:\n` +
           `• OpenAI API rate limits\n` +
           `• Network connectivity issues\n` +
           `• Temporary API service issues\n\n` +
-          `Please try again in a few minutes, or split your file into smaller segments.`;
+          `The partial transcription is shown below. You may want to re-transcribe the full file later.`;
 
-        return {
-          success: false,
-          error: errorMessage,
-        };
+        console.warn('⚠️ Proceeding with partial transcription despite chunk failures');
       }
 
       // Send progress update for combining
@@ -962,6 +1057,8 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         chunked: true,
         totalChunks: chunkPaths.length,
         isDiarized: isDiarized,
+        warning: warningMessage,                   // Include warning if chunks failed
+        failedChunks: failedChunks.length > 0 ? failedChunks : undefined,
       };
     } else {
       // File is small enough, process normally
