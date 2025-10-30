@@ -8,6 +8,7 @@ const Store = require('electron-store');
 
 // Import new backend handlers
 const { registerAllHandlers } = require('./backend/handlers');
+const TranscriptionService = require('./backend/services/TranscriptionService');
 
 // Constants for secure storage
 const SERVICE_NAME = 'Audio Transcription App';
@@ -112,234 +113,14 @@ try {
 // Set the app name for dock and menu bar
 app.setName('Audio Transcription');
 
+// Initialize TranscriptionService
+let transcriptionService = null;
+if (ffmpegAvailable) {
+  transcriptionService = new TranscriptionService(ffmpeg, ffmpegAvailable);
+  console.log('✓ TranscriptionService initialized with optimizations enabled');
+}
+
 let mainWindow;
-
-// Helper function to get audio duration
-function getAudioDuration(filePath) {
-  return new Promise((resolve, reject) => {
-    ffmpeg.ffprobe(filePath, (err, metadata) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(metadata.format.duration);
-      }
-    });
-  });
-}
-
-// Helper function to convert audio to MP3 format
-async function convertToMP3(filePath) {
-  return new Promise((resolve, reject) => {
-    const tempDir = os.tmpdir();
-    const outputPath = path.join(tempDir, `converted-${Date.now()}.mp3`);
-
-    // Verify input file exists and has content
-    if (!fs.existsSync(filePath)) {
-      return reject(new Error(`Input file does not exist: ${filePath}`));
-    }
-
-    const stats = fs.statSync(filePath);
-    if (stats.size === 0) {
-      return reject(new Error(`Input file is empty (0 bytes): ${filePath}`));
-    }
-
-    console.log(`Converting ${filePath} (${(stats.size / 1024).toFixed(2)} KB) to MP3...`);
-
-    ffmpeg(filePath)
-      .output(outputPath)
-      .audioCodec('libmp3lame')
-      .audioBitrate('192k')
-      .audioFrequency(44100)
-      .on('end', () => {
-        console.log(`✓ Conversion complete: ${outputPath}`);
-        resolve(outputPath);
-      })
-      .on('error', (err, stdout, stderr) => {
-        console.error('✗ FFmpeg conversion error:', err.message);
-        console.error('FFmpeg stderr:', stderr);
-        reject(new Error(`Audio conversion failed: ${err.message}`));
-      })
-      .run();
-  });
-}
-
-// Helper function to split audio into chunks
-async function splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
-  try {
-    const stats = fs.statSync(filePath);
-    const fileSizeInMB = stats.size / (1024 * 1024);
-
-    // If file is small enough, return the original file
-    if (fileSizeInMB <= 25) {
-      return [filePath];
-    }
-
-    const duration = await getAudioDuration(filePath);
-    const tempDir = os.tmpdir();
-    const chunksDir = path.join(tempDir, `chunks-${Date.now()}`);
-    fs.mkdirSync(chunksDir, { recursive: true });
-
-    // Calculate chunk duration based on file size and desired chunk size
-    // OpenAI has a maximum duration limit of 1400 seconds (23.3 minutes) per chunk
-    const MAX_CHUNK_DURATION = 1200; // 20 minutes (safe margin below 23.3 minute limit)
-    const chunkDurationBySize = Math.floor((duration * chunkSizeInMB) / fileSizeInMB);
-    const chunkDuration = Math.min(chunkDurationBySize, MAX_CHUNK_DURATION);
-    const numChunks = Math.ceil(duration / chunkDuration);
-
-    console.log(`Splitting ${Math.floor(duration / 60)}min audio into ${numChunks} chunks of ~${Math.floor(chunkDuration / 60)}min each`);
-
-    const chunkPaths = [];
-
-    // Split audio into chunks
-    for (let i = 0; i < numChunks; i++) {
-      const startTime = i * chunkDuration;
-      const chunkPath = path.join(chunksDir, `chunk-${i}.mp3`);
-
-      await new Promise((resolve, reject) => {
-        ffmpeg(filePath)
-          .setStartTime(startTime)
-          .setDuration(chunkDuration)
-          .output(chunkPath)
-          .audioCodec('libmp3lame')
-          .audioBitrate('128k')
-          .on('end', () => resolve())
-          .on('error', (err) => reject(err))
-          .run();
-      });
-
-      chunkPaths.push(chunkPath);
-    }
-
-    return chunkPaths;
-  } catch (error) {
-    throw new Error(`Failed to split audio: ${error.message}`);
-  }
-}
-
-// Helper function to parse VTT timestamp
-function parseVTTTimestamp(timestamp) {
-  const parts = timestamp.split(':');
-  const hours = parseInt(parts[0]);
-  const minutes = parseInt(parts[1]);
-  const secondsParts = parts[2].split('.');
-  const seconds = parseInt(secondsParts[0]);
-  const milliseconds = parseInt(secondsParts[1]);
-
-  return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
-}
-
-// Helper function to format VTT timestamp
-function formatVTTTimestamp(totalSeconds) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.floor(totalSeconds % 60);
-  const milliseconds = Math.floor((totalSeconds % 1) * 1000);
-
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
-}
-
-// Helper function to adjust VTT timestamps
-function adjustVTTTimestamps(vttContent, offsetSeconds) {
-  const lines = vttContent.split('\n');
-  const adjustedLines = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Check if line contains timestamp (format: HH:MM:SS.mmm --> HH:MM:SS.mmm)
-    if (line.includes('-->')) {
-      const [start, end] = line.split('-->').map(s => s.trim());
-      const startSeconds = parseVTTTimestamp(start) + offsetSeconds;
-      const endSeconds = parseVTTTimestamp(end) + offsetSeconds;
-
-      adjustedLines.push(`${formatVTTTimestamp(startSeconds)} --> ${formatVTTTimestamp(endSeconds)}`);
-    } else {
-      adjustedLines.push(line);
-    }
-  }
-
-  return adjustedLines.join('\n');
-}
-
-// Helper function to combine VTT transcripts
-function combineVTTTranscripts(vttTranscripts, chunkDurations) {
-  let combinedVTT = 'WEBVTT\n\n';
-  let cueNumber = 1;
-  let timeOffset = 0;
-
-  for (let i = 0; i < vttTranscripts.length; i++) {
-    const vtt = vttTranscripts[i];
-    const lines = vtt.split('\n');
-
-    let skipHeader = true;
-    let currentCue = [];
-
-    for (let j = 0; j < lines.length; j++) {
-      const line = lines[j];
-
-      // Skip WEBVTT header and initial blank lines
-      if (skipHeader) {
-        if (line.trim() === '' || line.startsWith('WEBVTT')) {
-          continue;
-        }
-        skipHeader = false;
-      }
-
-      // Process cue lines
-      if (line.includes('-->')) {
-        const [start, end] = line.split('-->').map(s => s.trim());
-        const startSeconds = parseVTTTimestamp(start) + timeOffset;
-        const endSeconds = parseVTTTimestamp(end) + timeOffset;
-
-        currentCue.push(`${cueNumber}`);
-        currentCue.push(`${formatVTTTimestamp(startSeconds)} --> ${formatVTTTimestamp(endSeconds)}`);
-        cueNumber++;
-      } else if (line.trim() === '') {
-        // End of cue
-        if (currentCue.length > 0) {
-          combinedVTT += currentCue.join('\n') + '\n\n';
-          currentCue = [];
-        }
-      } else if (!line.match(/^\d+$/)) {
-        // Text content (skip standalone numbers which are cue IDs)
-        currentCue.push(line);
-      }
-    }
-
-    // Add any remaining cue
-    if (currentCue.length > 0) {
-      combinedVTT += currentCue.join('\n') + '\n\n';
-    }
-
-    // Update time offset for next chunk
-    if (i < chunkDurations.length) {
-      timeOffset += chunkDurations[i];
-    }
-  }
-
-  return combinedVTT;
-}
-
-// Helper function to clean up chunk files
-function cleanupChunks(chunkPaths) {
-  try {
-    if (chunkPaths.length > 0) {
-      const chunksDir = path.dirname(chunkPaths[0]);
-      // Delete all chunk files
-      chunkPaths.forEach(chunkPath => {
-        if (fs.existsSync(chunkPath)) {
-          fs.unlinkSync(chunkPath);
-        }
-      });
-      // Delete chunks directory
-      if (fs.existsSync(chunksDir)) {
-        fs.rmdirSync(chunksDir);
-      }
-    }
-  } catch (error) {
-    console.error('Error cleaning up chunks:', error);
-  }
-}
 
 function createWindow() {
   const isWindows = process.platform === 'win32';
@@ -613,140 +394,50 @@ ipcMain.handle('save-recording', async (event, arrayBuffer) => {
   }
 });
 
-// Helper function to convert file to base64 data URL
-function fileToDataURL(filePath) {
-  const buffer = fs.readFileSync(filePath);
-  const base64 = buffer.toString('base64');
-  const ext = path.extname(filePath).toLowerCase();
-
-  // Map extensions to MIME types
-  const mimeTypes = {
-    '.mp3': 'audio/mpeg',
-    '.wav': 'audio/wav',
-    '.m4a': 'audio/mp4',
-    '.webm': 'audio/webm',
-    '.mp4': 'audio/mp4',
-    '.mpeg': 'audio/mpeg',
-    '.mpga': 'audio/mpeg',
-    '.ogg': 'audio/ogg',
-    '.flac': 'audio/flac',
-    '.aac': 'audio/aac',
-    '.wma': 'audio/x-ms-wma'
-  };
-
-  const mimeType = mimeTypes[ext] || 'audio/mpeg';
-  return `data:${mimeType};base64,${base64}`;
-}
-
-// Helper function to convert JSON transcript to VTT-like format
-function jsonToVTT(jsonTranscript) {
-  if (!jsonTranscript || !jsonTranscript.text) {
-    return 'WEBVTT\n\n' + (jsonTranscript?.text || '');
-  }
-  // For simple JSON responses without segments, just return the text as VTT
-  return 'WEBVTT\n\n' + jsonTranscript.text;
-}
-
-// Helper function to convert diarized JSON to VTT-like format with speakers
-function diarizedJsonToVTT(diarizedTranscript) {
-  if (!diarizedTranscript || !diarizedTranscript.segments) {
-    return 'WEBVTT\n\n';
-  }
-
-  let vtt = 'WEBVTT\n\n';
-  let cueNumber = 1;
-
-  for (const segment of diarizedTranscript.segments) {
-    const start = formatVTTTimestamp(segment.start);
-    const end = formatVTTTimestamp(segment.end);
-    const speaker = segment.speaker || 'Unknown';
-    const text = segment.text || '';
-
-    vtt += `${cueNumber}\n`;
-    vtt += `${start} --> ${end}\n`;
-    vtt += `[${speaker}] ${text}\n\n`;
-    cueNumber++;
-  }
-
-  return vtt;
-}
-
-// Helper function to convert VTT format to plain text
-function vttToPlainText(vtt) {
-  if (!vtt) return '';
-
-  const lines = vtt
-    .split('\n')
-    .filter(line => {
-      const trimmed = line.trim();
-      // Skip empty lines, WEBVTT header, timestamps, and cue numbers
-      return trimmed !== '' &&
-             !trimmed.startsWith('WEBVTT') &&
-             !trimmed.includes('-->') &&
-             !/^\d+$/.test(trimmed);
-    });
-
-  // Check if this is a diarized transcript (has [Speaker] labels)
-  const hasSpeakerLabels = lines.some(line => /^\[.+?\]/.test(line.trim()));
-
-  if (hasSpeakerLabels) {
-    // Group consecutive speaker turns
-    let result = '';
-    let currentSpeaker = null;
-    let currentText = [];
-
-    for (const line of lines) {
-      const speakerMatch = line.match(/^\[([^\]]+)\]\s*(.*)$/);
-
-      if (speakerMatch) {
-        const [, speaker, text] = speakerMatch;
-
-        // If speaker changed, flush previous speaker's text
-        if (currentSpeaker && currentSpeaker !== speaker) {
-          result += `${currentSpeaker}:\n${currentText.join(' ').trim()}\n\n`;
-          currentText = [];
-        }
-
-        currentSpeaker = speaker;
-        if (text.trim()) {
-          currentText.push(text.trim());
-        }
-      }
-    }
-
-    // Flush last speaker
-    if (currentSpeaker && currentText.length > 0) {
-      result += `${currentSpeaker}:\n${currentText.join(' ').trim()}\n\n`;
-    }
-
-    return result.trim();
-  } else {
-    // Non-diarized transcript: just join lines
-    return lines.join('\n').trim();
-  }
-}
-
-// Handle transcription
+/**
+ * Handle transcription with optimizations:
+ * - Parallel chunk processing (5 chunks at a time)
+ * - Dynamic rate limiting (respects 80 RPM limit)
+ * - Audio speed-up (optional, 1x-3x)
+ * - Opus compression (optional)
+ * - Format conversion (WebM, OGG, FLAC → MP3)
+ * - Automatic chunking for large files (>25MB)
+ */
 ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
+  // Check if TranscriptionService is available
+  if (!transcriptionService) {
+    return {
+      success: false,
+      error: 'Transcription service is not available. FFmpeg may not be loaded correctly.',
+    };
+  }
+
   let chunkPaths = [];
   let convertedFilePath = null;
+  let optimizedFilePath = null;
+  let compressedFilePath = null;
 
   // Parse options (backward compatibility: if options is a string, treat it as prompt)
   const isLegacyCall = typeof options === 'string';
   const model = isLegacyCall ? 'whisper-1' : (options?.model || 'gpt-4o-transcribe');
   const prompt = isLegacyCall ? options : (options?.prompt || null);
   const speakers = isLegacyCall ? null : (options?.speakers || null);
+  const speedMultiplier = options?.speedMultiplier || 1.0;
+  const useCompression = options?.useCompression || false;
+
+  // Progress callback
+  const sendProgress = (progressData) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('transcription-progress', progressData);
+    }
+  };
 
   try {
     const openai = new OpenAI({ apiKey });
-
-    // Check if file needs conversion to MP3 for optimal compatibility
     let processFilePath = filePath;
-    const fileExt = filePath.toLowerCase();
 
-    // List of formats that should be converted to MP3 for best compatibility
-    // OpenAI accepts: mp3, mp4, mpeg, mpga, m4a, wav, webm
-    // But some formats may have codec issues, so we convert problematic ones
+    // Step 1: Convert format if needed
+    const fileExt = filePath.toLowerCase();
     const needsConversion = fileExt.endsWith('.webm') ||
                            fileExt.endsWith('.ogg') ||
                            fileExt.endsWith('.flac') ||
@@ -754,7 +445,6 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
                            fileExt.endsWith('.wma');
 
     if (needsConversion) {
-      // Check if ffmpeg is available for conversion
       if (!ffmpegAvailable) {
         const formatName = path.extname(filePath).toUpperCase().replace('.', '');
         return {
@@ -763,37 +453,54 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         };
       }
 
-      // Send progress update for conversion
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        const formatName = path.extname(filePath).toUpperCase().replace('.', '');
-        mainWindow.webContents.send('transcription-progress', {
-          status: 'converting',
-          message: `Converting ${formatName} to MP3 format...`,
-        });
-      }
+      sendProgress({
+        status: 'converting',
+        message: `Converting ${path.extname(filePath).toUpperCase().replace('.', '')} to MP3 format...`,
+      });
 
       console.log(`Converting ${path.extname(filePath)} file to MP3 for compatibility...`);
-
-      // Convert to MP3
-      convertedFilePath = await convertToMP3(filePath);
+      convertedFilePath = await transcriptionService.convertToMP3(filePath);
       processFilePath = convertedFilePath;
     } else {
-      // Formats that OpenAI directly supports: mp3, mp4, m4a, wav, mpeg, mpga
-      // Log which format we're using
       console.log(`Using ${path.extname(filePath)} file directly (OpenAI native support)`);
     }
 
+    // Step 2: Apply audio optimizations (speed-up)
+    if (speedMultiplier > 1.0 && speedMultiplier <= 3.0) {
+      sendProgress({
+        status: 'optimizing',
+        message: `Optimizing audio speed (${speedMultiplier}x)...`,
+      });
+
+      optimizedFilePath = await transcriptionService.optimizeAudioSpeed(processFilePath, speedMultiplier);
+      processFilePath = optimizedFilePath;
+    }
+
+    // Step 3: Apply compression if requested (optional, for bandwidth savings)
+    if (useCompression) {
+      sendProgress({
+        status: 'compressing',
+        message: 'Compressing audio...',
+      });
+
+      try {
+        compressedFilePath = await transcriptionService.compressAudio(processFilePath);
+        processFilePath = compressedFilePath;
+      } catch (compressionError) {
+        console.warn('Compression failed, continuing without compression:', compressionError.message);
+        // Continue without compression
+      }
+    }
+
+    // Step 4: Check file size and split if needed
     const stats = fs.statSync(processFilePath);
     const fileSizeInMB = stats.size / (1024 * 1024);
 
-    // Check if file needs to be split
     if (fileSizeInMB > 25) {
-      // Check if ffmpeg is available for splitting
       if (!ffmpegAvailable) {
-        // Clean up converted file if it exists
-        if (convertedFilePath && fs.existsSync(convertedFilePath)) {
-          fs.unlinkSync(convertedFilePath);
-        }
+        transcriptionService.cleanupTempFile(convertedFilePath);
+        transcriptionService.cleanupTempFile(optimizedFilePath);
+        transcriptionService.cleanupTempFile(compressedFilePath);
 
         return {
           success: false,
@@ -801,184 +508,31 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         };
       }
 
-      // Send progress update for splitting
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('transcription-progress', {
-          status: 'splitting',
-          message: 'Splitting large audio file into chunks...',
-        });
-      }
+      sendProgress({
+        status: 'splitting',
+        message: 'Splitting large audio file into chunks...',
+      });
 
-      // Split audio into chunks
-      chunkPaths = await splitAudioIntoChunks(processFilePath, 20);
+      chunkPaths = await transcriptionService.splitAudioIntoChunks(processFilePath, 20);
 
-      // Get duration of each chunk for timestamp adjustment
+      // Get duration of each chunk
       const chunkDurations = [];
       for (const chunkPath of chunkPaths) {
-        const duration = await getAudioDuration(chunkPath);
+        const duration = await transcriptionService.getAudioDuration(chunkPath);
         chunkDurations.push(duration);
       }
 
-      // Process each chunk with retry logic
-      const transcripts = [];
-      const failedChunks = [];
-      const MAX_RETRIES = 3;
-      const RATE_LIMIT_DELAY = 2000; // 2 seconds between chunks
+      // Step 5: Transcribe chunks in parallel with controlled concurrency
+      const { results, failedChunks } = await transcriptionService.transcribeChunksParallel(
+        openai,
+        chunkPaths,
+        chunkDurations,
+        { model, prompt, speakers },
+        sendProgress
+      );
 
-      for (let i = 0; i < chunkPaths.length; i++) {
-        const chunkPath = chunkPaths[i];
-        let transcription = null;
-        let lastError = null;
-
-        // Build prompt for this chunk
-        let chunkPrompt = null;
-        if (i === 0 && prompt) {
-          // First chunk: use user's prompt
-          chunkPrompt = prompt;
-        } else if (i > 0 && transcripts[i - 1]) {
-          // Subsequent chunks: use last portion of previous transcript for context
-          const prevTranscript = transcripts[i - 1];
-
-          // Extract plain text based on model format
-          let plainText;
-          if (model === 'whisper-1') {
-            // VTT format: remove timestamps and headers
-            plainText = prevTranscript
-              .split('\n')
-              .filter(line => !line.includes('-->') && !line.startsWith('WEBVTT') && line.trim() !== '' && !/^\d+$/.test(line.trim()))
-              .join(' ')
-              .trim();
-          } else if (model === 'gpt-4o-transcribe') {
-            // JSON format: extract text field
-            plainText = prevTranscript.text || '';
-          } else if (model === 'gpt-4o-transcribe-diarize') {
-            // Diarized format: extract text from segments
-            plainText = prevTranscript.segments
-              ? prevTranscript.segments.map(seg => seg.text || '').join(' ')
-              : '';
-          } else {
-            plainText = '';
-          }
-
-          // Use last ~200 characters for context (stays well under 224 token limit)
-          const contextLength = 200;
-          const contextText = plainText.slice(-contextLength);
-
-          // Combine user prompt (if any) with previous context
-          if (prompt) {
-            chunkPrompt = `${prompt}\n\nPrevious context: ${contextText}`;
-          } else {
-            chunkPrompt = contextText;
-          }
-        }
-
-        // Retry logic with exponential backoff
-        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-          try {
-            // Send progress update
-            if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('transcription-progress', {
-                status: 'transcribing',
-                message: attempt === 1
-                  ? `Transcribing chunk ${i + 1} of ${chunkPaths.length}...`
-                  : `Retrying chunk ${i + 1} (attempt ${attempt}/${MAX_RETRIES})...`,
-                current: i + 1,
-                total: chunkPaths.length,
-                attempt: attempt,
-              });
-            }
-
-            const transcriptionParams = {
-              file: fs.createReadStream(chunkPath),
-              model: model,
-            };
-
-            // Set response format and parameters based on model
-            if (model === 'whisper-1') {
-              transcriptionParams.response_format = 'vtt';
-              if (chunkPrompt) {
-                transcriptionParams.prompt = chunkPrompt;
-              }
-            } else if (model === 'gpt-4o-transcribe') {
-              transcriptionParams.response_format = 'json';
-              if (chunkPrompt) {
-                transcriptionParams.prompt = chunkPrompt;
-              }
-            } else if (model === 'gpt-4o-transcribe-diarize') {
-              transcriptionParams.response_format = 'diarized_json';
-              transcriptionParams.chunking_strategy = 'auto';
-
-              // Add speaker references if provided
-              if (speakers && speakers.length > 0 && i === 0) {
-                // Only add speaker references for the first chunk
-                const speakerNames = [];
-                const speakerReferences = [];
-
-                for (const speaker of speakers) {
-                  speakerNames.push(speaker.name);
-                  const dataURL = fileToDataURL(speaker.path);
-                  speakerReferences.push(dataURL);
-                }
-
-                transcriptionParams.known_speaker_names = speakerNames;
-                transcriptionParams.known_speaker_references = speakerReferences;
-              }
-            }
-
-            transcription = await openai.audio.transcriptions.create(transcriptionParams);
-
-            // Validate that we got non-empty content
-            let hasContent = false;
-            if (model === 'whisper-1') {
-              hasContent = transcription && transcription.trim().length > 0;
-            } else if (model === 'gpt-4o-transcribe') {
-              hasContent = transcription && transcription.text && transcription.text.trim().length > 0;
-            } else if (model === 'gpt-4o-transcribe-diarize') {
-              hasContent = transcription && transcription.segments && transcription.segments.length > 0;
-            }
-
-            if (!hasContent) {
-              throw new Error('Received empty transcription from API');
-            }
-
-            // Success! Break out of retry loop
-            console.log(`✓ Chunk ${i + 1} transcribed successfully${attempt > 1 ? ` (after ${attempt} attempts)` : ''}`);
-            break;
-
-          } catch (error) {
-            lastError = error;
-            console.error(`✗ Error transcribing chunk ${i + 1} (attempt ${attempt}/${MAX_RETRIES}):`, error.message);
-
-            // If this was the last attempt, record the failure
-            if (attempt === MAX_RETRIES) {
-              failedChunks.push({
-                index: i + 1,
-                error: error.message,
-                duration: chunkDurations[i] || 0
-              });
-              console.error(`✗✗✗ Chunk ${i + 1} FAILED after ${MAX_RETRIES} attempts`);
-            } else {
-              // Exponential backoff: 2s, 4s, 8s
-              const backoffDelay = 1000 * Math.pow(2, attempt);
-              console.log(`Waiting ${backoffDelay / 1000}s before retry...`);
-              await new Promise(resolve => setTimeout(resolve, backoffDelay));
-            }
-          }
-        }
-
-        // Add the transcription (or empty if all retries failed)
-        if (transcription) {
-          transcripts.push(transcription);
-        } else {
-          // All retries failed, add empty transcript
-          transcripts.push(model === 'whisper-1' ? '' : { text: '' });
-        }
-
-        // Rate limiting: delay between chunks (except after last chunk)
-        if (i < chunkPaths.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY));
-        }
-      }
+      // Extract transcriptions from results
+      const transcripts = results.map(result => result.transcription);
 
       // Track if any chunks failed for warning message
       let warningMessage = null;
@@ -1000,26 +554,21 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         console.warn('⚠️ Proceeding with partial transcription despite chunk failures');
       }
 
-      // Send progress update for combining
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('transcription-progress', {
-          status: 'combining',
-          message: 'Combining transcripts...',
-        });
-      }
+      // Step 6: Combine transcripts
+      sendProgress({
+        status: 'combining',
+        message: 'Combining transcripts...',
+      });
 
-      // Combine transcripts based on model
       let combinedTranscript;
       let isDiarized = false;
 
       if (model === 'whisper-1') {
-        combinedTranscript = combineVTTTranscripts(transcripts, chunkDurations);
+        combinedTranscript = transcriptionService.combineVTTTranscripts(transcripts, chunkDurations);
       } else if (model === 'gpt-4o-transcribe') {
-        // Combine JSON transcripts
         const combinedText = transcripts.map(t => t.text || '').join(' ');
-        combinedTranscript = jsonToVTT({ text: combinedText });
+        combinedTranscript = transcriptionService.jsonToVTT({ text: combinedText });
       } else if (model === 'gpt-4o-transcribe-diarize') {
-        // Combine diarized transcripts with time offset
         let allSegments = [];
         let timeOffset = 0;
 
@@ -1038,30 +587,33 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
           }
         }
 
-        combinedTranscript = diarizedJsonToVTT({ segments: allSegments });
+        combinedTranscript = transcriptionService.diarizedJsonToVTT({ segments: allSegments });
         isDiarized = true;
       }
 
-      // Clean up chunks
-      cleanupChunks(chunkPaths);
-
-      // Clean up converted file if it exists
-      if (convertedFilePath && fs.existsSync(convertedFilePath)) {
-        fs.unlinkSync(convertedFilePath);
-      }
+      // Clean up temporary files
+      transcriptionService.cleanupChunks(chunkPaths);
+      transcriptionService.cleanupTempFile(convertedFilePath);
+      transcriptionService.cleanupTempFile(optimizedFilePath);
+      transcriptionService.cleanupTempFile(compressedFilePath);
 
       return {
         success: true,
-        text: vttToPlainText(combinedTranscript),  // Plain text for display
-        transcript: combinedTranscript,            // VTT format for download
+        text: transcriptionService.vttToPlainText(combinedTranscript),
+        transcript: combinedTranscript,
         chunked: true,
         totalChunks: chunkPaths.length,
         isDiarized: isDiarized,
-        warning: warningMessage,                   // Include warning if chunks failed
+        warning: warningMessage,
         failedChunks: failedChunks.length > 0 ? failedChunks : undefined,
       };
     } else {
-      // File is small enough, process normally
+      // Step 5 (small file): Single transcription request
+      sendProgress({
+        status: 'transcribing',
+        message: 'Transcribing audio...',
+      });
+
       const transcriptionParams = {
         file: fs.createReadStream(processFilePath),
         model: model,
@@ -1070,13 +622,11 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
       // Set response format based on model
       if (model === 'whisper-1') {
         transcriptionParams.response_format = 'vtt';
-        // Add prompt if provided
         if (prompt) {
           transcriptionParams.prompt = prompt;
         }
       } else if (model === 'gpt-4o-transcribe') {
         transcriptionParams.response_format = 'json';
-        // Add prompt if provided
         if (prompt) {
           transcriptionParams.prompt = prompt;
         }
@@ -1084,15 +634,13 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
         transcriptionParams.response_format = 'diarized_json';
         transcriptionParams.chunking_strategy = 'auto';
 
-        // Add speaker references if provided
         if (speakers && speakers.length > 0) {
           const speakerNames = [];
           const speakerReferences = [];
 
           for (const speaker of speakers) {
             speakerNames.push(speaker.name);
-            // Convert speaker reference file to data URL
-            const dataURL = fileToDataURL(speaker.path);
+            const dataURL = transcriptionService.fileToDataURL(speaker.path);
             speakerReferences.push(dataURL);
           }
 
@@ -1110,39 +658,31 @@ ipcMain.handle('transcribe-audio', async (event, filePath, apiKey, options) => {
       if (model === 'whisper-1') {
         finalTranscript = transcription;
       } else if (model === 'gpt-4o-transcribe') {
-        finalTranscript = jsonToVTT(transcription);
+        finalTranscript = transcriptionService.jsonToVTT(transcription);
       } else if (model === 'gpt-4o-transcribe-diarize') {
-        finalTranscript = diarizedJsonToVTT(transcription);
+        finalTranscript = transcriptionService.diarizedJsonToVTT(transcription);
         isDiarized = true;
       }
 
-      // Clean up converted file if it exists
-      if (convertedFilePath && fs.existsSync(convertedFilePath)) {
-        fs.unlinkSync(convertedFilePath);
-      }
+      // Clean up temporary files
+      transcriptionService.cleanupTempFile(convertedFilePath);
+      transcriptionService.cleanupTempFile(optimizedFilePath);
+      transcriptionService.cleanupTempFile(compressedFilePath);
 
       return {
         success: true,
-        text: vttToPlainText(finalTranscript),  // Plain text for display
-        transcript: finalTranscript,            // VTT format for download
+        text: transcriptionService.vttToPlainText(finalTranscript),
+        transcript: finalTranscript,
         chunked: false,
         isDiarized: isDiarized,
       };
     }
   } catch (error) {
-    // Clean up chunks on error
-    if (chunkPaths.length > 0) {
-      cleanupChunks(chunkPaths);
-    }
-
-    // Clean up converted file on error
-    if (convertedFilePath && fs.existsSync(convertedFilePath)) {
-      try {
-        fs.unlinkSync(convertedFilePath);
-      } catch (cleanupError) {
-        console.error('Error cleaning up converted file:', cleanupError);
-      }
-    }
+    // Clean up on error
+    transcriptionService.cleanupChunks(chunkPaths);
+    transcriptionService.cleanupTempFile(convertedFilePath);
+    transcriptionService.cleanupTempFile(optimizedFilePath);
+    transcriptionService.cleanupTempFile(compressedFilePath);
 
     return {
       success: false,
