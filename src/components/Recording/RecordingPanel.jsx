@@ -439,7 +439,7 @@ function RecordingPanel({ isActive }) {
       aria-labelledby="tab-recording"
     >
       {/* Scrollable Main Content */}
-      <div className="flex-1 overflow-auto min-h-0">
+      <div className="flex-1 overflow-auto min-h-0 relative z-0">
         {showResults && localTranscriptionResult ? (
           /* Results View - Consistent Container */
           <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-6 sm:py-8 lg:py-10 pb-12 space-y-6">
@@ -534,7 +534,7 @@ function RecordingPanel({ isActive }) {
       </div>
 
       {/* Footer Section - Fixed at Bottom */}
-      <div className="flex-shrink-0 border-t border-border bg-surface">
+      <div className="flex-shrink-0 border-t border-border bg-surface relative z-0">
         {/* Recent Recordings Section (hide when showing results) */}
         {!showResults && (
           <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-4 sm:py-5">
@@ -584,7 +584,7 @@ function RecordingPanel({ isActive }) {
       {/* Disabled State Helper */}
       {isDisabled && (
         <div
-          className="absolute inset-0 bg-transparent cursor-pointer"
+          className="absolute inset-0 bg-transparent cursor-pointer z-50"
           onClick={handleDisabledClick}
         />
       )}
