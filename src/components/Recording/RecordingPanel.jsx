@@ -534,7 +534,7 @@ function RecordingPanel({ isActive }) {
       </div>
 
       {/* Footer Section - Fixed at Bottom */}
-      <div className="flex-shrink-0 border-t border-border bg-gradient-to-b from-surface to-surface-tertiary">
+      <div className="flex-shrink-0 border-t border-border bg-surface">
         {/* Recent Recordings Section (hide when showing results) */}
         {!showResults && (
           <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-4 sm:py-5">

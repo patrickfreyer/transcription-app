@@ -28,7 +28,7 @@ function ModeSwitcher({ activeMode, onModeChange, disabled }) {
 
   return (
     <div className="flex justify-center">
-      <div className="inline-flex items-center gap-2 bg-surface-secondary rounded-2xl p-1.5 border border-border shadow-sm">
+      <div className="inline-flex items-center gap-1 bg-surface-secondary rounded-lg p-0.5 border border-border">
         {modes.map((mode) => {
           const isActive = activeMode === mode.id;
           return (
@@ -36,21 +36,16 @@ function ModeSwitcher({ activeMode, onModeChange, disabled }) {
               key={mode.id}
               onClick={() => !disabled && onModeChange(mode.id)}
               disabled={disabled}
-              className={`group relative flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 rounded-xl font-semibold text-sm transition-all duration-300 ${
+              className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-md font-medium text-sm transition-colors duration-150 ${
                 isActive
-                  ? 'bg-primary hover:bg-primary-hover text-white shadow-lg scale-105'
-                  : 'text-foreground-secondary hover:text-foreground hover:bg-surface/50'
+                  ? 'bg-info text-white'
+                  : 'text-foreground-secondary hover:text-foreground hover:bg-surface-tertiary'
               } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
-              <div className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}>
+              <div className="w-4 h-4">
                 {mode.icon}
               </div>
               <span className="whitespace-nowrap">{mode.label}</span>
-
-              {/* Active indicator */}
-              {isActive && (
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full shadow-md"></div>
-              )}
             </button>
           );
         })}

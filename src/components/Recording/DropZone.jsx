@@ -93,11 +93,11 @@ function DropZone({ onFileSelect, disabled }) {
 
   return (
     <div
-      className={`relative rounded-2xl border border-dashed p-8 transition-all duration-300 min-h-[400px] flex items-center justify-center animate-fade-in ${
+      className={`relative rounded-lg border-2 border-dashed p-8 transition-colors duration-150 min-h-[300px] flex items-center justify-center ${
         isDragging
-          ? 'border-primary bg-primary/5 shadow-xl scale-[1.02]'
-          : 'border bg-surface-tertiary shadow-lg'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50 hover:shadow-xl hover:scale-[1.01]'}`}
+          ? 'border-info bg-info/5'
+          : 'border-border bg-surface-secondary'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-info/50'}`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
@@ -113,68 +113,37 @@ function DropZone({ onFileSelect, disabled }) {
         className="hidden"
       />
 
-      <div className="flex flex-col items-center gap-6">
+      <div className="flex flex-col items-center gap-4 max-w-md">
         {/* Upload Icon */}
-        <div
-          className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
-            isDragging
-              ? 'bg-primary scale-110'
-              : 'bg-surface-secondary'
+        <svg
+          className={`w-12 h-12 transition-colors duration-150 ${
+            isDragging ? 'text-info' : 'text-foreground-tertiary'
           }`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <svg
-            className={`w-10 h-10 transition-all duration-300 ${
-              isDragging ? 'text-white scale-110' : 'text-foreground-secondary'
-            }`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-        </div>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
 
         {/* Text */}
-        <div className="text-center space-y-4 max-w-md">
-          <h3 className="text-xl font-bold text-text-dark">
-            {isDragging ? 'Drop your audio file here' : 'Upload Audio File'}
+        <div className="text-center space-y-2">
+          <h3 className="text-base font-semibold text-foreground">
+            {isDragging ? 'Drop your file' : 'Upload Audio File'}
           </h3>
-          <p className="text-sm text-text-gray leading-relaxed">
-            Drag & drop your audio file here, or click to browse
+          <p className="text-sm text-foreground-secondary">
+            Drag & drop or click to browse
           </p>
 
           {/* Supported formats */}
-          <div className="pt-2">
-            <p className="text-xs text-foreground-secondary mb-2 font-medium">Supported formats:</p>
-            <div className="flex items-center justify-center flex-wrap gap-2">
-              {['MP3', 'WAV', 'M4A', 'WEBM'].map((format) => (
-                <div
-                  key={format}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface border border-border rounded-full"
-                >
-                  <div className="w-2 h-2 bg-primary rounded-full"></div>
-                  <span className="text-xs font-semibold text-foreground">{format}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* File size limit */}
-          <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-xl border border-primary/20 mt-4">
-            <svg className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="16" x2="12" y2="12"/>
-              <line x1="12" y1="8" x2="12.01" y2="8"/>
-            </svg>
-            <p className="text-xs text-foreground leading-relaxed text-left">
-              Maximum file size is 25MB. Larger files will be automatically split for processing.
-            </p>
-          </div>
+          <p className="text-xs text-foreground-tertiary pt-2">
+            Supports MP3, WAV, M4A, WEBM • Max 25MB
+          </p>
         </div>
       </div>
     </div>
