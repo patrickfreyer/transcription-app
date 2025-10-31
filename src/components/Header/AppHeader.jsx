@@ -22,12 +22,7 @@ function AppHeader() {
   return (
     <header className="bg-surface border-b border-border px-6 py-3">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
-        {/* Brand Section - Left */}
-        <div className="flex-shrink-0">
-          <h1 className="text-sm font-semibold text-foreground">TranscriptAI</h1>
-        </div>
-
-        {/* Navigation Toggle - Center */}
+        {/* Navigation Toggle - Left */}
         <div className="flex-shrink-0">
           <div className="inline-flex items-center bg-surface-secondary rounded-lg p-0.5">
             <button
@@ -61,7 +56,7 @@ function AppHeader() {
                 <line x1="16" y1="17" x2="8" y2="17" />
                 <line x1="10" y1="9" x2="8" y2="9" />
               </svg>
-              <span>Analysis</span>
+              <span>Transcripts</span>
             </button>
           </div>
         </div>

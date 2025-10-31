@@ -67,7 +67,7 @@ function SuccessBanner({ fileName, duration, model, onStartNew, onGoToAnalysis }
           onClick={onGoToAnalysis}
           className="flex items-center justify-center gap-2 px-4 py-2 bg-surface-tertiary text-foreground rounded-lg font-medium text-sm hover:bg-surface-quaternary transition-colors border border-border"
         >
-          <span>Go to Analysis</span>
+          <span>Go to Transcripts</span>
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12h14" />
             <path d="m12 5 7 7-7 7" />

@@ -4,7 +4,6 @@ import ModeSwitcher from './ModeSwitcher';
 import DropZone from './DropZone';
 import FileInfo from './FileInfo';
 import RecordingInterface from './RecordingInterface';
-import RecentRecordingsSection from './RecentRecordingsSection';
 import TranscriptViewer from '../Analysis/TranscriptViewer';
 import SuccessBanner from './SuccessBanner';
 
@@ -527,23 +526,7 @@ function RecordingPanel({ isActive }) {
 
       {/* Footer Section - Fixed at Bottom */}
       <div className="flex-shrink-0 border-t border-border bg-surface">
-        {/* Recent Recordings Section (hide when showing results) */}
-        {!showResults && (
-          <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-4 sm:py-5">
-            <RecentRecordingsSection
-              transcripts={transcripts.slice(0, 4)}
-              onTranscriptClick={(transcriptId) => {
-                setSelectedTranscriptId(transcriptId);
-                if (!isTranscriptSelected(transcriptId)) {
-                  toggleTranscriptSelection(transcriptId);
-                }
-                switchTab('analysis');
-              }}
-            />
-          </div>
-        )}
-
-        {/* Attribution Footer (always visible) */}
+        {/* Attribution Footer */}
         <div className="max-w-5xl mx-auto px-4 sm:px-8 lg:px-12 py-4 text-center">
           <p className="text-xs text-foreground-tertiary">
             Created by{' '}

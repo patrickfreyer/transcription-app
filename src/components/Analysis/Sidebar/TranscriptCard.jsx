@@ -56,9 +56,17 @@ function TranscriptCard({ transcript, isActive }) {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(transcript.fileName || 'Untitled Transcript');
+  const [showPreview, setShowPreview] = useState(false);
   const inputRef = useRef(null);
 
   const isSelected = isTranscriptSelected(transcript.id);
+
+  // Get preview text (first 120 characters of transcript)
+  const previewText = transcript.rawTranscript
+    ? transcript.rawTranscript.substring(0, 120).trim() + (transcript.rawTranscript.length > 120 ? '...' : '')
+    : transcript.summary
+    ? transcript.summary.substring(0, 120).trim() + (transcript.summary.length > 120 ? '...' : '')
+    : 'No content available';
 
   // Focus input when editing starts
   useEffect(() => {
@@ -131,16 +139,21 @@ function TranscriptCard({ transcript, isActive }) {
     }
   };
 
+  const handlePreviewClick = (e) => {
+    e.stopPropagation();
+    setShowPreview(!showPreview);
+  };
+
   return (
     <div
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      className={`group p-3 border-b border-border cursor-pointer transition-colors duration-150 hover:bg-surface-secondary ${
+      className={`group p-2.5 border-b border-border cursor-pointer transition-colors duration-150 hover:bg-surface-secondary ${
         isActive ? 'bg-surface-secondary' : ''
       } ${
         isSelected ? 'border-l-2 border-l-info' : ''
       }`}
-      title="Click to view • Check to add to AI context • Double-click for details"
+      title="Click to view • Check to add to AI context"
     >
       <div className="flex items-start gap-2.5 mb-1.5 min-w-0">
         {/* Checkbox */}
@@ -178,11 +191,27 @@ function TranscriptCard({ transcript, isActive }) {
           </h3>
         )}
 
-        {/* Action buttons - Always visible but subtle */}
-        <div className="flex items-center gap-0.5 ml-1 flex-shrink-0">
+        {/* Action buttons - Subtle until needed */}
+        <div className="flex items-center gap-0.5 ml-1 flex-shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={handlePreviewClick}
+            className="p-1 hover:bg-surface-tertiary rounded transition-colors"
+            aria-label="Toggle preview"
+            title="Preview transcript"
+          >
+            <svg
+              className={`w-3.5 h-3.5 transition-transform ${showPreview ? 'rotate-180' : ''} ${showPreview ? 'text-primary' : 'text-foreground-tertiary'}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
           <button
             onClick={handleStarClick}
-            className="p-1 hover:bg-surface-tertiary rounded transition-colors duration-150"
+            className="p-1 hover:bg-surface-tertiary rounded transition-colors"
             aria-label={transcript.starred ? 'Unstar' : 'Star'}
           >
             <svg
@@ -197,9 +226,9 @@ function TranscriptCard({ transcript, isActive }) {
           </button>
           <button
             onClick={handleRenameClick}
-            className="p-1 hover:bg-surface-tertiary rounded transition-colors duration-150"
+            className="p-1 hover:bg-surface-tertiary rounded transition-colors"
             aria-label="Rename"
-            title="Rename transcript"
+            title="Rename"
           >
             <svg className="w-3.5 h-3.5 text-foreground-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -208,7 +237,7 @@ function TranscriptCard({ transcript, isActive }) {
           </button>
           <button
             onClick={handleDeleteClick}
-            className="p-1 hover:bg-surface-tertiary rounded transition-colors duration-150"
+            className="p-1 hover:bg-surface-tertiary rounded transition-colors"
             aria-label="Delete"
           >
             <svg className="w-3.5 h-3.5 text-foreground-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -222,7 +251,20 @@ function TranscriptCard({ transcript, isActive }) {
         <span className="flex-shrink-0">{formatDuration(transcript.duration)}</span>
         <span>•</span>
         <span className="truncate">{formatTimestamp(transcript.timestamp)}</span>
+        {transcript.summary && (
+          <>
+            <span>•</span>
+            <span className="text-success">Summary</span>
+          </>
+        )}
       </div>
+
+      {/* Collapsible Preview */}
+      {showPreview && (
+        <div className="mt-2 ml-6.5 p-2 bg-surface-secondary rounded text-xs text-foreground-secondary leading-relaxed animate-fade-in">
+          {previewText}
+        </div>
+      )}
     </div>
   );
 }

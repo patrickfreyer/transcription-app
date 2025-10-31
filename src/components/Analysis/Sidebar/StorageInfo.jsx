@@ -9,9 +9,9 @@ function StorageInfo() {
   const totalSize = transcripts.reduce((sum, t) => sum + (t.fileSize || 0), 0);
 
   return (
-    <div className="px-4 py-2.5 bg-surface-tertiary">
-      <div className="text-xs text-foreground-secondary flex items-center justify-between gap-3">
-        <span className="font-medium text-foreground-secondary">{totalCount} transcript{totalCount !== 1 ? 's' : ''}</span>
+    <div className="px-4 py-2 bg-surface">
+      <div className="text-xs text-foreground-tertiary flex items-center justify-center gap-2">
+        <span>{totalCount} transcript{totalCount !== 1 ? 's' : ''}</span>
         <span>•</span>
         <span>{Math.floor(totalDuration / 60)} min</span>
         {totalSize > 0 && (

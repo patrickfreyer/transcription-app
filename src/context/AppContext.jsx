@@ -65,6 +65,9 @@ export function AppProvider({ children }) {
   const [isChatPanelOpen, setIsChatPanelOpen] = useState(true);
   const [isChatStreaming, setIsChatStreaming] = useState(false);
 
+  // Right panel view mode state
+  const [rightPanelView, setRightPanelView] = useState('summary'); // 'transcript' | 'summary' | 'chat'
+
   // Computed values
   const selectedTranscript = transcripts.find(t => t.id === selectedTranscriptId) || null;
   const detailViewTranscript = transcripts.find(t => t.id === detailViewTranscriptId) || null;
@@ -672,6 +675,9 @@ export function AppProvider({ children }) {
     loadChatHistory,
     sendChatMessage,
     clearChatHistory,
+    // Right panel view mode
+    rightPanelView,
+    setRightPanelView,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

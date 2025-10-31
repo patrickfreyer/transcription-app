@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import LeftPanel from './LeftPanel';
+import ViewModeSelector from './ViewModeSelector';
+import TranscriptView from './TranscriptView';
+import SummaryView from './SummaryView';
 import ChatPanel from './Chat/ChatPanel';
 
 function AnalysisPanel({ isActive }) {
-  const { loadTranscripts, loadChatHistory } = useApp();
+  const { loadTranscripts, loadChatHistory, rightPanelView } = useApp();
 
   // Panel sizes with localStorage persistence (2-column layout: left panel + chat)
   const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
@@ -59,7 +62,7 @@ function AnalysisPanel({ isActive }) {
         isActive ? 'opacity-100' : 'opacity-0 pointer-events-none'
       }`}
       role="tabpanel"
-      aria-labelledby="tab-analysis"
+      aria-labelledby="tab-transcripts"
     >
       <div className="absolute inset-0 flex">
         {/* Left Panel - Resizable (List or Detail View) */}
@@ -78,9 +81,17 @@ function AnalysisPanel({ isActive }) {
           <div className="absolute inset-y-0 -left-1 -right-1" />
         </div>
 
-        {/* Right Chat Panel - Flexible (takes remaining space) */}
-        <div className="flex-1 min-w-0 bg-surface-tertiary">
-          <ChatPanel />
+        {/* Right Panel - Flexible (takes remaining space) */}
+        <div className="flex-1 min-w-0 bg-surface-tertiary flex flex-col">
+          {/* View Mode Selector */}
+          <ViewModeSelector />
+
+          {/* Content based on selected view */}
+          <div className="flex-1 min-h-0">
+            {rightPanelView === 'transcript' && <TranscriptView />}
+            {rightPanelView === 'summary' && <SummaryView />}
+            {rightPanelView === 'chat' && <ChatPanel />}
+          </div>
         </div>
       </div>
     </div>
