@@ -54,7 +54,7 @@ Download and run `Audio Transcription Setup 1.0.0.exe` or use the portable versi
 
 ## Credits
 
-Created by [Patrick C. Freyer](https://patrickfreyer.com)
+Created by [Patrick C. Freyer](https://patrickfreyer.com) and Alexander Achba
 
 ## License
 
