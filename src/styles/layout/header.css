@@ -1,0 +1,108 @@
+/**
+ * App Header
+ */
+
+.app-header {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  z-index: var(--z-header);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 var(--spacing-lg);
+  -webkit-app-region: drag;
+}
+
+/* Mode tabs */
+.mode-tabs {
+  display: flex;
+  gap: var(--spacing-xs);
+  -webkit-app-region: no-drag;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  position: relative;
+}
+
+.tab-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--accent-blue);
+  background: var(--accent-blue-subtle);
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: var(--spacing-sm);
+  right: var(--spacing-sm);
+  height: 2px;
+  background: var(--accent-blue);
+}
+
+.tab-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.tab-label {
+  white-space: nowrap;
+}
+
+/* Header actions (right side) */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  -webkit-app-region: no-drag;
+}
+
+/* macOS specific: add padding for traffic lights */
+[data-platform="darwin"] .header-content {
+  padding-left: 80px;
+}
+
+/* Windows specific: no extra padding needed */
+[data-platform="win32"] .header-content {
+  padding-left: var(--spacing-lg);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .tab-label {
+    display: none;
+  }
+
+  .tab-btn {
+    padding: var(--spacing-sm);
+  }
+
+  [data-platform="darwin"] .header-content {
+    padding-left: 70px;
+  }
+}

@@ -26,13 +26,6 @@ jobs:
       - name: Run ffmpeg tests
         run: node test-ffmpeg.js
 
-      - name: Run transcription & summary tests
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          USE_REMOTE_TEST: 'true'
-        run: node test-transcription.js
-        continue-on-error: true
-
       - name: Test build process
         run: npm run build:mac -- --publish never
 
@@ -69,13 +62,6 @@ jobs:
 
       - name: Run ffmpeg tests
         run: node test-ffmpeg.js
-
-      - name: Run transcription & summary tests
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          USE_REMOTE_TEST: 'true'
-        run: node test-transcription.js
-        continue-on-error: true
 
       - name: Test build process
         run: npm run build:win -- --publish never

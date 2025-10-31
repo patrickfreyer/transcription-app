@@ -33,7 +33,6 @@
       </div>
 
       <div class="button-group">
-        <button class="btn" id="view-summary-btn">View Meeting Summary</button>
         <button class="btn" id="save-btn">Save As...</button>
         <button class="btn" id="copy-btn">Copy</button>
         <button class="btn btn-secondary" id="new-transcription-btn">
@@ -68,7 +67,6 @@
       const copyBtn = document.getElementById('copy-btn');
       const saveBtn = document.getElementById('save-btn');
       const newTranscriptionBtn = document.getElementById('new-transcription-btn');
-      const viewSummaryBtn = document.getElementById('view-summary-btn');
       const copySuccess = document.getElementById('copy-success');
       const toggleSwitch = document.getElementById('toggle-switch');
       const plainLabel = document.getElementById('plain-label');
@@ -293,11 +291,6 @@
         }
       });
 
-      // View meeting summary
-      viewSummaryBtn.addEventListener('click', () => {
-        window.electron.navigate('summary');
-      });
-
       // New transcription
       newTranscriptionBtn.addEventListener('click', () => {
         // Clear localStorage
@@ -306,7 +299,6 @@
         localStorage.removeItem('isDiarized');
         localStorage.removeItem('transcriptModel');
         localStorage.removeItem('transcriptInfo');
-        localStorage.removeItem('meetingSummary');
 
         // Navigate back to upload screen
         window.electron.navigate('upload');

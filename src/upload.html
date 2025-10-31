@@ -76,31 +76,27 @@
         </div>
       </div>
 
-      <!-- Model Selection -->
-      <div class="model-selection" id="model-selection" style="display: none">
-        <div class="model-option">
-          <input type="radio" id="model-fast" name="model" value="gpt-4o-transcribe" checked />
-          <label for="model-fast">
-            <div class="model-label">
-              <span class="model-title">⚡ Fast Transcription</span>
-              <span class="model-speed">~15 seconds per 10 minutes</span>
+      <!-- Model Selection Section -->
+      <div class="model-section" id="model-section" style="display: none">
+        <div class="model-options">
+          <label class="model-option">
+            <input type="radio" name="model" value="gpt-4o-transcribe" checked />
+            <div class="model-option-content">
+              <div class="model-option-title">Standard Transcription</div>
+              <div class="model-option-description">High-quality text transcription with timestamps</div>
             </div>
-            <div class="model-description">High-quality transcription without speaker identification</div>
           </label>
-        </div>
-        <div class="model-option">
-          <input type="radio" id="model-diarize" name="model" value="gpt-4o-transcribe-diarize" />
-          <label for="model-diarize">
-            <div class="model-label">
-              <span class="model-title">🎤 Speaker Identification</span>
-              <span class="model-speed">Takes 10-20 minutes for large files</span>
+          <label class="model-option">
+            <input type="radio" name="model" value="gpt-4o-transcribe-diarize" />
+            <div class="model-option-content">
+              <div class="model-option-title">Speaker Identification</div>
+              <div class="model-option-description">Identifies who is speaking with labeled segments</div>
             </div>
-            <div class="model-description">Identifies who is speaking with diarization (slower processing)</div>
           </label>
         </div>
       </div>
 
-      <!-- Speaker References Section -->
+      <!-- Speaker References Section (only shown when diarize is selected) -->
       <div class="speaker-section" id="speaker-section" style="display: none">
         <div class="speaker-header" id="speaker-header">
           <div class="speaker-header-content">
@@ -119,25 +115,48 @@
         </div>
       </div>
 
-      <button class="btn" id="transcribe-btn" style="display: none">
-        Transcribe
-      </button>
-
-      <!-- History Section -->
-      <div class="history-section" id="history-section" style="display: none">
-        <div class="history-header">
-          <div class="history-title">Recent Transcriptions</div>
-          <div class="history-count" id="history-count">0</div>
+      <!-- Prompt Section -->
+      <div class="prompt-section" id="prompt-section" style="display: none">
+        <div class="prompt-header" id="prompt-header">
+          <div class="prompt-header-content">
+            <span class="prompt-title">Improve transcription</span>
+            <span class="prompt-subtitle">Optional</span>
+          </div>
+          <span class="prompt-chevron" id="prompt-chevron">▼</span>
         </div>
-        <div class="history-gallery" id="history-gallery">
-          <!-- History cards will be inserted here -->
-        </div>
-        <div class="history-empty" id="history-empty">
-          <div class="history-empty-icon">📝</div>
-          <div class="history-empty-text">No transcriptions yet</div>
+        <div class="prompt-body" id="prompt-body">
+          <div class="prompt-examples" id="prompt-examples">
+            <div class="prompt-examples-title">Example prompts:</div>
+            <div class="prompt-example" data-prompt="Names: Patrick Freyer, Sarah Johnson, Michael Chen&#10;Companies: Boston Consulting Group (BCG), Microsoft, OpenAI&#10;Topics: Digital transformation, AI strategy, cloud migration">
+              <div class="prompt-example-label">Business Meeting</div>
+              <div class="prompt-example-text">Names, companies, and meeting topics</div>
+            </div>
+            <div class="prompt-example" data-prompt="Technical terms: API, REST, GraphQL, microservices, Kubernetes, Docker&#10;Languages: Python, TypeScript, JavaScript&#10;Frameworks: React, Node.js, FastAPI">
+              <div class="prompt-example-label">Technical Presentation</div>
+              <div class="prompt-example-text">Programming terms and frameworks</div>
+            </div>
+            <div class="prompt-example" data-prompt="Medical terms: computed tomography (CT), magnetic resonance imaging (MRI)&#10;Medications: ibuprofen, acetaminophen, lisinopril&#10;Specialists: Dr. Smith, cardiologist, endocrinologist">
+              <div class="prompt-example-label">Medical Discussion</div>
+              <div class="prompt-example-text">Medical terminology and names</div>
+            </div>
+          </div>
+          <textarea
+            class="prompt-textarea"
+            id="prompt-textarea"
+            placeholder="Add names, technical terms, or context to help Whisper understand your audio better...&#10;&#10;Example:&#10;Names: Patrick Freyer, John Smith&#10;Terms: API, ML, transcription&#10;Context: Product strategy meeting"
+          ></textarea>
+          <div class="prompt-footer">
+            <div class="prompt-hint">
+              💡 <a class="prompt-examples-link" id="show-examples">Show examples</a>
+            </div>
+            <div class="prompt-counter" id="prompt-counter">0 / ~560 chars</div>
+          </div>
         </div>
       </div>
 
+      <button class="btn" id="transcribe-btn" style="display: none">
+        Transcribe
+      </button>
       <button class="btn btn-secondary" id="settings-btn">Change API Key</button>
 
       <footer class="attribution">
@@ -169,9 +188,17 @@
       const settingsBtn = document.getElementById('settings-btn');
       const errorMessage = document.getElementById('error-message');
       const progressContainer = document.getElementById('progress-container');
-      const modelSelection = document.getElementById('model-selection');
-      const modelFast = document.getElementById('model-fast');
-      const modelDiarize = document.getElementById('model-diarize');
+      const promptSection = document.getElementById('prompt-section');
+      const promptHeader = document.getElementById('prompt-header');
+      const promptBody = document.getElementById('prompt-body');
+      const promptChevron = document.getElementById('prompt-chevron');
+      const promptTextarea = document.getElementById('prompt-textarea');
+      const promptCounter = document.getElementById('prompt-counter');
+      const showExamplesLink = document.getElementById('show-examples');
+      const promptExamples = document.getElementById('prompt-examples');
+      const promptExampleElements = document.querySelectorAll('.prompt-example');
+      const modelSection = document.getElementById('model-section');
+      const modelRadios = document.querySelectorAll('input[name="model"]');
       const speakerSection = document.getElementById('speaker-section');
       const speakerHeader = document.getElementById('speaker-header');
       const speakerBody = document.getElementById('speaker-body');
@@ -179,12 +206,9 @@
       const speakerList = document.getElementById('speaker-list');
       const addSpeakerBtn = document.getElementById('add-speaker-btn');
       const speakerInput = document.getElementById('speaker-input');
-      const historySection = document.getElementById('history-section');
-      const historyGallery = document.getElementById('history-gallery');
-      const historyCount = document.getElementById('history-count');
-      const historyEmpty = document.getElementById('history-empty');
 
       let selectedFile = null;
+      let isPromptExpanded = false;
       let isSpeakerExpanded = false;
       let mediaRecorder = null;
       let audioChunks = [];
@@ -215,31 +239,33 @@
         fileInfo.classList.remove('show');
         recordingInfo.style.display = 'none';
         errorMessage.classList.remove('show');
+        promptSection.style.display = 'none';
+        modelSection.style.display = 'none';
         speakerSection.style.display = 'none';
+        promptTextarea.value = '';
         speakerReferences = [];
+        updatePromptCounter();
         updateSpeakerList();
-        modelSelection.style.display = 'none';
       }
 
       // ==================== MODEL SELECTION ====================
 
-      // Update model display based on selection
-      function updateModelDisplay() {
-        const isDiarizeSelected = modelDiarize.checked;
-        speakerSection.style.display = isDiarizeSelected ? 'block' : 'none';
+      // Handle model selection change
+      modelRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          const isDiarize = e.target.value === 'gpt-4o-transcribe-diarize';
 
-        // Reset speaker references if switching to fast mode
-        if (!isDiarizeSelected) {
-          speakerReferences = [];
-          updateSpeakerList();
-        }
-      }
+          // Show/hide speaker section based on model
+          speakerSection.style.display = isDiarize ? 'block' : 'none';
 
-      // Handle model change
-      modelFast.addEventListener('change', updateModelDisplay);
-      modelDiarize.addEventListener('change', updateModelDisplay);
-
-      // ==================== SPEAKER SECTION ====================
+          // Update prompt section note for diarize model
+          if (isDiarize) {
+            promptSection.style.display = 'none'; // Diarize doesn't support prompts
+          } else {
+            promptSection.style.display = 'block';
+          }
+        });
+      });
 
       // Toggle speaker section
       speakerHeader.addEventListener('click', () => {
@@ -393,8 +419,14 @@
         fileName.textContent = file.name;
         fileSize.textContent = formatFileSize(file.size);
         fileInfo.classList.add('show');
-        modelSelection.style.display = 'flex';
-        updateModelDisplay();
+        modelSection.style.display = 'block';
+
+        // Show prompt section only if standard model is selected
+        const selectedModel = document.querySelector('input[name="model"]:checked').value;
+        if (selectedModel === 'gpt-4o-transcribe') {
+          promptSection.style.display = 'block';
+        }
+
         transcribeBtn.style.display = 'block';
       }
 
@@ -436,8 +468,14 @@
                 // Display recording info
                 recordingSize.textContent = formatFileSize(audioBlob.size);
                 recordingInfo.style.display = 'block';
-                modelSelection.style.display = 'flex';
-                updateModelDisplay();
+                modelSection.style.display = 'block';
+
+                // Show prompt section only if standard model is selected
+                const selectedModel = document.querySelector('input[name="model"]:checked').value;
+                if (selectedModel === 'gpt-4o-transcribe') {
+                  promptSection.style.display = 'block';
+                }
+
                 transcribeBtn.style.display = 'block';
 
                 // Reset UI
@@ -496,7 +534,51 @@
         return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
       }
 
-      // ==================== TRANSCRIPTION ====================
+      // ==================== PROMPT SECTION ====================
+
+      // Toggle prompt section
+      promptHeader.addEventListener('click', () => {
+        isPromptExpanded = !isPromptExpanded;
+        promptBody.classList.toggle('expanded', isPromptExpanded);
+        promptChevron.classList.toggle('expanded', isPromptExpanded);
+      });
+
+      // Update character counter
+      function updatePromptCounter() {
+        const length = promptTextarea.value.length;
+        const maxChars = 560; // Approximate for 224 tokens
+        const warningThreshold = 500;
+
+        promptCounter.textContent = `${length} / ~${maxChars} chars`;
+
+        promptCounter.classList.remove('warning', 'error');
+        if (length > maxChars) {
+          promptCounter.classList.add('error');
+        } else if (length > warningThreshold) {
+          promptCounter.classList.add('warning');
+        }
+      }
+
+      promptTextarea.addEventListener('input', updatePromptCounter);
+
+      // Show/hide examples
+      showExamplesLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        const isVisible = promptExamples.classList.contains('show');
+        promptExamples.classList.toggle('show', !isVisible);
+        showExamplesLink.textContent = isVisible ? 'Show examples' : 'Hide examples';
+      });
+
+      // Use example prompts
+      promptExampleElements.forEach(example => {
+        example.addEventListener('click', () => {
+          const promptText = example.getAttribute('data-prompt').replace(/&#10;/g, '\n');
+          promptTextarea.value = promptText;
+          updatePromptCounter();
+          promptExamples.classList.remove('show');
+          showExamplesLink.textContent = 'Show examples';
+        });
+      });
 
       // Listen for progress updates
       const progressText = document.querySelector('.progress-text');
@@ -534,31 +616,36 @@
           }
 
           // Get selected model
-          const model = modelDiarize.checked ? 'gpt-4o-transcribe-diarize' : 'gpt-4o-transcribe';
+          const selectedModel = document.querySelector('input[name="model"]:checked').value;
+
+          // Get prompt (only for non-diarize models)
+          const prompt = selectedModel === 'gpt-4o-transcribe' ? (promptTextarea.value.trim() || null) : null;
+
+          // Get speaker references (only for diarize model)
+          const speakers = selectedModel === 'gpt-4o-transcribe-diarize' ? speakerReferences : null;
 
           const result = await window.electron.transcribeAudio(
             selectedFile.path,
             apiKey,
             {
-              model: model,
-              speakers: speakerReferences.length > 0 ? speakerReferences : null
+              model: selectedModel,
+              prompt: prompt,
+              speakers: speakers
             }
           );
 
           if (result.success) {
-            // Store transcript in localStorage
+            // Store transcript in localStorage and navigate to transcript screen
             localStorage.setItem('transcript', result.transcript);
             localStorage.setItem('fileName', selectedFile.name);
-            localStorage.setItem('transcriptModel', model);
+            localStorage.setItem('transcriptModel', selectedModel);
             if (result.chunked) {
               localStorage.setItem('transcriptInfo', `Processed in ${result.totalChunks} chunks`);
             }
             if (result.isDiarized) {
               localStorage.setItem('isDiarized', 'true');
             }
-
-            // Navigate to results screen (which will show combined view and auto-generate summary)
-            window.electron.navigate('results');
+            window.electron.navigate('transcript');
           } else {
             throw new Error(result.error);
           }
@@ -570,90 +657,6 @@
           transcribeBtn.textContent = 'Transcribe';
         }
       });
-
-      // ==================== HISTORY GALLERY ====================
-
-      // Load and display history
-      async function loadHistory() {
-        try {
-          const result = await window.electron.getTranscriptionHistory();
-
-          if (result.success && result.items.length > 0) {
-            historySection.style.display = 'block';
-            historyEmpty.style.display = 'none';
-            historyGallery.style.display = 'grid';
-            historyCount.textContent = result.items.length;
-
-            // Render history cards
-            historyGallery.innerHTML = '';
-            result.items.forEach(item => {
-              const card = createHistoryCard(item);
-              historyGallery.appendChild(card);
-            });
-          } else {
-            historySection.style.display = 'block';
-            historyEmpty.style.display = 'block';
-            historyGallery.style.display = 'none';
-            historyCount.textContent = '0';
-          }
-        } catch (error) {
-          console.error('Failed to load history:', error);
-        }
-      }
-
-      // Create history card
-      function createHistoryCard(item) {
-        const card = document.createElement('div');
-        card.className = 'history-card';
-
-        const date = new Date(item.timestamp);
-        const formattedDate = date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-
-        const modelLabel = item.model === 'gpt-4o-transcribe-diarize' ? 'Speaker ID' : 'Standard';
-
-        card.innerHTML = `
-          <div class="history-card-header">
-            <div class="history-card-info">
-              <div class="history-card-filename">${item.fileName}</div>
-              <div class="history-card-date">${formattedDate}</div>
-            </div>
-            <button class="history-card-delete" onclick="event.stopPropagation();" data-id="${item.id}">×</button>
-          </div>
-          <div class="history-card-preview">${item.transcriptPreview}...</div>
-          <div class="history-card-model">${modelLabel}</div>
-        `;
-
-        // Add click handler to load transcription
-        card.addEventListener('click', () => {
-          localStorage.setItem('loadTranscriptionId', item.id);
-          window.electron.navigate('results');
-        });
-
-        // Add delete handler
-        const deleteBtn = card.querySelector('.history-card-delete');
-        deleteBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          if (confirm(`Delete transcription "${item.fileName}"?`)) {
-            try {
-              await window.electron.deleteTranscription(item.id);
-              await loadHistory(); // Reload history
-            } catch (error) {
-              console.error('Failed to delete:', error);
-            }
-          }
-        });
-
-        return card;
-      }
-
-      // Load history on page load
-      loadHistory();
 
       // Settings button
       settingsBtn.addEventListener('click', () => {

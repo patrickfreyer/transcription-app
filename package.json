@@ -1,18 +1,15 @@
 {
   "name": "audio-transcription-app",
-  "version": "1.5.0",
-  "description": "Elegant audio transcription app using OpenAI Whisper API",
+  "version": "2.0.0",
+  "description": "Audio transcription and analysis app with AI chat capabilities",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win",
-    "test": "jest",
-    "test:unit": "jest",
-    "test:integration": "node test-ffmpeg.js && node test-transcription.js",
-    "test:transcription": "node test-transcription.js",
-    "test:ffmpeg": "node test-ffmpeg.js"
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build && electron-builder",
+    "build:mac": "vite build && electron-builder --mac",
+    "build:win": "vite build && electron-builder --win",
+    "preview": "vite preview"
   },
   "keywords": [
     "electron",
@@ -23,18 +20,32 @@
   "author": "Patrick C. Freyer <freyer.patrick@bcg.com> (https://patrickfreyer.com)",
   "license": "MIT",
   "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "electron-icon-builder": "^2.0.1",
-    "jest": "^30.2.0"
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18",
+    "vite": "^7.1.11",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
   },
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@openai/agents": "^0.1.11",
+    "electron-store": "^8.1.0",
     "fluent-ffmpeg": "^2.1.3",
-    "marked": "^16.4.1",
-    "mermaid": "^11.12.0",
-    "openai": "^4.24.0"
+    "keytar": "^7.9.0",
+    "openai": "^4.24.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
+    "remark-breaks": "^4.0.0",
+    "remark-gfm": "^4.0.1",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.24.6"
   },
   "build": {
     "appId": "com.transcription.app",
@@ -42,7 +53,8 @@
     "asar": true,
     "asarUnpack": [
       "node_modules/@ffmpeg-installer/**/*",
-      "node_modules/@ffprobe-installer/**/*"
+      "node_modules/@ffprobe-installer/**/*",
+      "node_modules/keytar/**/*"
     ],
     "mac": {
       "category": "public.app-category.productivity",
@@ -71,7 +83,8 @@
     "files": [
       "main.js",
       "preload.js",
-      "src/**/*",
+      "backend/**/*",
+      "dist/**/*",
       "node_modules/@ffmpeg-installer/**/*",
       "node_modules/@ffprobe-installer/**/*",
       "node_modules/fluent-ffmpeg/**/*"
