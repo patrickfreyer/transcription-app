@@ -501,16 +501,8 @@ export function AppProvider({ children }) {
   };
 
   const handleInteractionWithoutKey = () => {
-    // Trigger pulse animation on API key button
-    setShouldPulseAPIButton(true);
-
-    // Remove pulse after animation completes
-    setTimeout(() => {
-      setShouldPulseAPIButton(false);
-    }, 3000);
-
-    // Show a helpful message (could be toast, for now we'll rely on visual feedback)
-    console.log('Please add your API key first');
+    // Open the API key modal directly so user can configure their key
+    openAPIKeyModal();
   };
 
   // Settings Modal functions
