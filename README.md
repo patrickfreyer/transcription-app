@@ -188,22 +188,6 @@ See [CLAUDE.md](CLAUDE.md) for comprehensive development documentation including
 - Agent tools and guardrails
 - Testing strategies
 
-## 🐛 Troubleshooting
-
-### "FFmpeg not found" error
-- Reinstall the app (FFmpeg should be bundled automatically)
-- On Windows: Ensure you're running the installer, not just the .exe
-
-### Transcription fails for large files
-- Check your OpenAI API rate limits
-- Ensure stable internet connection
-- Try transcribing in smaller chunks
-
-### Chat responses are slow
-- This is normal for long transcripts
-- The AI is intelligently searching through the content
-- Responses typically arrive within 5-10 seconds
-
 ## 📝 Credits
 
 Created by [Patrick C. Freyer](https://patrickfreyer.com) and Alexander Achba
