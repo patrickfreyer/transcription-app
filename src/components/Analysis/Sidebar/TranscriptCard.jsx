@@ -135,12 +135,10 @@ function TranscriptCard({ transcript, isActive }) {
     <div
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      className={`group p-3 border-b border-border cursor-pointer transition-all duration-200 hover:bg-surface-tertiary ${
-        isActive && !isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+      className={`group p-3 border-b border-border cursor-pointer transition-colors duration-150 hover:bg-surface-secondary ${
+        isActive ? 'bg-surface-secondary' : ''
       } ${
-        isSelected && !isActive ? 'border-l-2 border-l-primary bg-primary/5' : ''
-      } ${
-        isActive && isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-primary' : ''
+        isSelected ? 'border-l-2 border-l-info' : ''
       }`}
       title="Click to view • Check to add to AI context • Double-click for details"
     >
@@ -180,26 +178,15 @@ function TranscriptCard({ transcript, isActive }) {
           </h3>
         )}
 
-        {/* Action buttons - Show on hover */}
-        <div className="flex items-center gap-0.5 ml-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <button
-            onClick={handleRenameClick}
-            className="p-1 hover:bg-surface-tertiary rounded transition-all duration-200"
-            aria-label="Rename"
-            title="Rename transcript"
-          >
-            <svg className="w-3.5 h-3.5 text-foreground-secondary hover:text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-          </button>
+        {/* Action buttons - Always visible but subtle */}
+        <div className="flex items-center gap-0.5 ml-1 flex-shrink-0">
           <button
             onClick={handleStarClick}
-            className="p-1 hover:bg-surface-tertiary rounded transition-all duration-200"
+            className="p-1 hover:bg-surface-tertiary rounded transition-colors duration-150"
             aria-label={transcript.starred ? 'Unstar' : 'Star'}
           >
             <svg
-              className={`w-3.5 h-3.5 transition-colors ${transcript.starred ? 'text-yellow-500' : 'text-foreground-secondary hover:text-yellow-500'}`}
+              className={`w-3.5 h-3.5 ${transcript.starred ? 'text-warning' : 'text-foreground-tertiary'}`}
               viewBox="0 0 24 24"
               fill={transcript.starred ? 'currentColor' : 'none'}
               stroke="currentColor"
@@ -209,30 +196,26 @@ function TranscriptCard({ transcript, isActive }) {
             </svg>
           </button>
           <button
+            onClick={handleRenameClick}
+            className="p-1 hover:bg-surface-tertiary rounded transition-colors duration-150"
+            aria-label="Rename"
+            title="Rename transcript"
+          >
+            <svg className="w-3.5 h-3.5 text-foreground-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+          <button
             onClick={handleDeleteClick}
-            className="p-1 hover:bg-error/10 dark:hover:bg-error/20 text-foreground-secondary hover:text-error rounded transition-all duration-200"
+            className="p-1 hover:bg-surface-tertiary rounded transition-colors duration-150"
             aria-label="Delete"
           >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-3.5 h-3.5 text-foreground-tertiary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
             </svg>
           </button>
         </div>
-
-        {/* Star indicator - Always visible if starred */}
-        {transcript.starred && (
-          <div className="flex-shrink-0 opacity-100 group-hover:opacity-0 transition-opacity duration-200">
-            <svg
-              className="w-3.5 h-3.5 text-yellow-500"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-            </svg>
-          </div>
-        )}
       </div>
 
       <div className="flex items-center gap-2 text-xs text-foreground-secondary min-w-0 ml-6.5">

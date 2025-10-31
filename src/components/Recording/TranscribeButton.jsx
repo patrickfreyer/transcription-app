@@ -5,16 +5,16 @@ function TranscribeButton({ onClick, disabled, isProcessing }) {
     <button
       onClick={onClick}
       disabled={disabled || isProcessing}
-      className={`w-full py-5 rounded-xl font-semibold text-base transition-all duration-200 shadow-lg relative overflow-hidden group ${
+      className={`w-full py-4 rounded-lg font-medium text-sm transition-colors duration-150 ${
         disabled || isProcessing
-          ? 'bg-surface-secondary text-foreground-secondary cursor-not-allowed shadow-none border border-border'
-          : 'bg-bcg-green hover:bg-bcg-green-hover dark:bg-bcg-green-dark dark:hover:bg-bcg-green-hover-dark text-white hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] border border-transparent'
+          ? 'bg-surface-secondary text-foreground-secondary cursor-not-allowed border border-border'
+          : 'bg-info text-white hover:bg-info-hover border border-transparent'
       }`}
     >
       {isProcessing ? (
-        <span className="flex items-center justify-center gap-3">
+        <span className="flex items-center justify-center gap-2">
           <svg
-            className="animate-spin h-6 w-6"
+            className="animate-spin h-4 w-4"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -33,12 +33,12 @@ function TranscribeButton({ onClick, disabled, isProcessing }) {
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             ></path>
           </svg>
-          <span>Transcribing Audio...</span>
+          <span>Transcribing...</span>
         </span>
       ) : (
         <span className="flex items-center justify-center gap-2">
           <svg
-            className="w-5 h-5"
+            className="w-4 h-4"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -54,11 +54,6 @@ function TranscribeButton({ onClick, disabled, isProcessing }) {
           </svg>
           <span>Transcribe Audio</span>
         </span>
-      )}
-
-      {/* Shine effect on hover */}
-      {!disabled && !isProcessing && (
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
       )}
     </button>
   );

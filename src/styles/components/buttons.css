@@ -32,18 +32,12 @@
 
 /* Primary button */
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent-blue) 0%, #0066CC 100%);
+  background: var(--accent-blue);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--accent-blue-hover) 0%, #0051A8 100%);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn-primary:active:not(:disabled) {
-  transform: translateY(0);
+  background: var(--accent-blue-hover);
 }
 
 /* Secondary button */
@@ -66,8 +60,6 @@
 
 .btn-danger:hover:not(:disabled) {
   background: var(--error-red-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
 }
 
 /* Success button */
@@ -78,8 +70,6 @@
 
 .btn-success:hover:not(:disabled) {
   background: var(--success-green-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
 }
 
 /* Ghost button */
@@ -113,9 +103,6 @@
   color: var(--text-primary);
 }
 
-.btn-icon:active:not(:disabled) {
-  transform: scale(0.95);
-}
 
 /* Action button (header buttons) */
 .action-btn {
@@ -166,34 +153,16 @@
   box-shadow: 0 0 0 2px var(--bg-primary);
 }
 
-.api-key-btn[data-status="missing"] {
-  background: var(--error-red-subtle);
-  border-color: var(--error-red);
-  color: var(--error-red);
-}
-
-.api-key-btn[data-status="missing"] .status-indicator::before {
-  content: "!";
-  color: var(--error-red);
-}
-
-.api-key-btn[data-status="valid"] {
-  background: var(--success-green-subtle);
-  border-color: var(--success-green);
-  color: var(--success-green);
-}
-
-.api-key-btn[data-status="valid"] .status-indicator::before {
-  content: "✓";
-  color: var(--success-green);
-}
-
+.api-key-btn[data-status="missing"],
+.api-key-btn[data-status="valid"],
 .api-key-btn[data-status="loading"] {
-  background: var(--bg-tertiary);
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }
 
-.api-key-btn[data-status="loading"] .status-indicator {
-  animation: spin 1s linear infinite;
+.api-key-btn:hover {
+  background: var(--bg-tertiary);
 }
 
 @keyframes spin {

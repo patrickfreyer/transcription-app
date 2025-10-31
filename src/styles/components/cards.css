@@ -12,8 +12,7 @@
 }
 
 .card:hover {
-  border-color: var(--border-color-dark);
-  box-shadow: var(--shadow-sm);
+  background: var(--bg-secondary);
 }
 
 /* Transcript card (sidebar) */
@@ -30,8 +29,6 @@
 
 .transcript-card:hover {
   background: var(--bg-secondary);
-  border-color: var(--border-color-dark);
-  transform: translateX(2px);
 }
 
 .transcript-card.active {
@@ -167,9 +164,6 @@
 
 .transcript-card-mini:hover {
   background: var(--bg-tertiary);
-  border-color: var(--border-color-dark);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
 }
 
 .card-icon {
