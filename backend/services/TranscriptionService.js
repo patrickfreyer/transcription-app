@@ -12,6 +12,7 @@ const os = require('os');
 const path = require('path');
 const OpenAI = require('openai');
 const { createLogger } = require('../utils/logger');
+const { validateFilePath } = require('../utils/pathValidator');
 
 const logger = createLogger('TranscriptionService');
 
@@ -36,6 +37,9 @@ class TranscriptionService {
    * Get audio duration using ffprobe
    */
   async getAudioDuration(filePath) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
     return new Promise((resolve, reject) => {
       this.ffmpeg.ffprobe(filePath, (err, metadata) => {
         if (err) {
@@ -54,6 +58,9 @@ class TranscriptionService {
    * @returns {Promise<string>} - Path to optimized file
    */
   async optimizeAudioSpeed(filePath, speedMultiplier = 1.0) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
     if (speedMultiplier <= 1.0 || speedMultiplier > 3.0) {
       return filePath; // No optimization needed
     }
@@ -87,6 +94,9 @@ class TranscriptionService {
    * @returns {Promise<string>} - Path to compressed file
    */
   async compressAudio(filePath) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
     return new Promise((resolve, reject) => {
       const tempDir = os.tmpdir();
       const outputPath = path.join(tempDir, `compressed-${Date.now()}.ogg`);
@@ -118,13 +128,12 @@ class TranscriptionService {
    * Convert audio to MP3 format
    */
   async convertToMP3(filePath) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
     return new Promise((resolve, reject) => {
       const tempDir = os.tmpdir();
       const outputPath = path.join(tempDir, `converted-${Date.now()}.mp3`);
-
-      if (!fs.existsSync(filePath)) {
-        return reject(new Error(`Input file does not exist: ${filePath}`));
-      }
 
       const stats = fs.statSync(filePath);
       if (stats.size === 0) {
@@ -154,6 +163,9 @@ class TranscriptionService {
    * Split audio into chunks
    */
   async splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
     try {
       const stats = fs.statSync(filePath);
       const fileSizeInMB = stats.size / (1024 * 1024);
