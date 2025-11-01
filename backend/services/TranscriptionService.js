@@ -219,13 +219,29 @@ class TranscriptionService {
    * Wait until we can make a request (dynamic rate limiting)
    */
   async waitForRateLimit() {
+    const MAX_WAIT_ITERATIONS = 10; // Safety limit to prevent infinite loops
+    let iterations = 0;
+
     while (!this.canMakeRequest()) {
+      iterations++;
+
+      // Safety check: prevent infinite loops
+      if (iterations > MAX_WAIT_ITERATIONS) {
+        logger.error(`Rate limit wait exceeded ${MAX_WAIT_ITERATIONS} iterations, resetting timestamps`);
+        this.requestTimestamps = [];
+        break;
+      }
+
       const oldestRequest = this.requestTimestamps[0];
       const waitTime = oldestRequest + 60000 - Date.now();
 
       if (waitTime > 0) {
-        logger.info(`Rate limit reached, waiting ${Math.ceil(waitTime / 1000)}s...`);
+        logger.info(`Rate limit reached, waiting ${Math.ceil(waitTime / 1000)}s... (iteration ${iterations}/${MAX_WAIT_ITERATIONS})`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
+      } else {
+        // If waitTime is negative, remove the stale timestamp and continue
+        logger.warn(`Stale timestamp detected, removing: ${oldestRequest}`);
+        this.requestTimestamps.shift();
       }
     }
 

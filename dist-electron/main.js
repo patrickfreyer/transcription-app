@@ -1,32 +1,650 @@
-"use strict";const{app:A,BrowserWindow:K,ipcMain:i,dialog:N,shell:X}=require("electron"),w=require("path"),O=require("openai"),g=require("fs"),J=require("os"),V=require("keytar"),Q=require("electron-store"),{registerAllHandlers:Z}=require("./backend/handlers"),ee=require("./backend/services/TranscriptionService"),U="Audio Transcription App",W="openai-api-key",q=new Q({defaults:{transcripts:[],chatHistory:{},"summary-templates":[]}});process.on("uncaughtException",e=>{console.error("Uncaught Exception:",e),N.showErrorBox("Application Error",`An error occurred during startup:
+"use strict";
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const path = require("path");
+const OpenAI = require("openai");
+const fs = require("fs");
+const os = require("os");
+const keytar = require("keytar");
+const Store = require("electron-store");
+const { registerAllHandlers } = require("./backend/handlers");
+const TranscriptionService = require("./backend/services/TranscriptionService");
+const SERVICE_NAME = "Audio Transcription App";
+const ACCOUNT_NAME = "openai-api-key";
+const store = new Store({
+  defaults: {
+    transcripts: [],
+    chatHistory: {},
+    "summary-templates": []
+  }
+});
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught Exception:", error);
+  dialog.showErrorBox("Application Error", `An error occurred during startup:
 
-${e.message}
+${error.message}
 
-Stack: ${e.stack}`)});let L,h,y,z=!1;try{console.log("=== FFmpeg Loading Debug Info ==="),console.log("Platform:",process.platform),console.log("Architecture:",process.arch),console.log("App path:",A.getAppPath()),console.log("Resource path:",process.resourcesPath),L=require("fluent-ffmpeg"),console.log("✓ fluent-ffmpeg loaded");try{if(h=require("@ffmpeg-installer/ffmpeg").path,h.includes("app.asar")&&!h.includes(".asar.unpacked")&&(h=h.replace("app.asar","app.asar.unpacked")),console.log("✓ ffmpeg-installer loaded"),console.log("FFmpeg path:",h),console.log("FFmpeg exists:",g.existsSync(h)),g.existsSync(h)){const s=g.statSync(h);console.log("FFmpeg is file:",s.isFile()),console.log("FFmpeg is directory:",s.isDirectory())}}catch(e){throw console.error("✗ Error loading ffmpeg-installer:",e.message),e}try{if(y=require("@ffprobe-installer/ffprobe").path,y.includes("app.asar")&&!y.includes(".asar.unpacked")&&(y=y.replace("app.asar","app.asar.unpacked")),console.log("✓ ffprobe-installer loaded"),console.log("FFprobe path:",y),console.log("FFprobe exists:",g.existsSync(y)),g.existsSync(y)){const s=g.statSync(y);console.log("FFprobe is file:",s.isFile()),console.log("FFprobe is directory:",s.isDirectory())}}catch(e){throw console.error("✗ Error loading ffprobe-installer:",e.message),e}L.setFfmpegPath(h),L.setFfprobePath(y),z=!0,console.log("✓ FFmpeg fully configured and available"),console.log("=================================")}catch(e){console.error("=== FFmpeg Loading Failed ==="),console.error("Error:",e.message),console.error("Stack:",e.stack),console.error("============================"),process.platform==="win32"&&N.showErrorBox("Large File Support Unavailable",`FFmpeg could not be loaded. Large file support (>25MB) will not work.
+Stack: ${error.stack}`);
+});
+let ffmpeg, ffmpegPath, ffprobePath;
+let ffmpegAvailable = false;
+try {
+  console.log("=== FFmpeg Loading Debug Info ===");
+  console.log("Platform:", process.platform);
+  console.log("Architecture:", process.arch);
+  console.log("App path:", app.getAppPath());
+  console.log("Resource path:", process.resourcesPath);
+  ffmpeg = require("fluent-ffmpeg");
+  console.log("✓ fluent-ffmpeg loaded");
+  try {
+    const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg");
+    ffmpegPath = ffmpegInstaller.path;
+    if (ffmpegPath.includes("app.asar") && !ffmpegPath.includes(".asar.unpacked")) {
+      ffmpegPath = ffmpegPath.replace("app.asar", "app.asar.unpacked");
+    }
+    console.log("✓ ffmpeg-installer loaded");
+    console.log("FFmpeg path:", ffmpegPath);
+    console.log("FFmpeg exists:", fs.existsSync(ffmpegPath));
+    if (fs.existsSync(ffmpegPath)) {
+      const stat = fs.statSync(ffmpegPath);
+      console.log("FFmpeg is file:", stat.isFile());
+      console.log("FFmpeg is directory:", stat.isDirectory());
+    }
+  } catch (e) {
+    console.error("✗ Error loading ffmpeg-installer:", e.message);
+    throw e;
+  }
+  try {
+    const ffprobeInstaller = require("@ffprobe-installer/ffprobe");
+    ffprobePath = ffprobeInstaller.path;
+    if (ffprobePath.includes("app.asar") && !ffprobePath.includes(".asar.unpacked")) {
+      ffprobePath = ffprobePath.replace("app.asar", "app.asar.unpacked");
+    }
+    console.log("✓ ffprobe-installer loaded");
+    console.log("FFprobe path:", ffprobePath);
+    console.log("FFprobe exists:", fs.existsSync(ffprobePath));
+    if (fs.existsSync(ffprobePath)) {
+      const stat = fs.statSync(ffprobePath);
+      console.log("FFprobe is file:", stat.isFile());
+      console.log("FFprobe is directory:", stat.isDirectory());
+    }
+  } catch (e) {
+    console.error("✗ Error loading ffprobe-installer:", e.message);
+    throw e;
+  }
+  ffmpeg.setFfmpegPath(ffmpegPath);
+  ffmpeg.setFfprobePath(ffprobePath);
+  ffmpegAvailable = true;
+  console.log("✓ FFmpeg fully configured and available");
+  console.log("=================================");
+} catch (error) {
+  console.error("=== FFmpeg Loading Failed ===");
+  console.error("Error:", error.message);
+  console.error("Stack:", error.stack);
+  console.error("============================");
+  if (process.platform === "win32") {
+    dialog.showErrorBox(
+      "Large File Support Unavailable",
+      `FFmpeg could not be loaded. Large file support (>25MB) will not work.
 
-Error: ${e.message}
+Error: ${error.message}
 
-Files under 25MB will still work normally.`)}A.setName("Audio Transcription");let o=null;z&&(o=new ee(L,z),console.log("✓ TranscriptionService initialized with optimizations enabled"));let n;function Y(){const e=process.platform==="win32";process.platform,n=new K({width:1100,height:750,minWidth:900,minHeight:600,title:"Audio Transcription",webPreferences:{preload:w.join(__dirname,"preload.js"),nodeIntegration:!1,contextIsolation:!0},titleBarStyle:e?"hidden":"hiddenInset",frame:!e,backgroundColor:"#ffffff"}),process.env.VITE_DEV_SERVER_URL?n.loadURL(process.env.VITE_DEV_SERVER_URL):n.loadFile(w.join(__dirname,"dist/index.html")),n.webContents.on("did-finish-load",async()=>{try{await V.getPassword(U,W)?n.webContents.send("api-key-status","valid"):n.webContents.send("api-key-status","missing")}catch(s){console.error("Error checking API key on startup:",s),n.webContents.send("api-key-status","missing")}})}A.whenReady().then(Y);A.on("window-all-closed",()=>{process.platform!=="darwin"&&A.quit()});A.on("activate",()=>{K.getAllWindows().length===0&&Y()});i.handle("validate-api-key",async(e,s)=>{try{return await new O({apiKey:s}).models.list(),{success:!0,message:"API key is valid"}}catch(r){let a="Invalid API key";return r.status===401?a="Invalid API key. Please check your key and try again.":r.status===429?a="Rate limit exceeded. Please try again later.":r.message&&(a=r.message),{success:!1,error:a}}});i.handle("save-api-key",async(e,s)=>(global.apiKey=s,{success:!0}));i.handle("get-api-key",async()=>global.apiKey||null);i.handle("save-api-key-secure",async(e,s)=>{try{return await V.setPassword(U,W,s),console.log("✓ API key saved to secure storage"),{success:!0}}catch(r){return console.error("Failed to save API key:",r),{success:!1,error:r.message}}});i.handle("get-api-key-secure",async()=>{try{return{success:!0,apiKey:await V.getPassword(U,W)}}catch(e){return console.error("Failed to retrieve API key:",e),{success:!1,error:e.message}}});i.handle("delete-api-key-secure",async()=>{try{const e=await V.deletePassword(U,W);return console.log("✓ API key deleted from secure storage"),{success:e}}catch(e){return console.error("Failed to delete API key:",e),{success:!1,error:e.message}}});i.handle("get-disclaimer-status",async()=>{try{const e=q.get("disclaimer-accepted",!1);return console.log("✓ Disclaimer status:",e?"accepted":"not accepted"),{success:!0,accepted:e}}catch(e){return console.error("Failed to get disclaimer status:",e),{success:!1,accepted:!1}}});i.handle("set-disclaimer-accepted",async()=>{try{return q.set("disclaimer-accepted",!0),console.log("✓ Disclaimer accepted and saved"),{success:!0}}catch(e){return console.error("Failed to save disclaimer acceptance:",e),{success:!1,error:e.message}}});i.handle("get-templates",async()=>{try{const e=q.get("summary-templates",[]);return console.log("✓ Loaded summary templates from storage"),{success:!0,templates:e}}catch(e){return console.error("Failed to load templates:",e),{success:!1,error:e.message,templates:[]}}});i.handle("save-templates",async(e,s)=>{try{return q.set("summary-templates",s),console.log("✓ Saved summary templates to storage"),{success:!0}}catch(r){return console.error("Failed to save templates:",r),{success:!1,error:r.message}}});i.handle("save-file-to-temp",async(e,s,r)=>{try{const a=J.tmpdir(),t=w.basename(r),c=w.join(a,`upload-${Date.now()}-${t}`);return console.log("Saving file to temp:",c),g.writeFileSync(c,Buffer.from(s)),{success:!0,filePath:c}}catch(a){return console.error("Failed to save file to temp:",a),{success:!1,error:a.message}}});i.on("window-minimize",()=>{n&&n.minimize()});i.on("window-maximize",()=>{n&&(n.isMaximized()?n.unmaximize():n.maximize())});i.on("window-close",()=>{n&&n.close()});i.handle("navigate",async(e,s)=>{n.loadFile(`src/${s}.html`)});i.handle("save-recording",async(e,s)=>{try{const r=J.tmpdir(),a=w.join(r,`recording-${Date.now()}.webm`),t=Buffer.from(s);if(!t||t.length===0)throw new Error("Recording is empty - no audio data captured");if(t.length<1e3)throw new Error(`Recording file is too small (${t.length} bytes) - likely corrupted or empty`);if(!(t[0]===26&&t[1]===69&&t[2]===223&&t[3]===163))throw new Error("Recording file is not a valid WebM format - header signature missing");return g.writeFileSync(a,t),console.log(`✓ Recording saved: ${a} (${(t.length/1024).toFixed(2)} KB)`),{success:!0,filePath:a}}catch(r){return console.error("✗ Failed to save recording:",r.message),{success:!1,error:r.message||"Failed to save recording"}}});i.handle("transcribe-audio",async(e,s,r,a)=>{if(!o)return{success:!1,error:"Transcription service is not available. FFmpeg may not be loaded correctly."};let t=[],c=null,p=null,F=null;const B=typeof a=="string",m=B?"whisper-1":a?.model||"gpt-4o-transcribe",I=B?a:a?.prompt||null,D=B?null:a?.speakers||null,_=a?.speedMultiplier||1,G=a?.useCompression||!1,b=S=>{n&&!n.isDestroyed()&&n.webContents.send("transcription-progress",S)};try{const S=new O({apiKey:r});let v=s;const C=s.toLowerCase();if(C.endsWith(".webm")||C.endsWith(".ogg")||C.endsWith(".flac")||C.endsWith(".aac")||C.endsWith(".wma")){if(!z)return{success:!1,error:`${w.extname(s).toUpperCase().replace(".","")} files require FFmpeg for conversion to MP3, which could not be loaded on this system.
+Files under 25MB will still work normally.`
+    );
+  }
+}
+app.setName("Audio Transcription");
+let transcriptionService = null;
+if (ffmpegAvailable) {
+  transcriptionService = new TranscriptionService(ffmpeg, ffmpegAvailable);
+  console.log("✓ TranscriptionService initialized with optimizations enabled");
+}
+let mainWindow;
+function createWindow() {
+  const isWindows = process.platform === "win32";
+  process.platform === "darwin";
+  mainWindow = new BrowserWindow({
+    width: 1100,
+    height: 750,
+    minWidth: 900,
+    minHeight: 600,
+    title: "Audio Transcription",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      nodeIntegration: false,
+      contextIsolation: true
+    },
+    // Platform-specific title bar configuration
+    titleBarStyle: isWindows ? "hidden" : "hiddenInset",
+    frame: !isWindows,
+    // Remove frame on Windows (using custom title bar)
+    backgroundColor: "#ffffff"
+  });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, "dist/index.html"));
+  }
+  mainWindow.webContents.on("did-finish-load", async () => {
+    try {
+      const apiKey = await keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
+      if (apiKey) {
+        mainWindow.webContents.send("api-key-status", "valid");
+      } else {
+        mainWindow.webContents.send("api-key-status", "missing");
+      }
+    } catch (error) {
+      console.error("Error checking API key on startup:", error);
+      mainWindow.webContents.send("api-key-status", "missing");
+    }
+  });
+}
+app.whenReady().then(createWindow);
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
+});
+ipcMain.handle("validate-api-key", async (event, apiKey) => {
+  try {
+    const openai = new OpenAI({ apiKey });
+    await openai.models.list();
+    return {
+      success: true,
+      message: "API key is valid"
+    };
+  } catch (error) {
+    let errorMessage = "Invalid API key";
+    if (error.status === 401) {
+      errorMessage = "Invalid API key. Please check your key and try again.";
+    } else if (error.status === 429) {
+      errorMessage = "Rate limit exceeded. Please try again later.";
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    return {
+      success: false,
+      error: errorMessage
+    };
+  }
+});
+ipcMain.handle("save-api-key", async (event, apiKey) => {
+  global.apiKey = apiKey;
+  return { success: true };
+});
+ipcMain.handle("get-api-key", async () => {
+  return global.apiKey || null;
+});
+ipcMain.handle("save-api-key-secure", async (event, apiKey) => {
+  try {
+    await keytar.setPassword(SERVICE_NAME, ACCOUNT_NAME, apiKey);
+    console.log("✓ API key saved to secure storage");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to save API key:", error);
+    return { success: false, error: error.message };
+  }
+});
+ipcMain.handle("get-api-key-secure", async () => {
+  try {
+    const apiKey = await keytar.getPassword(SERVICE_NAME, ACCOUNT_NAME);
+    return { success: true, apiKey };
+  } catch (error) {
+    console.error("Failed to retrieve API key:", error);
+    return { success: false, error: error.message };
+  }
+});
+ipcMain.handle("delete-api-key-secure", async () => {
+  try {
+    const deleted = await keytar.deletePassword(SERVICE_NAME, ACCOUNT_NAME);
+    console.log("✓ API key deleted from secure storage");
+    return { success: deleted };
+  } catch (error) {
+    console.error("Failed to delete API key:", error);
+    return { success: false, error: error.message };
+  }
+});
+ipcMain.handle("get-disclaimer-status", async () => {
+  try {
+    const accepted = store.get("disclaimer-accepted", false);
+    console.log("✓ Disclaimer status:", accepted ? "accepted" : "not accepted");
+    return { success: true, accepted };
+  } catch (error) {
+    console.error("Failed to get disclaimer status:", error);
+    return { success: false, accepted: false };
+  }
+});
+ipcMain.handle("set-disclaimer-accepted", async () => {
+  try {
+    store.set("disclaimer-accepted", true);
+    console.log("✓ Disclaimer accepted and saved");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to save disclaimer acceptance:", error);
+    return { success: false, error: error.message };
+  }
+});
+ipcMain.handle("get-templates", async () => {
+  try {
+    const templates = store.get("summary-templates", []);
+    console.log("✓ Loaded summary templates from storage");
+    return { success: true, templates };
+  } catch (error) {
+    console.error("Failed to load templates:", error);
+    return { success: false, error: error.message, templates: [] };
+  }
+});
+ipcMain.handle("save-templates", async (event, templates) => {
+  try {
+    store.set("summary-templates", templates);
+    console.log("✓ Saved summary templates to storage");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to save templates:", error);
+    return { success: false, error: error.message };
+  }
+});
+ipcMain.handle("save-file-to-temp", async (event, arrayBuffer, fileName) => {
+  try {
+    const tempDir = os.tmpdir();
+    const sanitizedFileName = path.basename(fileName);
+    const tempFilePath = path.join(tempDir, `upload-${Date.now()}-${sanitizedFileName}`);
+    console.log("Saving file to temp:", tempFilePath);
+    fs.writeFileSync(tempFilePath, Buffer.from(arrayBuffer));
+    return {
+      success: true,
+      filePath: tempFilePath
+    };
+  } catch (error) {
+    console.error("Failed to save file to temp:", error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
+ipcMain.on("window-minimize", () => {
+  if (mainWindow) {
+    mainWindow.minimize();
+  }
+});
+ipcMain.on("window-maximize", () => {
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  }
+});
+ipcMain.on("window-close", () => {
+  if (mainWindow) {
+    mainWindow.close();
+  }
+});
+ipcMain.handle("navigate", async (event, page) => {
+  mainWindow.loadFile(`src/${page}.html`);
+});
+ipcMain.handle("save-recording", async (event, arrayBuffer) => {
+  try {
+    const tempDir = os.tmpdir();
+    const tempFilePath = path.join(tempDir, `recording-${Date.now()}.webm`);
+    const buffer = Buffer.from(arrayBuffer);
+    if (!buffer || buffer.length === 0) {
+      throw new Error("Recording is empty - no audio data captured");
+    }
+    if (buffer.length < 1e3) {
+      throw new Error(`Recording file is too small (${buffer.length} bytes) - likely corrupted or empty`);
+    }
+    const hasValidWebMHeader = buffer[0] === 26 && buffer[1] === 69 && buffer[2] === 223 && buffer[3] === 163;
+    if (!hasValidWebMHeader) {
+      throw new Error("Recording file is not a valid WebM format - header signature missing");
+    }
+    fs.writeFileSync(tempFilePath, buffer);
+    console.log(`✓ Recording saved: ${tempFilePath} (${(buffer.length / 1024).toFixed(2)} KB)`);
+    return {
+      success: true,
+      filePath: tempFilePath
+    };
+  } catch (error) {
+    console.error("✗ Failed to save recording:", error.message);
+    return {
+      success: false,
+      error: error.message || "Failed to save recording"
+    };
+  }
+});
+ipcMain.handle("transcribe-audio", async (event, filePath, apiKey, options) => {
+  if (!transcriptionService) {
+    return {
+      success: false,
+      error: "Transcription service is not available. FFmpeg may not be loaded correctly."
+    };
+  }
+  let chunkPaths = [];
+  let convertedFilePath = null;
+  let optimizedFilePath = null;
+  let compressedFilePath = null;
+  const isLegacyCall = typeof options === "string";
+  const model = isLegacyCall ? "whisper-1" : options?.model || "gpt-4o-transcribe";
+  const prompt = isLegacyCall ? options : options?.prompt || null;
+  const speakers = isLegacyCall ? null : options?.speakers || null;
+  const speedMultiplier = options?.speedMultiplier || 1;
+  const useCompression = options?.useCompression || false;
+  const sendProgress = (progressData) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("transcription-progress", progressData);
+    }
+  };
+  try {
+    const openai = new OpenAI({ apiKey });
+    let processFilePath = filePath;
+    const fileExt = filePath.toLowerCase();
+    const needsConversion = fileExt.endsWith(".webm") || fileExt.endsWith(".ogg") || fileExt.endsWith(".flac") || fileExt.endsWith(".aac") || fileExt.endsWith(".wma");
+    if (needsConversion) {
+      if (!ffmpegAvailable) {
+        const formatName = path.extname(filePath).toUpperCase().replace(".", "");
+        return {
+          success: false,
+          error: `${formatName} files require FFmpeg for conversion to MP3, which could not be loaded on this system.
 
-Please try uploading an MP3, WAV, or M4A file instead, or try re-downloading the application.`};b({status:"converting",message:`Converting ${w.extname(s).toUpperCase().replace(".","")} to MP3 format...`}),console.log(`Converting ${w.extname(s)} file to MP3 for compatibility...`),c=await o.convertToMP3(s),v=c}else console.log(`Using ${w.extname(s)} file directly (OpenAI native support)`);if(_>1&&_<=3&&(b({status:"optimizing",message:`Optimizing audio speed (${_}x)...`}),p=await o.optimizeAudioSpeed(v,_),v=p),G){b({status:"compressing",message:"Compressing audio..."});try{F=await o.compressAudio(v),v=F}catch(l){console.warn("Compression failed, continuing without compression:",l.message)}}const H=g.statSync(v).size/(1024*1024);if(H>25){if(!z)return o.cleanupTempFile(c),o.cleanupTempFile(p),o.cleanupTempFile(F),{success:!1,error:`File size is ${H.toFixed(1)}MB, which exceeds the 25MB API limit.
+Please try uploading an MP3, WAV, or M4A file instead, or try re-downloading the application.`
+        };
+      }
+      sendProgress({
+        status: "converting",
+        message: `Converting ${path.extname(filePath).toUpperCase().replace(".", "")} to MP3 format...`
+      });
+      console.log(`Converting ${path.extname(filePath)} file to MP3 for compatibility...`);
+      convertedFilePath = await transcriptionService.convertToMP3(filePath);
+      processFilePath = convertedFilePath;
+    } else {
+      console.log(`Using ${path.extname(filePath)} file directly (OpenAI native support)`);
+    }
+    if (speedMultiplier > 1 && speedMultiplier <= 3) {
+      sendProgress({
+        status: "optimizing",
+        message: `Optimizing audio speed (${speedMultiplier}x)...`
+      });
+      optimizedFilePath = await transcriptionService.optimizeAudioSpeed(processFilePath, speedMultiplier);
+      processFilePath = optimizedFilePath;
+    }
+    if (useCompression) {
+      sendProgress({
+        status: "compressing",
+        message: "Compressing audio..."
+      });
+      try {
+        compressedFilePath = await transcriptionService.compressAudio(processFilePath);
+        processFilePath = compressedFilePath;
+      } catch (compressionError) {
+        console.warn("Compression failed, continuing without compression:", compressionError.message);
+      }
+    }
+    const stats = fs.statSync(processFilePath);
+    const fileSizeInMB = stats.size / (1024 * 1024);
+    if (fileSizeInMB > 25) {
+      if (!ffmpegAvailable) {
+        transcriptionService.cleanupTempFile(convertedFilePath);
+        transcriptionService.cleanupTempFile(optimizedFilePath);
+        transcriptionService.cleanupTempFile(compressedFilePath);
+        return {
+          success: false,
+          error: `File size is ${fileSizeInMB.toFixed(1)}MB, which exceeds the 25MB API limit.
 
 Large file support requires FFmpeg, which could not be loaded on this system.
 
-Please use a file smaller than 25MB, or try re-downloading the application.`};b({status:"splitting",message:"Splitting large audio file into chunks..."}),t=await o.splitAudioIntoChunks(v,20);const l=[];for(const u of t){const f=await o.getAudioDuration(u);l.push(f)}const{results:E,failedChunks:d}=await o.transcribeChunksParallel(S,t,l,{model:m,prompt:I,speakers:D},b),P=E.map(u=>u.transcription);let $=null;if(d.length>0){const u=l.reduce((k,R)=>k+R,0),f=d.reduce((k,R)=>k+R.duration,0),x=(f/u*100).toFixed(1);$=`⚠️ PARTIAL TRANSCRIPTION: ${d.length} of ${t.length} chunks failed after multiple retries.
+Please use a file smaller than 25MB, or try re-downloading the application.`
+        };
+      }
+      sendProgress({
+        status: "splitting",
+        message: "Splitting large audio file into chunks..."
+      });
+      chunkPaths = await transcriptionService.splitAudioIntoChunks(processFilePath, 20);
+      const chunkDurations = [];
+      for (const chunkPath of chunkPaths) {
+        const duration = await transcriptionService.getAudioDuration(chunkPath);
+        chunkDurations.push(duration);
+      }
+      const { results, failedChunks } = await transcriptionService.transcribeChunksParallel(
+        openai,
+        chunkPaths,
+        chunkDurations,
+        { model, prompt, speakers },
+        sendProgress
+      );
+      const transcripts = results.map((result) => result.transcription);
+      let warningMessage = null;
+      if (failedChunks.length > 0) {
+        const totalDuration = chunkDurations.reduce((sum, d) => sum + d, 0);
+        const missingDuration = failedChunks.reduce((sum, chunk) => sum + chunk.duration, 0);
+        const missingPercent = (missingDuration / totalDuration * 100).toFixed(1);
+        warningMessage = `⚠️ PARTIAL TRANSCRIPTION: ${failedChunks.length} of ${chunkPaths.length} chunks failed after multiple retries.
 
-Missing approximately ${Math.floor(f/60)} minutes (${x}% of total audio).
+Missing approximately ${Math.floor(missingDuration / 60)} minutes (${missingPercent}% of total audio).
 
-Failed chunks: ${d.map(k=>`#${k.index}`).join(", ")}
+Failed chunks: ${failedChunks.map((c) => `#${c.index}`).join(", ")}
 
 This may be due to:
 • OpenAI API rate limits
 • Network connectivity issues
 • Temporary API service issues
 
-The partial transcription is shown below. You may want to re-transcribe the full file later.`,console.warn("⚠️ Proceeding with partial transcription despite chunk failures")}b({status:"combining",message:"Combining transcripts..."});let T,M=!1;if(m==="whisper-1")T=o.combineVTTTranscripts(P,l);else if(m==="gpt-4o-transcribe"){const u=P.map(f=>f.text||"").join(" ");T=o.jsonToVTT({text:u})}else if(m==="gpt-4o-transcribe-diarize"){let u=[],f=0;for(let x=0;x<P.length;x++){const k=P[x];if(k.segments){const R=k.segments.map(j=>({...j,start:j.start+f,end:j.end+f}));u=u.concat(R)}x<l.length&&(f+=l[x])}T=o.diarizedJsonToVTT({segments:u}),M=!0}return o.cleanupChunks(t),o.cleanupTempFile(c),o.cleanupTempFile(p),o.cleanupTempFile(F),{success:!0,text:o.vttToPlainText(T),transcript:T,chunked:!0,totalChunks:t.length,isDiarized:M,warning:$,failedChunks:d.length>0?d:void 0}}else{b({status:"transcribing",message:"Transcribing audio..."});const l={file:g.createReadStream(v),model:m};if(m==="whisper-1")l.response_format="vtt",I&&(l.prompt=I);else if(m==="gpt-4o-transcribe")l.response_format="json",I&&(l.prompt=I);else if(m==="gpt-4o-transcribe-diarize"&&(l.response_format="diarized_json",l.chunking_strategy="auto",D&&D.length>0)){const $=[],T=[];for(const M of D){$.push(M.name);const u=o.fileToDataURL(M.path);T.push(u)}l.known_speaker_names=$,l.known_speaker_references=T}const E=await S.audio.transcriptions.create(l);let d,P=!1;return m==="whisper-1"?d=E:m==="gpt-4o-transcribe"?d=o.jsonToVTT(E):m==="gpt-4o-transcribe-diarize"&&(d=o.diarizedJsonToVTT(E),P=!0),o.cleanupTempFile(c),o.cleanupTempFile(p),o.cleanupTempFile(F),{success:!0,text:o.vttToPlainText(d),transcript:d,chunked:!1,isDiarized:P}}}catch(S){return o.cleanupChunks(t),o.cleanupTempFile(c),o.cleanupTempFile(p),o.cleanupTempFile(F),{success:!1,error:S.message||"Transcription failed"}}});i.handle("generate-summary",async(e,s,r,a)=>{try{const t=new O({apiKey:a});console.log("Generating summary with OpenAI...");const p=(await t.chat.completions.create({model:"gpt-4o",messages:[{role:"system",content:"You are a helpful assistant that creates summaries of transcriptions based on user instructions."},{role:"user",content:`Here is a transcription:
+The partial transcription is shown below. You may want to re-transcribe the full file later.`;
+        console.warn("⚠️ Proceeding with partial transcription despite chunk failures");
+      }
+      sendProgress({
+        status: "combining",
+        message: "Combining transcripts..."
+      });
+      let combinedTranscript;
+      let isDiarized = false;
+      if (model === "whisper-1") {
+        combinedTranscript = transcriptionService.combineVTTTranscripts(transcripts, chunkDurations);
+      } else if (model === "gpt-4o-transcribe") {
+        const combinedText = transcripts.map((t) => t.text || "").join(" ");
+        combinedTranscript = transcriptionService.jsonToVTT({ text: combinedText });
+      } else if (model === "gpt-4o-transcribe-diarize") {
+        let allSegments = [];
+        let timeOffset = 0;
+        for (let i = 0; i < transcripts.length; i++) {
+          const transcript = transcripts[i];
+          if (transcript.segments) {
+            const offsetSegments = transcript.segments.map((seg) => ({
+              ...seg,
+              start: seg.start + timeOffset,
+              end: seg.end + timeOffset
+            }));
+            allSegments = allSegments.concat(offsetSegments);
+          }
+          if (i < chunkDurations.length) {
+            timeOffset += chunkDurations[i];
+          }
+        }
+        combinedTranscript = transcriptionService.diarizedJsonToVTT({ segments: allSegments });
+        isDiarized = true;
+      }
+      transcriptionService.cleanupChunks(chunkPaths);
+      transcriptionService.cleanupTempFile(convertedFilePath);
+      transcriptionService.cleanupTempFile(optimizedFilePath);
+      transcriptionService.cleanupTempFile(compressedFilePath);
+      return {
+        success: true,
+        text: transcriptionService.vttToPlainText(combinedTranscript),
+        transcript: combinedTranscript,
+        chunked: true,
+        totalChunks: chunkPaths.length,
+        isDiarized,
+        warning: warningMessage,
+        failedChunks: failedChunks.length > 0 ? failedChunks : void 0
+      };
+    } else {
+      sendProgress({
+        status: "transcribing",
+        message: "Transcribing audio..."
+      });
+      const transcriptionParams = {
+        file: fs.createReadStream(processFilePath),
+        model
+      };
+      if (model === "whisper-1") {
+        transcriptionParams.response_format = "vtt";
+        if (prompt) {
+          transcriptionParams.prompt = prompt;
+        }
+      } else if (model === "gpt-4o-transcribe") {
+        transcriptionParams.response_format = "json";
+        if (prompt) {
+          transcriptionParams.prompt = prompt;
+        }
+      } else if (model === "gpt-4o-transcribe-diarize") {
+        transcriptionParams.response_format = "diarized_json";
+        transcriptionParams.chunking_strategy = "auto";
+        if (speakers && speakers.length > 0) {
+          const speakerNames = [];
+          const speakerReferences = [];
+          for (const speaker of speakers) {
+            speakerNames.push(speaker.name);
+            const dataURL = transcriptionService.fileToDataURL(speaker.path);
+            speakerReferences.push(dataURL);
+          }
+          transcriptionParams.known_speaker_names = speakerNames;
+          transcriptionParams.known_speaker_references = speakerReferences;
+        }
+      }
+      const transcription = await openai.audio.transcriptions.create(transcriptionParams);
+      let finalTranscript;
+      let isDiarized = false;
+      if (model === "whisper-1") {
+        finalTranscript = transcription;
+      } else if (model === "gpt-4o-transcribe") {
+        finalTranscript = transcriptionService.jsonToVTT(transcription);
+      } else if (model === "gpt-4o-transcribe-diarize") {
+        finalTranscript = transcriptionService.diarizedJsonToVTT(transcription);
+        isDiarized = true;
+      }
+      transcriptionService.cleanupTempFile(convertedFilePath);
+      transcriptionService.cleanupTempFile(optimizedFilePath);
+      transcriptionService.cleanupTempFile(compressedFilePath);
+      return {
+        success: true,
+        text: transcriptionService.vttToPlainText(finalTranscript),
+        transcript: finalTranscript,
+        chunked: false,
+        isDiarized
+      };
+    }
+  } catch (error) {
+    transcriptionService.cleanupChunks(chunkPaths);
+    transcriptionService.cleanupTempFile(convertedFilePath);
+    transcriptionService.cleanupTempFile(optimizedFilePath);
+    transcriptionService.cleanupTempFile(compressedFilePath);
+    return {
+      success: false,
+      error: error.message || "Transcription failed"
+    };
+  }
+});
+ipcMain.handle("generate-summary", async (event, transcript, templatePrompt, apiKey) => {
+  try {
+    const openai = new OpenAI({ apiKey });
+    console.log("Generating summary with OpenAI...");
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful assistant that creates summaries of transcriptions based on user instructions."
+        },
+        {
+          role: "user",
+          content: `Here is a transcription:
 
-${s}
+${transcript}
 
-${r}`}],temperature:.3})).choices[0]?.message?.content;if(!p)throw new Error("No summary generated");return console.log("✓ Summary generated successfully"),{success:!0,summary:p.trim()}}catch(t){return console.error("Summary generation error:",t),{success:!1,error:t.message||"Summary generation failed"}}});Z();i.handle("open-external",async(e,s)=>{try{const r=new URL(s);return r.protocol==="http:"||r.protocol==="https:"?(await X.openExternal(s),{success:!0}):(console.error("Invalid protocol:",r.protocol),{success:!1,error:"Only HTTP and HTTPS URLs are allowed"})}catch(r){return console.error("Error opening external URL:",r),{success:!1,error:r.message}}});i.handle("save-transcript",async(e,s,r,a)=>{try{const t={txt:{name:"Text File",extensions:["txt"]},vtt:{name:"WebVTT Subtitle",extensions:["vtt"]},md:{name:"Markdown",extensions:["md"]},pdf:{name:"PDF Document",extensions:["pdf"]}},c=t[r]||t.txt,p=await N.showSaveDialog(n,{title:"Save Transcript",defaultPath:w.join(A.getPath("documents"),`${a}.${c.extensions[0]}`),filters:[{name:c.name,extensions:c.extensions},{name:"All Files",extensions:["*"]}]});if(p.canceled)return{success:!1,cancelled:!0};if(r==="pdf")throw new Error("PDF export not yet implemented. Please use TXT, VTT, or Markdown format.");let F=s;return r==="md"&&(F=`# Transcript
+${templatePrompt}`
+        }
+      ],
+      temperature: 0.3
+    });
+    const summary = response.choices[0]?.message?.content;
+    if (!summary) {
+      throw new Error("No summary generated");
+    }
+    console.log("✓ Summary generated successfully");
+    return {
+      success: true,
+      summary: summary.trim()
+    };
+  } catch (error) {
+    console.error("Summary generation error:", error);
+    return {
+      success: false,
+      error: error.message || "Summary generation failed"
+    };
+  }
+});
+registerAllHandlers();
+ipcMain.handle("open-external", async (event, url) => {
+  try {
+    const validUrl = new URL(url);
+    if (validUrl.protocol === "http:" || validUrl.protocol === "https:") {
+      await shell.openExternal(url);
+      return { success: true };
+    } else {
+      console.error("Invalid protocol:", validUrl.protocol);
+      return { success: false, error: "Only HTTP and HTTPS URLs are allowed" };
+    }
+  } catch (error) {
+    console.error("Error opening external URL:", error);
+    return { success: false, error: error.message };
+  }
+});
+ipcMain.handle("save-transcript", async (event, content, format, fileName) => {
+  try {
+    const formatConfig = {
+      txt: { name: "Text File", extensions: ["txt"] },
+      vtt: { name: "WebVTT Subtitle", extensions: ["vtt"] },
+      md: { name: "Markdown", extensions: ["md"] },
+      pdf: { name: "PDF Document", extensions: ["pdf"] }
+    };
+    const config = formatConfig[format] || formatConfig.txt;
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: "Save Transcript",
+      defaultPath: path.join(app.getPath("documents"), `${fileName}.${config.extensions[0]}`),
+      filters: [
+        { name: config.name, extensions: config.extensions },
+        { name: "All Files", extensions: ["*"] }
+      ]
+    });
+    if (result.canceled) {
+      return { success: false, cancelled: true };
+    }
+    if (format === "pdf") {
+      throw new Error("PDF export not yet implemented. Please use TXT, VTT, or Markdown format.");
+    }
+    let finalContent = content;
+    if (format === "md") {
+      finalContent = `# Transcript
 
-${s}`),g.writeFileSync(p.filePath,F,"utf8"),console.log(`✓ Transcript saved as ${r.toUpperCase()}: ${p.filePath}`),{success:!0,filePath:p.filePath}}catch(t){return console.error("Save transcript error:",t),{success:!1,error:t.message||"Failed to save file"}}});
+${content}`;
+    }
+    fs.writeFileSync(result.filePath, finalContent, "utf8");
+    console.log(`✓ Transcript saved as ${format.toUpperCase()}: ${result.filePath}`);
+    return {
+      success: true,
+      filePath: result.filePath
+    };
+  } catch (error) {
+    console.error("Save transcript error:", error);
+    return {
+      success: false,
+      error: error.message || "Failed to save file"
+    };
+  }
+});
