@@ -172,13 +172,6 @@ ipcMain.handle("validate-api-key", async (event, apiKey) => {
     };
   }
 });
-ipcMain.handle("save-api-key", async (event, apiKey) => {
-  global.apiKey = apiKey;
-  return { success: true };
-});
-ipcMain.handle("get-api-key", async () => {
-  return global.apiKey || null;
-});
 ipcMain.handle("save-api-key-secure", async (event, apiKey) => {
   try {
     await keytar.setPassword(SERVICE_NAME, ACCOUNT_NAME, apiKey);

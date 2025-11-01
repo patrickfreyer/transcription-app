@@ -11,9 +11,6 @@ contextBridge.exposeInMainWorld("electron", {
   // Disclaimer management
   getDisclaimerStatus: () => ipcRenderer.invoke("get-disclaimer-status"),
   setDisclaimerAccepted: () => ipcRenderer.invoke("set-disclaimer-accepted"),
-  // Legacy API key management (for backward compatibility)
-  saveApiKey: (apiKey) => ipcRenderer.invoke("save-api-key", apiKey),
-  getApiKey: () => ipcRenderer.invoke("get-api-key"),
   // Summary Template management
   getTemplates: () => ipcRenderer.invoke("get-templates"),
   saveTemplates: (templates) => ipcRenderer.invoke("save-templates", templates),
