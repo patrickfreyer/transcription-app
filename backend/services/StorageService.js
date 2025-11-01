@@ -11,6 +11,8 @@
 
 const Store = require('electron-store');
 const encryptionService = require('./EncryptionService');
+const backupService = require('./BackupService');
+const { atomicStoreUpdate } = require('../utils/atomicWrite');
 const { createLogger } = require('../utils/logger');
 
 const logger = createLogger('StorageService');
@@ -153,15 +155,18 @@ class StorageService {
   }
 
   /**
-   * Save transcripts array (encrypts automatically)
+   * Save transcripts array (encrypts automatically with atomic writes)
    * @param {Array} transcripts - Transcript array to save
    */
-  saveTranscripts(transcripts) {
+  async saveTranscripts(transcripts) {
     try {
       if (!Array.isArray(transcripts)) {
         logger.error('saveTranscripts: Invalid input (not an array)');
         return;
       }
+
+      // Create backup before modifying
+      backupService.createBackup(this.store.path);
 
       // Encrypt each transcript
       const encrypted = transcripts.map((transcript, index) => {
@@ -174,11 +179,21 @@ class StorageService {
         }
       });
 
-      this.store.set('transcripts', encrypted);
-      logger.debug(`Saved ${transcripts.length} transcripts (encrypted)`);
+      // Use atomic write to prevent data corruption
+      await atomicStoreUpdate(this.store, 'transcripts', encrypted);
+      logger.debug(`✓ Saved ${transcripts.length} transcripts (encrypted, atomic)`);
 
     } catch (error) {
       logger.error('Failed to save transcripts:', error);
+      logger.warn('Attempting to restore from backup...');
+
+      // Attempt to restore from backup
+      const restored = backupService.restoreLatest(this.store.path);
+      if (restored) {
+        logger.info('✓ Restored from backup after save failure');
+      }
+
+      throw error;
     }
   }
 
@@ -222,15 +237,18 @@ class StorageService {
   }
 
   /**
-   * Save chat history (encrypts automatically)
+   * Save chat history (encrypts automatically with atomic writes)
    * @param {Object} chatHistory - Chat history object
    */
-  saveChatHistory(chatHistory) {
+  async saveChatHistory(chatHistory) {
     try {
       if (!chatHistory || typeof chatHistory !== 'object') {
         logger.error('saveChatHistory: Invalid input');
         return;
       }
+
+      // Create backup before modifying
+      backupService.createBackup(this.store.path);
 
       const encrypted = {};
       Object.keys(chatHistory).forEach((transcriptId) => {
@@ -243,12 +261,22 @@ class StorageService {
         }
       });
 
-      this.store.set('chatHistory', encrypted);
+      // Use atomic write to prevent data corruption
+      await atomicStoreUpdate(this.store, 'chatHistory', encrypted);
       const chatCount = Object.keys(encrypted).length;
-      logger.debug(`Saved chat history for ${chatCount} transcript(s) (encrypted)`);
+      logger.debug(`✓ Saved chat history for ${chatCount} transcript(s) (encrypted, atomic)`);
 
     } catch (error) {
       logger.error('Failed to save chat history:', error);
+      logger.warn('Attempting to restore from backup...');
+
+      // Attempt to restore from backup
+      const restored = backupService.restoreLatest(this.store.path);
+      if (restored) {
+        logger.info('✓ Restored from backup after save failure');
+      }
+
+      throw error;
     }
   }
 
