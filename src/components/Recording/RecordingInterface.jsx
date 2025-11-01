@@ -43,7 +43,11 @@ function RecordingInterface({
       setElapsedTime(0);
     }
     // If paused, keep the current time and don't reset
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
   }, [isRecording, isPaused]);
 
   const formatTime = (seconds) => {

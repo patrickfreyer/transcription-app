@@ -214,16 +214,6 @@ ipcMain.handle('validate-api-key', async (event, apiKey) => {
   }
 });
 
-// Handle API key storage
-ipcMain.handle('save-api-key', async (event, apiKey) => {
-  global.apiKey = apiKey;
-  return { success: true };
-});
-
-ipcMain.handle('get-api-key', async () => {
-  return global.apiKey || null;
-});
-
 // Secure API key storage using system keychain/credential manager
 ipcMain.handle('save-api-key-secure', async (event, apiKey) => {
   try {
