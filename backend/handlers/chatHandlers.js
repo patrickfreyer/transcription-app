@@ -92,7 +92,6 @@ function registerChatHandlers() {
           searchAllTranscripts,
           onToken: (token) => {
             tokensSent++;
-            logger.info(`Sending token #${tokensSent} to renderer: "${token.substring(0, 20)}..."`);
             // Send each token to the renderer
             event.sender.send('chat-stream-token', { token });
           }

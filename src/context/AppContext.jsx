@@ -261,13 +261,16 @@ export function AppProvider({ children }) {
     setIsChatStreaming(true);
 
     let streamedContent = "";
-
     let tokenCounter = 0;
+
+    // Store cleanup functions to prevent memory leaks
+    let cleanupToken = null;
+    let cleanupComplete = null;
+    let cleanupError = null;
 
     // Token callback
     const handleToken = (data) => {
       tokenCounter++;
-      console.log(`[FRONTEND] Token #${tokenCounter} received:`, data.token.substring(0, 20));
       streamedContent += data.token;
 
       // Update the assistant message with accumulated content
@@ -290,7 +293,7 @@ export function AppProvider({ children }) {
       setChatHistory(workingChatHistory);
     };
 
-    // Complete callback
+    // Complete callback with cleanup
     const handleComplete = async (data) => {
       console.log('[FRONTEND] Stream complete. Total tokens received:', tokenCounter);
       console.log('[FRONTEND] Final message length:', data.message?.length);
@@ -317,11 +320,13 @@ export function AppProvider({ children }) {
       setChatHistory(finalChatHistory);
       await window.electron.saveChatHistory(finalChatHistory);
 
-      // Clean up listeners
-      window.electron.removeChatStreamListeners();
+      // Clean up listeners using cleanup functions
+      if (cleanupToken) cleanupToken();
+      if (cleanupComplete) cleanupComplete();
+      if (cleanupError) cleanupError();
     };
 
-    // Error callback
+    // Error callback with cleanup
     const handleError = (data) => {
       console.error('[FRONTEND] Chat stream error:', data.error);
       setIsChatStreaming(false);
@@ -338,16 +343,18 @@ export function AppProvider({ children }) {
       };
       setChatHistory(errorChatHistory);
 
-      // Clean up listeners
-      window.electron.removeChatStreamListeners();
+      // Clean up listeners using cleanup functions
+      if (cleanupToken) cleanupToken();
+      if (cleanupComplete) cleanupComplete();
+      if (cleanupError) cleanupError();
     };
 
     console.log('[FRONTEND] Registering stream listeners...');
 
-    // Register listeners
-    window.electron.onChatStreamToken(handleToken);
-    window.electron.onChatStreamComplete(handleComplete);
-    window.electron.onChatStreamError(handleError);
+    // Register listeners and store cleanup functions
+    cleanupToken = window.electron.onChatStreamToken(handleToken);
+    cleanupComplete = window.electron.onChatStreamComplete(handleComplete);
+    cleanupError = window.electron.onChatStreamError(handleError);
 
     console.log('[FRONTEND] Starting chat stream...');
     console.log('[FRONTEND] Context IDs:', contextIds);

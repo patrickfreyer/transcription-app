@@ -75,15 +75,35 @@ contextBridge.exposeInMainWorld('electron', {
   chatWithAIStream: (messages, systemPrompt, contextIds, searchAllTranscripts = false) => {
     ipcRenderer.send('chat-with-ai-stream', messages, systemPrompt, contextIds, searchAllTranscripts);
   },
+
+  // Chat stream listeners - return cleanup functions to prevent memory leaks
   onChatStreamToken: (callback) => {
-    ipcRenderer.on('chat-stream-token', (event, data) => callback(data));
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('chat-stream-token', handler);
+
+    // Return cleanup function for proper listener removal
+    return () => {
+      ipcRenderer.removeListener('chat-stream-token', handler);
+    };
   },
+
   onChatStreamComplete: (callback) => {
-    ipcRenderer.on('chat-stream-complete', (event, data) => callback(data));
+    // Use 'once' for complete event - it only fires once per message
+    ipcRenderer.once('chat-stream-complete', (event, data) => callback(data));
+
+    // Return no-op cleanup for API consistency
+    return () => {};
   },
+
   onChatStreamError: (callback) => {
-    ipcRenderer.on('chat-stream-error', (event, data) => callback(data));
+    // Use 'once' for error event - it only fires once per message
+    ipcRenderer.once('chat-stream-error', (event, data) => callback(data));
+
+    // Return no-op cleanup for API consistency
+    return () => {};
   },
+
+  // Keep as nuclear option for emergency cleanup
   removeChatStreamListeners: () => {
     ipcRenderer.removeAllListeners('chat-stream-token');
     ipcRenderer.removeAllListeners('chat-stream-complete');

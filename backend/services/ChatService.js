@@ -241,8 +241,6 @@ Current question: ${userMessage}`;
             fullResponse += token;
             tokenCount++;
 
-            logger.info(`Token #${tokenCount}: "${token}"`);
-
             // Call onToken callback if provided
             if (onToken) {
               onToken(token);
@@ -327,8 +325,6 @@ Current question: ${userMessage}`;
             const token = event.data.delta;
             fullResponse += token;
             tokenCount++;
-
-            logger.info(`Token #${tokenCount}: "${token}"`);
 
             // Call onToken callback if provided
             if (onToken) {
