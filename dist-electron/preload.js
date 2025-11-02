@@ -4,8 +4,8 @@ contextBridge.exposeInMainWorld("electron", {
   // Platform detection
   platform: process.platform,
   // API Key management (secure)
-  validateApiKey: (apiKey) => ipcRenderer.invoke("validate-api-key", apiKey),
-  saveApiKeySecure: (apiKey) => ipcRenderer.invoke("save-api-key-secure", apiKey),
+  validateApiKey: (apiKey) => ipcRenderer.invoke("validate-api-key", { apiKey }),
+  saveApiKeySecure: (apiKey) => ipcRenderer.invoke("save-api-key-secure", { apiKey }),
   getApiKeySecure: () => ipcRenderer.invoke("get-api-key-secure"),
   deleteApiKeySecure: () => ipcRenderer.invoke("delete-api-key-secure"),
   // Disclaimer management
@@ -13,15 +13,15 @@ contextBridge.exposeInMainWorld("electron", {
   setDisclaimerAccepted: () => ipcRenderer.invoke("set-disclaimer-accepted"),
   // Summary Template management
   getTemplates: () => ipcRenderer.invoke("get-templates"),
-  saveTemplates: (templates) => ipcRenderer.invoke("save-templates", templates),
+  saveTemplates: (templates) => ipcRenderer.invoke("save-templates", { templates }),
   // Window controls (for Windows custom title bar)
   minimizeWindow: () => ipcRenderer.send("window-minimize"),
   maximizeWindow: () => ipcRenderer.send("window-maximize"),
   closeWindow: () => ipcRenderer.send("window-close"),
   // Navigation
-  navigate: (page) => ipcRenderer.invoke("navigate", page),
+  navigate: (page) => ipcRenderer.invoke("navigate", { page }),
   // Recording
-  saveRecording: (arrayBuffer) => ipcRenderer.invoke("save-recording", arrayBuffer),
+  saveRecording: (arrayBuffer) => ipcRenderer.invoke("save-recording", { arrayBuffer }),
   // File handling
   saveFileToTemp: (arrayBuffer, fileName) => ipcRenderer.invoke("save-file-to-temp", arrayBuffer, fileName),
   // Transcription
@@ -40,18 +40,18 @@ contextBridge.exposeInMainWorld("electron", {
     navigator.clipboard.writeText(text);
   },
   // External links (for markdown links)
-  openExternal: (url) => ipcRenderer.invoke("open-external", url),
+  openExternal: (url) => ipcRenderer.invoke("open-external", { url }),
   // Transcript management
   getTranscripts: () => ipcRenderer.invoke("get-transcripts"),
-  saveTranscripts: (transcripts) => ipcRenderer.invoke("save-transcripts", transcripts),
+  saveTranscripts: (transcripts) => ipcRenderer.invoke("save-transcripts", { transcripts }),
   saveTranscriptToAnalysis: (transcriptData) => ipcRenderer.invoke("save-transcript-to-analysis", transcriptData),
   updateTranscript: (transcriptId, updates) => ipcRenderer.invoke("update-transcript", transcriptId, updates),
-  deleteTranscript: (transcriptId) => ipcRenderer.invoke("delete-transcript", transcriptId),
-  toggleStarTranscript: (transcriptId) => ipcRenderer.invoke("toggle-star-transcript", transcriptId),
+  deleteTranscript: (transcriptId) => ipcRenderer.invoke("delete-transcript", { transcriptId }),
+  toggleStarTranscript: (transcriptId) => ipcRenderer.invoke("toggle-star-transcript", { transcriptId }),
   generateTranscriptName: (transcriptText, apiKey) => ipcRenderer.invoke("generate-transcript-name", transcriptText, apiKey),
   // Chat management
   getChatHistory: () => ipcRenderer.invoke("get-chat-history"),
-  saveChatHistory: (chatHistory) => ipcRenderer.invoke("save-chat-history", chatHistory),
+  saveChatHistory: (chatHistory) => ipcRenderer.invoke("save-chat-history", { chatHistory }),
   // Streaming chat with Agents SDK
   chatWithAIStream: (messages, systemPrompt, contextIds, searchAllTranscripts = false) => {
     ipcRenderer.send("chat-with-ai-stream", messages, systemPrompt, contextIds, searchAllTranscripts);
@@ -71,7 +71,13 @@ contextBridge.exposeInMainWorld("electron", {
     ipcRenderer.removeAllListeners("chat-stream-error");
   },
   // Vector store bulk upload
-  bulkUploadTranscripts: (options) => ipcRenderer.invoke("bulk-upload-transcripts", options),
+  bulkUploadTranscripts: (options) => ipcRenderer.invoke("bulk-upload-transcripts", { options }),
   retryFailedUploads: () => ipcRenderer.invoke("retry-failed-uploads"),
-  getUploadStatus: () => ipcRenderer.invoke("get-upload-status")
+  getUploadStatus: () => ipcRenderer.invoke("get-upload-status"),
+  // NEW: Compressed storage APIs
+  getTranscriptVTT: (transcriptId) => ipcRenderer.invoke("get-transcript-vtt", transcriptId),
+  getTranscriptText: (transcriptId) => ipcRenderer.invoke("get-transcript-text", transcriptId),
+  getTranscriptWithContent: (transcriptId) => ipcRenderer.invoke("get-transcript-with-content", transcriptId),
+  getStorageStats: () => ipcRenderer.invoke("get-storage-stats"),
+  migrateTranscripts: () => ipcRenderer.invoke("migrate-transcripts")
 });
