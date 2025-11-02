@@ -7,8 +7,8 @@ contextBridge.exposeInMainWorld('electron', {
   platform: process.platform,
 
   // API Key management (secure)
-  validateApiKey: (apiKey) => ipcRenderer.invoke('validate-api-key', apiKey),
-  saveApiKeySecure: (apiKey) => ipcRenderer.invoke('save-api-key-secure', apiKey),
+  validateApiKey: (apiKey) => ipcRenderer.invoke('validate-api-key', { apiKey }),
+  saveApiKeySecure: (apiKey) => ipcRenderer.invoke('save-api-key-secure', { apiKey }),
   getApiKeySecure: () => ipcRenderer.invoke('get-api-key-secure'),
   deleteApiKeySecure: () => ipcRenderer.invoke('delete-api-key-secure'),
 
@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld('electron', {
 
   // Summary Template management
   getTemplates: () => ipcRenderer.invoke('get-templates'),
-  saveTemplates: (templates) => ipcRenderer.invoke('save-templates', templates),
+  saveTemplates: (templates) => ipcRenderer.invoke('save-templates', { templates }),
 
   // Window controls (for Windows custom title bar)
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
@@ -26,10 +26,10 @@ contextBridge.exposeInMainWorld('electron', {
   closeWindow: () => ipcRenderer.send('window-close'),
 
   // Navigation
-  navigate: (page) => ipcRenderer.invoke('navigate', page),
+  navigate: (page) => ipcRenderer.invoke('navigate', { page }),
 
   // Recording
-  saveRecording: (arrayBuffer) => ipcRenderer.invoke('save-recording', arrayBuffer),
+  saveRecording: (arrayBuffer) => ipcRenderer.invoke('save-recording', { arrayBuffer }),
 
   // File handling
   saveFileToTemp: (arrayBuffer, fileName) => ipcRenderer.invoke('save-file-to-temp', arrayBuffer, fileName),
@@ -56,20 +56,20 @@ contextBridge.exposeInMainWorld('electron', {
   },
 
   // External links (for markdown links)
-  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  openExternal: (url) => ipcRenderer.invoke('open-external', { url }),
 
   // Transcript management
   getTranscripts: () => ipcRenderer.invoke('get-transcripts'),
-  saveTranscripts: (transcripts) => ipcRenderer.invoke('save-transcripts', transcripts),
-  saveTranscriptToAnalysis: (transcriptData) => ipcRenderer.invoke('save-transcript-to-analysis', transcriptData),
+  saveTranscripts: (transcripts) => ipcRenderer.invoke('save-transcripts', { transcripts }),
+  saveTranscriptToAnalysis: (transcriptData) => ipcRenderer.invoke('save-transcript-to-analysis', { transcriptData }),
   updateTranscript: (transcriptId, updates) => ipcRenderer.invoke('update-transcript', transcriptId, updates),
-  deleteTranscript: (transcriptId) => ipcRenderer.invoke('delete-transcript', transcriptId),
-  toggleStarTranscript: (transcriptId) => ipcRenderer.invoke('toggle-star-transcript', transcriptId),
+  deleteTranscript: (transcriptId) => ipcRenderer.invoke('delete-transcript', { transcriptId }),
+  toggleStarTranscript: (transcriptId) => ipcRenderer.invoke('toggle-star-transcript', { transcriptId }),
   generateTranscriptName: (transcriptText, apiKey) => ipcRenderer.invoke('generate-transcript-name', transcriptText, apiKey),
 
   // Chat management
   getChatHistory: () => ipcRenderer.invoke('get-chat-history'),
-  saveChatHistory: (chatHistory) => ipcRenderer.invoke('save-chat-history', chatHistory),
+  saveChatHistory: (chatHistory) => ipcRenderer.invoke('save-chat-history', { chatHistory }),
 
   // Streaming chat with Agents SDK
   chatWithAIStream: (messages, systemPrompt, contextIds, searchAllTranscripts = false) => {
@@ -91,7 +91,7 @@ contextBridge.exposeInMainWorld('electron', {
   },
 
   // Vector store bulk upload
-  bulkUploadTranscripts: (options) => ipcRenderer.invoke('bulk-upload-transcripts', options),
+  bulkUploadTranscripts: (options) => ipcRenderer.invoke('bulk-upload-transcripts', { options }),
   retryFailedUploads: () => ipcRenderer.invoke('retry-failed-uploads'),
   getUploadStatus: () => ipcRenderer.invoke('get-upload-status'),
 });

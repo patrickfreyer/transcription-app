@@ -7,6 +7,12 @@ const { ipcMain } = require('electron');
 const keytar = require('keytar');
 const ChatService = require('../services/ChatService');
 const { createLogger } = require('../utils/logger');
+const { validateIpcHandler, validateIpcListener, multiArgSchema } = require('../utils/ipcValidation');
+const {
+  chatWithAiStreamSchema,
+  saveChatHistorySchema,
+  clearChatHistorySchema
+} = require('../schemas/chat.schemas');
 
 const logger = createLogger('ChatHandlers');
 const chatService = new ChatService();
@@ -33,83 +39,92 @@ function registerChatHandlers() {
   logger.info('Registering chat IPC handlers');
 
   // Chat with AI using Agents SDK with streaming
-  ipcMain.on('chat-with-ai-stream', async (event, messages, systemPrompt, contextIds, searchAllTranscripts = false) => {
-    logger.info('=== CHAT STREAM REQUEST RECEIVED ===');
+  ipcMain.on('chat-with-ai-stream', validateIpcListener(
+    multiArgSchema(
+      chatWithAiStreamSchema.shape.messages,
+      chatWithAiStreamSchema.shape.systemPrompt.optional().nullable(),
+      chatWithAiStreamSchema.shape.contextIds.optional(),
+      chatWithAiStreamSchema.shape.searchAllTranscripts.default(false)
+    ),
+    async (event, messages, systemPrompt, contextIds, searchAllTranscripts = false) => {
+      logger.info('=== CHAT STREAM REQUEST RECEIVED ===');
 
-    try {
-      // Get API key
-      logger.info('Getting API key...');
-      const apiKey = await getApiKey();
-      logger.info('API key retrieved');
+      try {
+        // Get API key
+        logger.info('Getting API key...');
+        const apiKey = await getApiKey();
+        logger.info('API key retrieved');
 
-      // Extract user message (last message in array)
-      const userMessage = messages[messages.length - 1]?.content || '';
+        // Extract user message (last message in array)
+        const userMessage = messages[messages.length - 1]?.content || '';
 
-      // Extract transcript ID (first context ID or from messages)
-      const transcriptId = contextIds && contextIds.length > 0 ? contextIds[0] : null;
+        // Extract transcript ID (first context ID or from messages)
+        const transcriptId = contextIds && contextIds.length > 0 ? contextIds[0] : null;
 
-      logger.info(`Transcript ID: ${transcriptId}`);
-      logger.info(`Context IDs: ${JSON.stringify(contextIds)}`);
-      logger.info(`Search All Transcripts (RAG): ${searchAllTranscripts}`);
-      logger.info(`User message: ${userMessage.substring(0, 100)}...`);
+        logger.info(`Transcript ID: ${transcriptId}`);
+        logger.info(`Context IDs: ${JSON.stringify(contextIds)}`);
+        logger.info(`Search All Transcripts (RAG): ${searchAllTranscripts}`);
+        logger.info(`User message: ${userMessage.substring(0, 100)}...`);
 
-      if (!transcriptId && !searchAllTranscripts) {
-        logger.error('No transcript selected');
-        event.sender.send('chat-stream-error', {
-          error: 'No transcript selected'
-        });
-        return;
-      }
-
-      // Message history (exclude the current message)
-      const messageHistory = messages.slice(0, -1);
-      logger.info(`Message history length: ${messageHistory.length}`);
-
-      logger.info(`Calling ChatService.sendMessage with streaming (${searchAllTranscripts ? 'RAG mode' : 'Direct mode'})...`);
-
-      let tokensSent = 0;
-
-      // Call ChatService with streaming callback
-      const result = await chatService.sendMessage({
-        apiKey,
-        transcriptId,
-        userMessage,
-        messageHistory,
-        contextIds: contextIds || [transcriptId],
-        searchAllTranscripts,
-        onToken: (token) => {
-          tokensSent++;
-          logger.info(`Sending token #${tokensSent} to renderer: "${token.substring(0, 20)}..."`);
-          // Send each token to the renderer
-          event.sender.send('chat-stream-token', { token });
+        if (!transcriptId && !searchAllTranscripts) {
+          logger.error('No transcript selected');
+          event.sender.send('chat-stream-error', {
+            error: 'No transcript selected'
+          });
+          return;
         }
-      });
 
-      logger.info(`ChatService.sendMessage completed. Success: ${result.success}, Tokens sent: ${tokensSent}`);
+        // Message history (exclude the current message)
+        const messageHistory = messages.slice(0, -1);
+        logger.info(`Message history length: ${messageHistory.length}`);
 
-      if (result.success) {
-        logger.success(`Chat response completed. Total tokens sent: ${tokensSent}`);
-        event.sender.send('chat-stream-complete', {
-          message: result.message,
-          metadata: result.metadata
+        logger.info(`Calling ChatService.sendMessage with streaming (${searchAllTranscripts ? 'RAG mode' : 'Direct mode'})...`);
+
+        let tokensSent = 0;
+
+        // Call ChatService with streaming callback
+        const result = await chatService.sendMessage({
+          apiKey,
+          transcriptId,
+          userMessage,
+          messageHistory,
+          contextIds: contextIds || [transcriptId],
+          searchAllTranscripts,
+          onToken: (token) => {
+            tokensSent++;
+            logger.info(`Sending token #${tokensSent} to renderer: "${token.substring(0, 20)}..."`);
+            // Send each token to the renderer
+            event.sender.send('chat-stream-token', { token });
+          }
         });
-      } else {
-        logger.error(`Chat error: ${result.error}`);
+
+        logger.info(`ChatService.sendMessage completed. Success: ${result.success}, Tokens sent: ${tokensSent}`);
+
+        if (result.success) {
+          logger.success(`Chat response completed. Total tokens sent: ${tokensSent}`);
+          event.sender.send('chat-stream-complete', {
+            message: result.message,
+            metadata: result.metadata
+          });
+        } else {
+          logger.error(`Chat error: ${result.error}`);
+          event.sender.send('chat-stream-error', {
+            error: result.error
+          });
+        }
+
+      } catch (error) {
+        logger.error('Chat stream exception:', error);
+        logger.error('Stack trace:', error.stack);
         event.sender.send('chat-stream-error', {
-          error: result.error
+          error: error.message || 'Failed to get response from AI'
         });
       }
 
-    } catch (error) {
-      logger.error('Chat stream exception:', error);
-      logger.error('Stack trace:', error.stack);
-      event.sender.send('chat-stream-error', {
-        error: error.message || 'Failed to get response from AI'
-      });
-    }
-
-    logger.info('=== CHAT STREAM REQUEST COMPLETED ===');
-  });
+      logger.info('=== CHAT STREAM REQUEST COMPLETED ===');
+    },
+    { name: 'chat-with-ai-stream' }
+  ));
 
   // Get chat history
   ipcMain.handle('get-chat-history', async () => {
@@ -125,29 +140,37 @@ function registerChatHandlers() {
   });
 
   // Save chat history
-  ipcMain.handle('save-chat-history', async (event, chatHistory) => {
-    try {
-      chatService.storage.saveChatHistory(chatHistory);
-      const chatCount = Object.keys(chatHistory).length;
-      logger.success(`Saved chat history for ${chatCount} transcript(s)`);
-      return { success: true };
-    } catch (error) {
-      logger.error('Error saving chat history:', error);
-      return { success: false, error: error.message };
-    }
-  });
+  ipcMain.handle('save-chat-history', validateIpcHandler(
+    saveChatHistorySchema,
+    async (event, { chatHistory }) => {
+      try {
+        chatService.storage.saveChatHistory(chatHistory);
+        const chatCount = Object.keys(chatHistory).length;
+        logger.success(`Saved chat history for ${chatCount} transcript(s)`);
+        return { success: true };
+      } catch (error) {
+        logger.error('Error saving chat history:', error);
+        return { success: false, error: error.message };
+      }
+    },
+    { name: 'save-chat-history' }
+  ));
 
   // Clear chat history for a transcript
-  ipcMain.handle('clear-chat-history', async (event, transcriptId) => {
-    try {
-      chatService.clearChatHistory(transcriptId);
-      logger.info(`Cleared chat history: ${transcriptId}`);
-      return { success: true };
-    } catch (error) {
-      logger.error('Error clearing chat history:', error);
-      return { success: false, error: error.message };
-    }
-  });
+  ipcMain.handle('clear-chat-history', validateIpcHandler(
+    clearChatHistorySchema,
+    async (event, { transcriptId }) => {
+      try {
+        chatService.clearChatHistory(transcriptId);
+        logger.info(`Cleared chat history: ${transcriptId}`);
+        return { success: true };
+      } catch (error) {
+        logger.error('Error clearing chat history:', error);
+        return { success: false, error: error.message };
+      }
+    },
+    { name: 'clear-chat-history' }
+  ));
 
   logger.success('Chat IPC handlers registered');
 }
