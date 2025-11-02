@@ -100,6 +100,14 @@ function TranscriptView() {
     return t; // Legacy transcripts already have content
   });
 
+  // Parse VTT segments for all transcripts (must be at top level, not in .map())
+  const parsedSegments = useMemo(() => {
+    return displayTranscriptsWithContent.reduce((acc, transcript) => {
+      acc[transcript.id] = parseVTT(transcript.vttTranscript);
+      return acc;
+    }, {});
+  }, [displayTranscriptsWithContent.map(t => t.id + t.vttTranscript).join(',')]);
+
   if (displayTranscriptsWithContent.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -131,11 +139,8 @@ function TranscriptView() {
       )}
       <div className="max-w-4xl mx-auto space-y-8">
         {displayTranscriptsWithContent.map((transcript, index) => {
-          // Parse VTT if available
-          const vttSegments = useMemo(() =>
-            parseVTT(transcript.vttTranscript),
-            [transcript.vttTranscript]
-          );
+          // Get pre-parsed VTT segments for this transcript
+          const vttSegments = parsedSegments[transcript.id];
 
           return (
             <div key={transcript.id} className="space-y-4">
