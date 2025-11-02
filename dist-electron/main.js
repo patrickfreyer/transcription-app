@@ -132,6 +132,44 @@ function createWindow() {
     // Remove frame on Windows (using custom title bar)
     backgroundColor: "#ffffff"
   });
+  const isDev = !!process.env.VITE_DEV_SERVER_URL;
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    const cspRules = isDev ? [
+      // Development: Allow Vite inline scripts and hot reload
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      // Vite needs inline + eval
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data:",
+      "connect-src 'self' https://api.openai.com ws://localhost:* ws://127.0.0.1:*",
+      // WebSocket for HMR
+      "font-src 'self'",
+      "media-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'none'"
+    ] : [
+      // Production: Strict CSP
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self' 'unsafe-inline'",
+      // React inline styles
+      "img-src 'self' data:",
+      "connect-src 'self' https://api.openai.com",
+      "font-src 'self'",
+      "media-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'none'",
+      "frame-ancestors 'none'"
+    ];
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": cspRules.join("; ")
+      }
+    });
+  });
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {

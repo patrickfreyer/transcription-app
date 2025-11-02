@@ -9,6 +9,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const { app } = require('electron');
 const { compressVTT, decompressVTT, vttToPlainText } = require('./transcriptCompression');
+const transcriptCache = require('./transcriptCache');
 const { createLogger } = require('./logger');
 
 const logger = createLogger('TranscriptStorage');
@@ -68,6 +69,9 @@ class TranscriptStorageManager {
       const compressedSize = compressed.length;
       const savings = ((1 - compressedSize / originalSize) * 100).toFixed(1);
 
+      // Invalidate cache (content changed)
+      transcriptCache.invalidate(transcriptId);
+
       logger.info(`Saved compressed VTT: ${transcriptId}`);
       logger.info(`  Size: ${(originalSize / 1024 / 1024).toFixed(2)} MB → ${(compressedSize / 1024 / 1024).toFixed(2)} MB (${savings}% savings)`);
 
@@ -85,7 +89,7 @@ class TranscriptStorageManager {
   }
 
   /**
-   * Load and decompress VTT file from disk
+   * Load and decompress VTT file from disk (with caching)
    * @param {string} transcriptId - Transcript ID
    * @returns {Promise<string>} Decompressed VTT content
    */
@@ -94,6 +98,13 @@ class TranscriptStorageManager {
       throw new Error('Missing transcriptId');
     }
 
+    // Check cache first
+    const cached = transcriptCache.get(transcriptId);
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    // Cache miss - load from disk
     try {
       const filePath = this.getTranscriptFilePath(transcriptId);
 
@@ -110,6 +121,9 @@ class TranscriptStorageManager {
 
       // Decompress
       const vttContent = await decompressVTT(compressed);
+
+      // Store in cache for next time
+      transcriptCache.set(transcriptId, vttContent);
 
       logger.debug(`Loaded VTT for ${transcriptId}: ${(compressed.length / 1024).toFixed(2)} KB compressed`);
 
@@ -155,11 +169,17 @@ class TranscriptStorageManager {
         await fs.access(filePath);
       } catch {
         logger.debug(`VTT file not found for ${transcriptId}, nothing to delete`);
+        // Still invalidate cache in case it's there
+        transcriptCache.invalidate(transcriptId);
         return true;
       }
 
       // Delete file
       await fs.unlink(filePath);
+
+      // Invalidate cache
+      transcriptCache.invalidate(transcriptId);
+
       logger.info(`Deleted VTT file for ${transcriptId}`);
 
       return true;
@@ -185,7 +205,7 @@ class TranscriptStorageManager {
   }
 
   /**
-   * Get storage statistics
+   * Get storage statistics (including cache stats)
    * @returns {Promise<Object>} Storage stats
    */
   async getStats() {
@@ -201,11 +221,15 @@ class TranscriptStorageManager {
         totalSize += stats.size;
       }
 
+      // Include cache statistics
+      const cacheStats = transcriptCache.getStats();
+
       return {
         transcriptCount: vttFiles.length,
         totalSize,
         totalSizeMB: (totalSize / 1024 / 1024).toFixed(2),
-        directory: this.transcriptsDir
+        directory: this.transcriptsDir,
+        cache: cacheStats
       };
     } catch (error) {
       logger.error('Failed to get storage stats:', error);
@@ -217,6 +241,22 @@ class TranscriptStorageManager {
         error: error.message
       };
     }
+  }
+
+  /**
+   * Get cache instance (for manual cache management if needed)
+   * @returns {TranscriptCache} Cache instance
+   */
+  getCache() {
+    return transcriptCache;
+  }
+
+  /**
+   * Clear all cached transcripts
+   */
+  clearCache() {
+    transcriptCache.clear();
+    logger.info('Transcript cache cleared');
   }
 }
 

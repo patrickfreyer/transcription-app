@@ -1,15 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../../context/AppContext';
 
 function SearchBar() {
   const { searchQuery, setSearchQuery } = useApp();
   const [localQuery, setLocalQuery] = useState('');
+  const debounceTimerRef = useRef(null);
+
+  // Debounced search - updates searchQuery 300ms after user stops typing
+  useEffect(() => {
+    // Clear previous timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Set new timer
+    debounceTimerRef.current = setTimeout(() => {
+      setSearchQuery(localQuery);
+    }, 300);
+
+    // Cleanup on unmount
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [localQuery, setSearchQuery]);
 
   const handleSearch = () => {
+    // Immediate search (skip debounce)
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
     setSearchQuery(localQuery);
   };
 
   const handleClear = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
     setLocalQuery('');
     setSearchQuery('');
   };
