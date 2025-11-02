@@ -4,6 +4,8 @@
 
 const StorageService = require('./StorageService');
 const VectorStoreService = require('./VectorStoreService');
+const transcriptStorage = require('../utils/transcriptStorage');
+const { vttToPlainText } = require('../utils/transcriptCompression');
 const { estimateTokens } = require('../utils/tokenCounter');
 const { createLogger } = require('../utils/logger');
 
@@ -23,11 +25,31 @@ class TranscriptService {
    * @returns {Object} Saved transcript with ID
    */
   async saveFromRecording(transcriptData, apiKey = null) {
+    const transcriptId = `transcript-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Save VTT to compressed file on disk
+    const vttContent = transcriptData.vttTranscript || transcriptData.rawTranscript || '';
+    let vttFilePath = null;
+
+    try {
+      if (vttContent) {
+        const saveResult = await transcriptStorage.saveVTT(transcriptId, vttContent);
+        vttFilePath = saveResult.filePath;
+        logger.info(`Saved compressed VTT: ${saveResult.savings} savings`);
+      }
+    } catch (error) {
+      logger.error('Failed to save VTT file:', error);
+      // Continue without compressed file (fall back to old behavior)
+    }
+
+    // Extract plain text for token estimation
+    const plainText = vttContent ? vttToPlainText(vttContent) : '';
+
+    // Store ONLY metadata in electron-store (no more huge rawTranscript/vttTranscript!)
     const transcript = {
-      id: `transcript-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: transcriptId,
       fileName: transcriptData.fileName || 'Untitled',
-      rawTranscript: transcriptData.rawTranscript || '',
-      vttTranscript: transcriptData.vttTranscript || '',
+      // NO MORE: rawTranscript and vttTranscript - they're on disk now!
       summary: transcriptData.summary || null,
       summaryTemplate: transcriptData.summaryTemplate || null,
       model: transcriptData.model || 'unknown',
@@ -37,19 +59,20 @@ class TranscriptService {
       fileSize: transcriptData.fileSize || null,
       starred: false,
       tags: [],
-      tokens: estimateTokens(transcriptData.rawTranscript || ''),
-      vectorStoreFileId: null,        // NEW - OpenAI file ID
-      vectorStoreStatus: 'pending',   // NEW - upload status
+      tokens: estimateTokens(plainText),
+      hasVTTFile: !!vttFilePath,  // NEW - flag if we have compressed file
+      vectorStoreFileId: null,
+      vectorStoreStatus: 'pending',
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
 
-    // Save to local storage first (immediate)
+    // Save to local storage (now much smaller!)
     const transcripts = this.storage.getTranscripts();
     transcripts.unshift(transcript); // Add to beginning
-    this.storage.saveTranscripts(transcripts);
+    await this.storage.saveTranscripts(transcripts);
 
-    logger.success(`Saved transcript: ${transcript.fileName} (${transcript.tokens} tokens)`);
+    logger.success(`Saved transcript metadata: ${transcript.fileName} (${transcript.tokens} tokens)`);
 
     // Vector store upload disabled (RAG mode disabled)
     // if (apiKey) {
@@ -101,10 +124,65 @@ class TranscriptService {
 
   /**
    * Get all transcripts
-   * @returns {Array} All transcripts
+   * @returns {Array} All transcripts (metadata only)
    */
   getAll() {
     return this.storage.getTranscripts();
+  }
+
+  /**
+   * Get VTT content for a transcript (loads from compressed file)
+   * @param {string} transcriptId - Transcript ID
+   * @returns {Promise<string|null>} VTT content or null
+   */
+  async getVTT(transcriptId) {
+    try {
+      return await transcriptStorage.loadVTT(transcriptId);
+    } catch (error) {
+      logger.error(`Failed to load VTT for ${transcriptId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get plain text content for a transcript (extracts from VTT)
+   * @param {string} transcriptId - Transcript ID
+   * @returns {Promise<string|null>} Plain text or null
+   */
+  async getPlainText(transcriptId) {
+    try {
+      return await transcriptStorage.loadPlainText(transcriptId);
+    } catch (error) {
+      logger.error(`Failed to load plain text for ${transcriptId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get transcript with full content (metadata + VTT + plain text)
+   * Use this when you need the complete transcript data
+   * @param {string} transcriptId - Transcript ID
+   * @returns {Promise<Object|null>} Complete transcript object
+   */
+  async getWithContent(transcriptId) {
+    const metadata = this.getById(transcriptId);
+    if (!metadata) return null;
+
+    try {
+      const [vttContent, plainText] = await Promise.all([
+        this.getVTT(transcriptId),
+        this.getPlainText(transcriptId)
+      ]);
+
+      return {
+        ...metadata,
+        vttTranscript: vttContent,
+        rawTranscript: plainText
+      };
+    } catch (error) {
+      logger.error(`Failed to load full content for ${transcriptId}:`, error);
+      return metadata; // Return metadata only if content load fails
+    }
   }
 
   /**
@@ -171,6 +249,15 @@ class TranscriptService {
       return false;
     }
 
+    // Delete compressed VTT file from disk
+    try {
+      await transcriptStorage.deleteVTT(transcriptId);
+      logger.info(`Deleted VTT file for: ${transcriptId}`);
+    } catch (error) {
+      logger.error(`Failed to delete VTT file for ${transcriptId}:`, error);
+      // Continue with metadata deletion even if file delete fails
+    }
+
     // Delete from vector store if exists (async, non-blocking)
     if (transcript.vectorStoreFileId) {
       this.vectorStoreService.deleteTranscript(transcript.vectorStoreFileId).catch(error => {
@@ -178,15 +265,15 @@ class TranscriptService {
       });
     }
 
-    // Delete from local storage
+    // Delete from local storage (metadata)
     const filtered = transcripts.filter(t => t.id !== transcriptId);
-    this.storage.saveTranscripts(filtered);
+    await this.storage.saveTranscripts(filtered);
 
     // Also delete associated chat history
     const chatHistory = this.storage.getChatHistory();
     if (chatHistory[transcriptId]) {
       delete chatHistory[transcriptId];
-      this.storage.saveChatHistory(chatHistory);
+      await this.storage.saveChatHistory(chatHistory);
     }
 
     logger.success(`Deleted transcript: ${transcriptId}`);
@@ -224,7 +311,8 @@ class TranscriptService {
   }
 
   /**
-   * Search transcripts
+   * Search transcripts (metadata only - filename and summary)
+   * Note: Does NOT search transcript content since it's stored compressed on disk
    * @param {string} query - Search query
    * @returns {Array} Matching transcripts
    */
@@ -238,9 +326,16 @@ class TranscriptService {
 
     return transcripts.filter(t =>
       t.fileName.toLowerCase().includes(lowerQuery) ||
-      t.rawTranscript.toLowerCase().includes(lowerQuery) ||
       (t.summary && t.summary.toLowerCase().includes(lowerQuery))
     );
+  }
+
+  /**
+   * Get storage statistics
+   * @returns {Promise<Object>} Storage stats
+   */
+  async getStorageStats() {
+    return await transcriptStorage.getStats();
   }
 }
 

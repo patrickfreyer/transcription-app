@@ -24,9 +24,15 @@ const transcriptSchema = z.object({
 
   fileName: fileNameSchema,
 
-  rawTranscript: z.string(),
+  // These fields are optional now - new transcripts store content in compressed files
+  rawTranscript: z.string()
+    .optional(),
 
   vttTranscript: z.string()
+    .optional(),
+
+  // Compressed storage flag
+  hasVTTFile: z.boolean()
     .optional(),
 
   summary: z.string()
@@ -86,10 +92,10 @@ const saveTranscriptsSchema = z.object({
  * Input: Transcript data from recording tab
  */
 const saveTranscriptToAnalysisSchema = z.object({
-  text: z.string()
-    .min(1, 'Transcript text required'),
+  rawTranscript: z.string()
+    .min(1, 'Raw transcript required'),
 
-  transcript: z.string(),
+  vttTranscript: z.string(),
 
   fileName: fileNameSchema,
 
@@ -100,26 +106,27 @@ const saveTranscriptToAnalysisSchema = z.object({
   model: transcriptModelSchema,
 
   isDiarized: z.boolean()
-    .default(false),
+    .default(false)
+    .optional(),
+
+  fileSize: z.number()
+    .nullable()
+    .optional(),
+
+  timestamp: timestampSchema
+    .optional(),
 
   summary: z.string()
-    .max(50000, 'Summary too long (max 50KB)')
-    .optional(),
+    .optional()
+    .nullable(),
 
   summaryTemplate: z.string()
-    .max(500)
-    .optional(),
-
-  chunked: z.boolean()
-    .optional(),
-
-  totalChunks: z.number()
-    .int()
-    .min(0)
-    .optional(),
+    .optional()
+    .nullable(),
 
   warning: z.string()
-    .optional(),
+    .optional()
+    .nullable(),
 
   failedChunks: z.array(z.object({
     index: z.number().int(),
@@ -127,6 +134,7 @@ const saveTranscriptToAnalysisSchema = z.object({
     error: z.string()
   }))
     .optional()
+    .nullable()
 });
 
 /**

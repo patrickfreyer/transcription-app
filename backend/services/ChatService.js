@@ -148,17 +148,31 @@ Guidelines:
         throw new Error('Direct mode agent not initialized');
       }
 
-      // Get context transcripts
-      const transcripts = contextIds.length > 0
+      // Get context transcripts (metadata only)
+      const transcriptMetadata = contextIds.length > 0
         ? this.transcriptService.getByIds(contextIds)
         : [this.transcriptService.getById(transcriptId)].filter(Boolean);
 
-      if (!transcripts || transcripts.length === 0) {
+      if (!transcriptMetadata || transcriptMetadata.length === 0) {
         throw new Error('No transcripts found for context');
       }
 
-      // No limit on transcript count - dump all into context
-      logger.info(`Processing ${transcripts.length} transcript(s) in direct mode`);
+      logger.info(`Processing ${transcriptMetadata.length} transcript(s) in direct mode`);
+
+      // Load full content for transcripts (decompress if needed)
+      logger.info('Loading transcript content from compressed storage...');
+      const transcripts = await Promise.all(
+        transcriptMetadata.map(async (meta) => {
+          if (meta.hasVTTFile) {
+            // New compressed format - load content on-demand
+            return await this.transcriptService.getWithContent(meta.id);
+          } else {
+            // Legacy format - content already in metadata
+            return meta;
+          }
+        })
+      );
+      logger.info(`✓ Loaded content for ${transcripts.length} transcript(s)`);
 
       // Run guardrails
       const context = {

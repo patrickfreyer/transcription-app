@@ -61,7 +61,7 @@ contextBridge.exposeInMainWorld('electron', {
   // Transcript management
   getTranscripts: () => ipcRenderer.invoke('get-transcripts'),
   saveTranscripts: (transcripts) => ipcRenderer.invoke('save-transcripts', { transcripts }),
-  saveTranscriptToAnalysis: (transcriptData) => ipcRenderer.invoke('save-transcript-to-analysis', { transcriptData }),
+  saveTranscriptToAnalysis: (transcriptData) => ipcRenderer.invoke('save-transcript-to-analysis', transcriptData),
   updateTranscript: (transcriptId, updates) => ipcRenderer.invoke('update-transcript', transcriptId, updates),
   deleteTranscript: (transcriptId) => ipcRenderer.invoke('delete-transcript', { transcriptId }),
   toggleStarTranscript: (transcriptId) => ipcRenderer.invoke('toggle-star-transcript', { transcriptId }),
@@ -94,4 +94,11 @@ contextBridge.exposeInMainWorld('electron', {
   bulkUploadTranscripts: (options) => ipcRenderer.invoke('bulk-upload-transcripts', { options }),
   retryFailedUploads: () => ipcRenderer.invoke('retry-failed-uploads'),
   getUploadStatus: () => ipcRenderer.invoke('get-upload-status'),
+
+  // NEW: Compressed storage APIs
+  getTranscriptVTT: (transcriptId) => ipcRenderer.invoke('get-transcript-vtt', transcriptId),
+  getTranscriptText: (transcriptId) => ipcRenderer.invoke('get-transcript-text', transcriptId),
+  getTranscriptWithContent: (transcriptId) => ipcRenderer.invoke('get-transcript-with-content', transcriptId),
+  getStorageStats: () => ipcRenderer.invoke('get-storage-stats'),
+  migrateTranscripts: () => ipcRenderer.invoke('migrate-transcripts'),
 });

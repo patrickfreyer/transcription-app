@@ -265,6 +265,64 @@ function registerTranscriptHandlers() {
     }
   });
 
+  // NEW: Get VTT content for a transcript
+  ipcMain.handle('get-transcript-vtt', async (event, transcriptId) => {
+    try {
+      const vttContent = await transcriptService.getVTT(transcriptId);
+      return { success: true, vttContent };
+    } catch (error) {
+      logger.error(`Get VTT error for ${transcriptId}:`, error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // NEW: Get plain text for a transcript
+  ipcMain.handle('get-transcript-text', async (event, transcriptId) => {
+    try {
+      const plainText = await transcriptService.getPlainText(transcriptId);
+      return { success: true, plainText };
+    } catch (error) {
+      logger.error(`Get plain text error for ${transcriptId}:`, error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // NEW: Get full transcript with content
+  ipcMain.handle('get-transcript-with-content', async (event, transcriptId) => {
+    try {
+      const transcript = await transcriptService.getWithContent(transcriptId);
+      return { success: true, transcript };
+    } catch (error) {
+      logger.error(`Get transcript with content error for ${transcriptId}:`, error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // NEW: Get storage statistics
+  ipcMain.handle('get-storage-stats', async () => {
+    try {
+      const stats = await transcriptService.getStorageStats();
+      return { success: true, stats };
+    } catch (error) {
+      logger.error('Get storage stats error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // NEW: Migrate transcripts to compressed storage
+  ipcMain.handle('migrate-transcripts', async () => {
+    try {
+      logger.info('Starting transcript migration to compressed storage...');
+      const { migrate } = require('../../migrate-to-compressed-storage');
+      const result = await migrate();
+      logger.success(`Migration complete: ${result.migrated} migrated, ${result.skipped} skipped, ${result.failed} failed`);
+      return { success: true, result };
+    } catch (error) {
+      logger.error('Migration error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   logger.success('Transcript IPC handlers registered');
 }
 

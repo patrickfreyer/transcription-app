@@ -20,8 +20,8 @@ function TranscriptList() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(t =>
         t.fileName.toLowerCase().includes(query) ||
-        t.rawTranscript.toLowerCase().includes(query) ||
-        (t.summary && t.summary.toLowerCase().includes(query))
+        (t.summary && t.summary.toLowerCase().includes(query)) ||
+        (t.rawTranscript && t.rawTranscript.toLowerCase().includes(query)) // Legacy transcripts only
       );
     }
 
