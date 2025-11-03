@@ -475,6 +475,7 @@ ipcMain.handle('transcribe-audio', validateIpcHandler(
     }
 
     let chunkPaths = [];
+    let voiceSampleFiles = null;
     let convertedFilePath = null;
     let optimizedFilePath = null;
     let compressedFilePath = null;
@@ -584,13 +585,16 @@ ipcMain.handle('transcribe-audio', validateIpcHandler(
       }
 
       // Step 5: Transcribe chunks in parallel with controlled concurrency
-      const { results, failedChunks } = await transcriptionService.transcribeChunksParallel(
+      const transcriptionResult = await transcriptionService.transcribeChunksParallel(
         openai,
         chunkPaths,
         chunkDurations,
         { model, prompt, speakers },
         sendProgress
       );
+      const results = transcriptionResult.results;
+      const failedChunks = transcriptionResult.failedChunks;
+      voiceSampleFiles = transcriptionResult.voiceSampleFiles || null;
 
       // Extract transcriptions from results
       const transcripts = results.map(result => result.transcription);
@@ -654,6 +658,9 @@ ipcMain.handle('transcribe-audio', validateIpcHandler(
 
       // Clean up temporary files
       transcriptionService.cleanupChunks(chunkPaths);
+      if (voiceSampleFiles) {
+        transcriptionService.cleanupVoiceSamples(voiceSampleFiles);
+      }
       transcriptionService.cleanupTempFile(convertedFilePath);
       transcriptionService.cleanupTempFile(optimizedFilePath);
       transcriptionService.cleanupTempFile(compressedFilePath);
@@ -741,6 +748,9 @@ ipcMain.handle('transcribe-audio', validateIpcHandler(
   } catch (error) {
     // Clean up on error
     transcriptionService.cleanupChunks(chunkPaths);
+    if (voiceSampleFiles) {
+      transcriptionService.cleanupVoiceSamples(voiceSampleFiles);
+    }
     transcriptionService.cleanupTempFile(convertedFilePath);
     transcriptionService.cleanupTempFile(optimizedFilePath);
     transcriptionService.cleanupTempFile(compressedFilePath);
