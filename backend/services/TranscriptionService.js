@@ -12,6 +12,7 @@ const os = require('os');
 const path = require('path');
 const OpenAI = require('openai');
 const { createLogger } = require('../utils/logger');
+const { validateFilePath } = require('../utils/pathValidator');
 
 const logger = createLogger('TranscriptionService');
 
@@ -36,6 +37,9 @@ class TranscriptionService {
    * Get audio duration using ffprobe
    */
   async getAudioDuration(filePath) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
     return new Promise((resolve, reject) => {
       this.ffmpeg.ffprobe(filePath, (err, metadata) => {
         if (err) {
@@ -54,6 +58,9 @@ class TranscriptionService {
    * @returns {Promise<string>} - Path to optimized file
    */
   async optimizeAudioSpeed(filePath, speedMultiplier = 1.0) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
     if (speedMultiplier <= 1.0 || speedMultiplier > 3.0) {
       return filePath; // No optimization needed
     }
@@ -87,6 +94,9 @@ class TranscriptionService {
    * @returns {Promise<string>} - Path to compressed file
    */
   async compressAudio(filePath) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
     return new Promise((resolve, reject) => {
       const tempDir = os.tmpdir();
       const outputPath = path.join(tempDir, `compressed-${Date.now()}.ogg`);
@@ -115,16 +125,53 @@ class TranscriptionService {
   }
 
   /**
+   * Extract voice sample from audio file for speaker reference
+   * @param {string} filePath - Input audio file path
+   * @param {number} startTime - Start time in seconds
+   * @param {number} duration - Duration of sample in seconds (2-10s recommended)
+   * @returns {Promise<string>} - Path to extracted audio sample
+   */
+  async extractVoiceSample(filePath, startTime, duration) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
+    // Ensure duration is within recommended range (2-10 seconds)
+    duration = Math.min(Math.max(duration, 2), 10);
+
+    return new Promise((resolve, reject) => {
+      const tempDir = os.tmpdir();
+      const outputPath = path.join(tempDir, `voice-sample-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.mp3`);
+
+      logger.debug(`Extracting voice sample: ${startTime}s for ${duration}s`);
+
+      this.ffmpeg(filePath)
+        .setStartTime(startTime)
+        .setDuration(duration)
+        .audioCodec('libmp3lame')
+        .audioBitrate('128k')
+        .output(outputPath)
+        .on('end', () => {
+          logger.debug(`Voice sample extracted: ${outputPath}`);
+          resolve(outputPath);
+        })
+        .on('error', (err) => {
+          logger.error('Voice sample extraction failed:', err.message);
+          reject(new Error(`Voice sample extraction failed: ${err.message}`));
+        })
+        .run();
+    });
+  }
+
+  /**
    * Convert audio to MP3 format
    */
   async convertToMP3(filePath) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
     return new Promise((resolve, reject) => {
       const tempDir = os.tmpdir();
       const outputPath = path.join(tempDir, `converted-${Date.now()}.mp3`);
-
-      if (!fs.existsSync(filePath)) {
-        return reject(new Error(`Input file does not exist: ${filePath}`));
-      }
 
       const stats = fs.statSync(filePath);
       if (stats.size === 0) {
@@ -154,6 +201,9 @@ class TranscriptionService {
    * Split audio into chunks
    */
   async splitAudioIntoChunks(filePath, chunkSizeInMB = 20) {
+    // Validate file path for security
+    filePath = validateFilePath(filePath);
+
     try {
       const stats = fs.statSync(filePath);
       const fileSizeInMB = stats.size / (1024 * 1024);
@@ -219,13 +269,29 @@ class TranscriptionService {
    * Wait until we can make a request (dynamic rate limiting)
    */
   async waitForRateLimit() {
+    const MAX_WAIT_ITERATIONS = 10; // Safety limit to prevent infinite loops
+    let iterations = 0;
+
     while (!this.canMakeRequest()) {
+      iterations++;
+
+      // Safety check: prevent infinite loops
+      if (iterations > MAX_WAIT_ITERATIONS) {
+        logger.error(`Rate limit wait exceeded ${MAX_WAIT_ITERATIONS} iterations, resetting timestamps`);
+        this.requestTimestamps = [];
+        break;
+      }
+
       const oldestRequest = this.requestTimestamps[0];
       const waitTime = oldestRequest + 60000 - Date.now();
 
       if (waitTime > 0) {
-        logger.info(`Rate limit reached, waiting ${Math.ceil(waitTime / 1000)}s...`);
+        logger.info(`Rate limit reached, waiting ${Math.ceil(waitTime / 1000)}s... (iteration ${iterations}/${MAX_WAIT_ITERATIONS})`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
+      } else {
+        // If waitTime is negative, remove the stale timestamp and continue
+        logger.warn(`Stale timestamp detected, removing: ${oldestRequest}`);
+        this.requestTimestamps.shift();
       }
     }
 
@@ -330,14 +396,167 @@ class TranscriptionService {
   }
 
   /**
+   * Transcribe chunks sequentially for diarization (maintains speaker identity)
+   */
+  async transcribeChunksSequential(openai, chunkPaths, chunkDurations, options, onProgress) {
+    const { model, prompt, speakers } = options;
+    const results = new Array(chunkPaths.length);
+    const failedChunks = [];
+    const voiceSampleFiles = []; // Track files for cleanup
+
+    // Build speaker reference map (speaker name → voice sample path)
+    let speakerReferences = new Map();
+
+    // Initialize with user-provided speaker references (if any)
+    if (speakers && speakers.length > 0) {
+      for (const speaker of speakers) {
+        speakerReferences.set(speaker.name, speaker.path);
+      }
+    }
+
+    // Process chunks one at a time
+    for (let chunkIndex = 0; chunkIndex < chunkPaths.length; chunkIndex++) {
+      const chunkPath = chunkPaths[chunkIndex];
+
+      // Update options with current speaker references
+      const chunkOptions = {
+        ...options,
+        speakers: Array.from(speakerReferences.entries()).map(([name, path]) => ({ name, path }))
+      };
+
+      // Transcribe chunk
+      const result = await this.transcribeChunkWithRetry(
+        openai,
+        chunkPath,
+        chunkIndex,
+        chunkPaths.length,
+        chunkOptions,
+        onProgress
+      );
+
+      // Store result
+      if (result.success) {
+        results[chunkIndex] = result;
+
+        // Extract voice samples from this chunk for next chunk (if not last chunk)
+        if (chunkIndex < chunkPaths.length - 1 && result.transcription.segments) {
+          try {
+            const newSamples = await this.extractSpeakerSamples(
+              chunkPath,
+              result.transcription.segments,
+              speakerReferences
+            );
+
+            // Add new voice samples to cleanup list
+            voiceSampleFiles.push(...newSamples.map(s => s.path));
+
+            // Update speaker references for next chunk
+            for (const sample of newSamples) {
+              speakerReferences.set(sample.name, sample.path);
+            }
+
+            logger.info(`Extracted ${newSamples.length} speaker samples from chunk ${chunkIndex + 1}`);
+          } catch (error) {
+            logger.warn(`Failed to extract speaker samples from chunk ${chunkIndex + 1}:`, error.message);
+            // Continue without voice samples
+          }
+        }
+      } else {
+        failedChunks.push({
+          index: chunkIndex + 1,
+          error: result.error,
+          duration: chunkDurations[chunkIndex] || 0
+        });
+        // Store empty transcription for failed chunks
+        results[chunkIndex] = {
+          success: false,
+          transcription: { segments: [] }
+        };
+      }
+
+      logger.info(`Completed chunk ${chunkIndex + 1} of ${chunkPaths.length} (sequential diarization)`);
+    }
+
+    // Store voice sample files for cleanup
+    results.voiceSampleFiles = voiceSampleFiles;
+
+    return { results, failedChunks };
+  }
+
+  /**
+   * Extract voice samples from transcription segments
+   * Returns samples for speakers not already in the reference map
+   */
+  async extractSpeakerSamples(chunkPath, segments, existingSpeakers) {
+    const samples = [];
+    const speakerSegments = new Map(); // speaker → segments
+
+    // Group segments by speaker
+    for (const segment of segments) {
+      if (!segment.speaker) continue;
+
+      if (!speakerSegments.has(segment.speaker)) {
+        speakerSegments.set(segment.speaker, []);
+      }
+      speakerSegments.get(segment.speaker).push(segment);
+    }
+
+    // Extract sample for each speaker (if not already have a reference)
+    for (const [speaker, segs] of speakerSegments.entries()) {
+      // Skip if we already have a reference for this speaker
+      if (existingSpeakers.has(speaker)) {
+        continue;
+      }
+
+      // Find longest contiguous segment (best quality sample)
+      let longestSegment = segs[0];
+      for (const seg of segs) {
+        const duration = seg.end - seg.start;
+        const longestDuration = longestSegment.end - longestSegment.start;
+        if (duration > longestDuration) {
+          longestSegment = seg;
+        }
+      }
+
+      // Extract voice sample (aim for 5 seconds, max 10)
+      const segDuration = longestSegment.end - longestSegment.start;
+      const sampleDuration = Math.min(segDuration, 5);
+
+      try {
+        const samplePath = await this.extractVoiceSample(
+          chunkPath,
+          longestSegment.start,
+          sampleDuration
+        );
+
+        samples.push({
+          name: speaker,
+          path: samplePath
+        });
+      } catch (error) {
+        logger.warn(`Failed to extract sample for speaker ${speaker}:`, error.message);
+      }
+    }
+
+    return samples;
+  }
+
+  /**
    * Transcribe chunks in parallel with controlled concurrency
+   * For diarization models, processes sequentially to maintain speaker identity
    */
   async transcribeChunksParallel(openai, chunkPaths, chunkDurations, options, onProgress) {
     const { model, prompt } = options;
     const results = new Array(chunkPaths.length);
     const failedChunks = [];
 
-    // Process chunks in batches to control concurrency
+    // For diarization, use sequential processing with speaker references
+    if (model === 'gpt-4o-transcribe-diarize') {
+      logger.info('Using sequential processing for diarization to maintain speaker identity');
+      return this.transcribeChunksSequential(openai, chunkPaths, chunkDurations, options, onProgress);
+    }
+
+    // Process chunks in batches to control concurrency (for non-diarization models)
     for (let i = 0; i < chunkPaths.length; i += this.MAX_CONCURRENT_CHUNKS) {
       const batch = chunkPaths.slice(i, i + this.MAX_CONCURRENT_CHUNKS);
       const batchPromises = batch.map((chunkPath, batchIndex) => {
@@ -616,6 +835,24 @@ class TranscriptionService {
       }
     } catch (error) {
       logger.error('Error cleaning up chunks:', error);
+    }
+  }
+
+  /**
+   * Clean up voice sample files
+   */
+  cleanupVoiceSamples(voiceSamplePaths) {
+    try {
+      if (voiceSamplePaths && Array.isArray(voiceSamplePaths)) {
+        voiceSamplePaths.forEach(samplePath => {
+          if (fs.existsSync(samplePath)) {
+            fs.unlinkSync(samplePath);
+          }
+        });
+        logger.debug(`Cleaned up ${voiceSamplePaths.length} voice sample files`);
+      }
+    } catch (error) {
+      logger.error('Error cleaning up voice samples:', error);
     }
   }
 

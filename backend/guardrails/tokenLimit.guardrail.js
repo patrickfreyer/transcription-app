@@ -5,7 +5,7 @@
 
 const { estimateTotalTokens } = require('../utils/tokenCounter');
 
-const SAFE_LIMIT = 100000; // 100k tokens
+const SAFE_LIMIT = Infinity; // No limit
 
 /**
  * Validate token limit for input
@@ -14,7 +14,7 @@ const SAFE_LIMIT = 100000; // 100k tokens
  * @returns {Object} Validation result
  */
 function validate(input, context) {
-  // Calculate tokens from transcripts
+  // Calculate tokens from transcripts (for logging only)
   const transcriptTokens = context.transcripts
     ? context.transcripts.reduce((sum, t) => sum + (t.tokens || 0), 0)
     : 0;
@@ -25,15 +25,7 @@ function validate(input, context) {
   // Add buffer for response (estimate 2000 tokens)
   const totalEstimated = transcriptTokens + inputTokens + 2000;
 
-  if (totalEstimated > SAFE_LIMIT) {
-    return {
-      valid: false,
-      message: `Token limit exceeded: ${totalEstimated.toLocaleString()} tokens estimated (limit: ${SAFE_LIMIT.toLocaleString()}). Please reduce the number of selected transcripts or shorten your query.`,
-      estimatedTokens: totalEstimated,
-      limit: SAFE_LIMIT
-    };
-  }
-
+  // Token limit disabled - always return valid
   return {
     valid: true,
     estimatedTokens: totalEstimated,

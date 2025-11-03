@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import ModeSwitcher from './ModeSwitcher';
 import DropZone from './DropZone';
@@ -71,6 +71,38 @@ function RecordingPanel({ isActive }) {
 
   const isDisabled = apiKeyStatus !== 'valid';
 
+  // Comprehensive cleanup function for MediaRecorder and MediaStream
+  // Ensures microphone is ALWAYS stopped, preventing privacy issues
+  const cleanupRecording = useCallback(() => {
+    console.log('[Cleanup] Starting recording cleanup...');
+
+    // Stop MediaRecorder if active
+    if (mediaRecorderRef) {
+      try {
+        if (mediaRecorderRef.state !== 'inactive') {
+          mediaRecorderRef.stop();
+          console.log('[Cleanup] MediaRecorder stopped');
+        }
+      } catch (error) {
+        console.error('[Cleanup] Error stopping MediaRecorder:', error);
+      }
+    }
+
+    // Stop all MediaStream tracks (CRITICAL for privacy)
+    if (mediaStreamRef) {
+      try {
+        mediaStreamRef.getTracks().forEach((track) => {
+          track.stop();
+          console.log(`[Cleanup] Stopped track: ${track.label} (${track.kind})`);
+        });
+      } catch (error) {
+        console.error('[Cleanup] Error stopping MediaStream tracks:', error);
+      }
+    }
+
+    console.log('[Cleanup] Cleanup complete');
+  }, [mediaRecorderRef, mediaStreamRef]);
+
   // Listen to transcription progress events
   useEffect(() => {
     const handleProgress = (progressData) => {
@@ -87,6 +119,30 @@ function RecordingPanel({ isActive }) {
       setTranscriptionProgress(null);
     };
   }, []);
+
+  // Component unmount cleanup - CRITICAL for privacy
+  // Ensures microphone stops when user navigates away or component unmounts
+  useEffect(() => {
+    return () => {
+      console.log('[Component Unmount] Cleaning up recording resources...');
+      cleanupRecording();
+    };
+  }, [cleanupRecording]);
+
+  // Window unload cleanup - CRITICAL for privacy
+  // Ensures microphone stops when window/app closes
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      console.log('[Window Unload] Cleaning up recording resources...');
+      cleanupRecording();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [cleanupRecording]);
 
   // Determine if audio is ready for transcription
   const audioReady = (mode === 'upload' && selectedFile) || (mode === 'record' && hasRecording);
@@ -131,13 +187,16 @@ function RecordingPanel({ isActive }) {
       return;
     }
 
+    let stream = null; // Track stream for guaranteed cleanup
+
     try {
       // Request microphone access with specific device if selected
       const audioConstraints = selectedMicrophoneId
         ? { deviceId: { exact: selectedMicrophoneId } }
         : true;
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      console.log('[Recording] Microphone access granted');
 
       // Capture start time in local variable to avoid closure issues
       const startTime = Date.now();
@@ -155,11 +214,16 @@ function RecordingPanel({ isActive }) {
 
       // Set up stop handler
       recorder.onstop = async () => {
+        console.log('[Recording] MediaRecorder stopped, processing audio...');
+
         // Create blob from chunks
         const audioBlob = new Blob(chunks, { type: 'audio/webm' });
 
-        // Stop all media tracks
-        stream.getTracks().forEach(track => track.stop());
+        // Stop all media tracks IMMEDIATELY
+        stream.getTracks().forEach((track) => {
+          track.stop();
+          console.log(`[Recording] Stopped track: ${track.label}`);
+        });
 
         try {
           // Convert to ArrayBuffer and save
@@ -175,17 +239,41 @@ function RecordingPanel({ isActive }) {
             setRecordingDuration(duration);
             setHasRecording(true);
 
-            console.log('Recording saved:', result.filePath, 'Duration:', duration + 's');
+            console.log('[Recording] Recording saved:', result.filePath, 'Duration:', duration + 's');
           } else {
             throw new Error(result.error || 'Failed to save recording');
           }
         } catch (error) {
-          console.error('Error saving recording:', error);
+          console.error('[Recording] Error saving recording:', error);
           alert(`Failed to save recording: ${error.message}`);
+
+          // Reset state and clear refs
           setIsRecording(false);
           setIsPaused(false);
           setHasRecording(false);
+          setMediaRecorderRef(null);
+          setMediaStreamRef(null);
         }
+      };
+
+      // CRITICAL: Add error handler for MediaRecorder
+      // This catches errors during recording (not just during start)
+      recorder.onerror = (event) => {
+        console.error('[Recording] MediaRecorder error:', event.error);
+
+        // Stop all tracks immediately
+        stream.getTracks().forEach((track) => {
+          track.stop();
+          console.log(`[Recording] Stopped track after error: ${track.label}`);
+        });
+
+        // Reset state
+        setIsRecording(false);
+        setIsPaused(false);
+        setMediaRecorderRef(null);
+        setMediaStreamRef(null);
+
+        alert(`Recording error: ${event.error?.message || 'Unknown error occurred'}`);
       };
 
       // Start recording
@@ -198,10 +286,40 @@ function RecordingPanel({ isActive }) {
       setIsPaused(false);
       setHasRecording(false);
 
-      console.log('Started recording from microphone');
+      console.log('[Recording] Started recording from microphone');
     } catch (error) {
-      console.error('Error starting recording:', error);
-      alert('Microphone access denied. Please enable microphone permissions.');
+      console.error('[Recording] Error starting recording:', error);
+
+      // CRITICAL: Clean up stream if it was created
+      if (stream) {
+        stream.getTracks().forEach((track) => {
+          track.stop();
+          console.log(`[Recording] Cleaned up track after error: ${track.label}`);
+        });
+      }
+
+      // Reset all state
+      setIsRecording(false);
+      setIsPaused(false);
+      setMediaRecorderRef(null);
+      setMediaStreamRef(null);
+
+      // User-friendly error messages based on error type
+      let errorMessage = 'Failed to start recording';
+
+      if (error.name === 'NotAllowedError') {
+        errorMessage = 'Microphone access denied. Please enable microphone permissions in your system settings.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage = 'No microphone found. Please connect a microphone and try again.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Microphone is already in use by another application.';
+      } else if (error.name === 'OverconstrainedError') {
+        errorMessage = 'The selected microphone does not meet the required constraints.';
+      } else if (error.message) {
+        errorMessage = `Failed to start recording: ${error.message}`;
+      }
+
+      alert(errorMessage);
     }
   };
 

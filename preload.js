@@ -7,8 +7,8 @@ contextBridge.exposeInMainWorld('electron', {
   platform: process.platform,
 
   // API Key management (secure)
-  validateApiKey: (apiKey) => ipcRenderer.invoke('validate-api-key', apiKey),
-  saveApiKeySecure: (apiKey) => ipcRenderer.invoke('save-api-key-secure', apiKey),
+  validateApiKey: (apiKey) => ipcRenderer.invoke('validate-api-key', { apiKey }),
+  saveApiKeySecure: (apiKey) => ipcRenderer.invoke('save-api-key-secure', { apiKey }),
   getApiKeySecure: () => ipcRenderer.invoke('get-api-key-secure'),
   deleteApiKeySecure: () => ipcRenderer.invoke('delete-api-key-secure'),
 
@@ -16,13 +16,9 @@ contextBridge.exposeInMainWorld('electron', {
   getDisclaimerStatus: () => ipcRenderer.invoke('get-disclaimer-status'),
   setDisclaimerAccepted: () => ipcRenderer.invoke('set-disclaimer-accepted'),
 
-  // Legacy API key management (for backward compatibility)
-  saveApiKey: (apiKey) => ipcRenderer.invoke('save-api-key', apiKey),
-  getApiKey: () => ipcRenderer.invoke('get-api-key'),
-
   // Summary Template management
   getTemplates: () => ipcRenderer.invoke('get-templates'),
-  saveTemplates: (templates) => ipcRenderer.invoke('save-templates', templates),
+  saveTemplates: (templates) => ipcRenderer.invoke('save-templates', { templates }),
 
   // Window controls (for Windows custom title bar)
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
@@ -30,10 +26,10 @@ contextBridge.exposeInMainWorld('electron', {
   closeWindow: () => ipcRenderer.send('window-close'),
 
   // Navigation
-  navigate: (page) => ipcRenderer.invoke('navigate', page),
+  navigate: (page) => ipcRenderer.invoke('navigate', { page }),
 
   // Recording
-  saveRecording: (arrayBuffer) => ipcRenderer.invoke('save-recording', arrayBuffer),
+  saveRecording: (arrayBuffer) => ipcRenderer.invoke('save-recording', { arrayBuffer }),
 
   // File handling
   saveFileToTemp: (arrayBuffer, fileName) => ipcRenderer.invoke('save-file-to-temp', arrayBuffer, fileName),
@@ -60,34 +56,54 @@ contextBridge.exposeInMainWorld('electron', {
   },
 
   // External links (for markdown links)
-  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  openExternal: (url) => ipcRenderer.invoke('open-external', { url }),
 
   // Transcript management
   getTranscripts: () => ipcRenderer.invoke('get-transcripts'),
-  saveTranscripts: (transcripts) => ipcRenderer.invoke('save-transcripts', transcripts),
+  saveTranscripts: (transcripts) => ipcRenderer.invoke('save-transcripts', { transcripts }),
   saveTranscriptToAnalysis: (transcriptData) => ipcRenderer.invoke('save-transcript-to-analysis', transcriptData),
   updateTranscript: (transcriptId, updates) => ipcRenderer.invoke('update-transcript', transcriptId, updates),
-  deleteTranscript: (transcriptId) => ipcRenderer.invoke('delete-transcript', transcriptId),
-  toggleStarTranscript: (transcriptId) => ipcRenderer.invoke('toggle-star-transcript', transcriptId),
+  deleteTranscript: (transcriptId) => ipcRenderer.invoke('delete-transcript', { transcriptId }),
+  toggleStarTranscript: (transcriptId) => ipcRenderer.invoke('toggle-star-transcript', { transcriptId }),
   generateTranscriptName: (transcriptText, apiKey) => ipcRenderer.invoke('generate-transcript-name', transcriptText, apiKey),
 
   // Chat management
   getChatHistory: () => ipcRenderer.invoke('get-chat-history'),
-  saveChatHistory: (chatHistory) => ipcRenderer.invoke('save-chat-history', chatHistory),
+  saveChatHistory: (chatHistory) => ipcRenderer.invoke('save-chat-history', { chatHistory }),
 
   // Streaming chat with Agents SDK
   chatWithAIStream: (messages, systemPrompt, contextIds, searchAllTranscripts = false) => {
     ipcRenderer.send('chat-with-ai-stream', messages, systemPrompt, contextIds, searchAllTranscripts);
   },
+
+  // Chat stream listeners - return cleanup functions to prevent memory leaks
   onChatStreamToken: (callback) => {
-    ipcRenderer.on('chat-stream-token', (event, data) => callback(data));
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('chat-stream-token', handler);
+
+    // Return cleanup function for proper listener removal
+    return () => {
+      ipcRenderer.removeListener('chat-stream-token', handler);
+    };
   },
+
   onChatStreamComplete: (callback) => {
-    ipcRenderer.on('chat-stream-complete', (event, data) => callback(data));
+    // Use 'once' for complete event - it only fires once per message
+    ipcRenderer.once('chat-stream-complete', (event, data) => callback(data));
+
+    // Return no-op cleanup for API consistency
+    return () => {};
   },
+
   onChatStreamError: (callback) => {
-    ipcRenderer.on('chat-stream-error', (event, data) => callback(data));
+    // Use 'once' for error event - it only fires once per message
+    ipcRenderer.once('chat-stream-error', (event, data) => callback(data));
+
+    // Return no-op cleanup for API consistency
+    return () => {};
   },
+
+  // Keep as nuclear option for emergency cleanup
   removeChatStreamListeners: () => {
     ipcRenderer.removeAllListeners('chat-stream-token');
     ipcRenderer.removeAllListeners('chat-stream-complete');
@@ -95,7 +111,14 @@ contextBridge.exposeInMainWorld('electron', {
   },
 
   // Vector store bulk upload
-  bulkUploadTranscripts: (options) => ipcRenderer.invoke('bulk-upload-transcripts', options),
+  bulkUploadTranscripts: (options) => ipcRenderer.invoke('bulk-upload-transcripts', { options }),
   retryFailedUploads: () => ipcRenderer.invoke('retry-failed-uploads'),
   getUploadStatus: () => ipcRenderer.invoke('get-upload-status'),
+
+  // NEW: Compressed storage APIs
+  getTranscriptVTT: (transcriptId) => ipcRenderer.invoke('get-transcript-vtt', transcriptId),
+  getTranscriptText: (transcriptId) => ipcRenderer.invoke('get-transcript-text', transcriptId),
+  getTranscriptWithContent: (transcriptId) => ipcRenderer.invoke('get-transcript-with-content', transcriptId),
+  getStorageStats: () => ipcRenderer.invoke('get-storage-stats'),
+  migrateTranscripts: () => ipcRenderer.invoke('migrate-transcripts'),
 });

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 /**
@@ -49,6 +49,8 @@ function parseVTT(vttText) {
  */
 function TranscriptView() {
   const { selectedTranscript, selectedContextIds, transcripts } = useApp();
+  const [loadedContent, setLoadedContent] = useState({});
+  const [loading, setLoading] = useState(false);
 
   // Get transcripts to display based on selection
   const displayTranscripts = selectedContextIds.length > 0
@@ -57,7 +59,56 @@ function TranscriptView() {
     ? [selectedTranscript]
     : [];
 
-  if (displayTranscripts.length === 0) {
+  // Load compressed content on-demand for new transcripts
+  useEffect(() => {
+    const loadContent = async () => {
+      const needsLoading = displayTranscripts.filter(t =>
+        t.hasVTTFile && !loadedContent[t.id]
+      );
+
+      if (needsLoading.length === 0) return;
+
+      setLoading(true);
+      const newContent = { ...loadedContent };
+
+      for (const transcript of needsLoading) {
+        try {
+          const result = await window.electron.getTranscriptWithContent(transcript.id);
+          if (result.success) {
+            newContent[transcript.id] = {
+              rawTranscript: result.transcript.rawTranscript,
+              vttTranscript: result.transcript.vttTranscript
+            };
+          }
+        } catch (error) {
+          console.error(`Failed to load content for ${transcript.id}:`, error);
+        }
+      }
+
+      setLoadedContent(newContent);
+      setLoading(false);
+    };
+
+    loadContent();
+  }, [displayTranscripts.map(t => t.id).join(',')]);
+
+  // Merge metadata with loaded content
+  const displayTranscriptsWithContent = displayTranscripts.map(t => {
+    if (t.hasVTTFile && loadedContent[t.id]) {
+      return { ...t, ...loadedContent[t.id] };
+    }
+    return t; // Legacy transcripts already have content
+  });
+
+  // Parse VTT segments for all transcripts (must be at top level, not in .map())
+  const parsedSegments = useMemo(() => {
+    return displayTranscriptsWithContent.reduce((acc, transcript) => {
+      acc[transcript.id] = parseVTT(transcript.vttTranscript);
+      return acc;
+    }, {});
+  }, [displayTranscriptsWithContent.map(t => t.id + t.vttTranscript).join(',')]);
+
+  if (displayTranscriptsWithContent.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
         <div className="max-w-xs">
@@ -81,13 +132,15 @@ function TranscriptView() {
 
   return (
     <div className="h-full overflow-y-auto p-6">
+      {loading && (
+        <div className="text-center text-sm text-foreground-secondary py-2">
+          Loading transcript content...
+        </div>
+      )}
       <div className="max-w-4xl mx-auto space-y-8">
-        {displayTranscripts.map((transcript, index) => {
-          // Parse VTT if available
-          const vttSegments = useMemo(() =>
-            parseVTT(transcript.vttTranscript),
-            [transcript.vttTranscript]
-          );
+        {displayTranscriptsWithContent.map((transcript, index) => {
+          // Get pre-parsed VTT segments for this transcript
+          const vttSegments = parsedSegments[transcript.id];
 
           return (
             <div key={transcript.id} className="space-y-4">
@@ -125,7 +178,7 @@ function TranscriptView() {
                 )}
               </div>
 
-              {index < displayTranscripts.length - 1 && (
+              {index < displayTranscriptsWithContent.length - 1 && (
                 <div className="border-t border-border my-8"></div>
               )}
             </div>

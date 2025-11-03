@@ -87,12 +87,13 @@ function SummaryView() {
 
             {/* Summary Content */}
             <div className="prose prose-sm max-w-none prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-li:text-foreground prose-ul:text-foreground prose-ol:text-foreground">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkBreaks]}
-                className="text-sm leading-relaxed"
-              >
-                {transcript.summary}
-              </ReactMarkdown>
+              <div className="text-sm leading-relaxed">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                >
+                  {transcript.summary}
+                </ReactMarkdown>
+              </div>
             </div>
 
             {/* Divider between multiple transcripts */}

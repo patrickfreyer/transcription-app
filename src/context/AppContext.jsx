@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const AppContext = createContext();
 
@@ -64,6 +64,9 @@ export function AppProvider({ children }) {
   const searchAllTranscripts = false; // Always false - just dump all into context
   const [isChatPanelOpen, setIsChatPanelOpen] = useState(true);
   const [isChatStreaming, setIsChatStreaming] = useState(false);
+
+  // Ref to store chat listener cleanup functions (prevents memory leaks)
+  const chatCleanupRef = useRef({ token: null, complete: null, error: null });
 
   // Right panel view mode state
   const [rightPanelView, setRightPanelView] = useState('summary'); // 'transcript' | 'summary' | 'chat'
@@ -261,13 +264,29 @@ export function AppProvider({ children }) {
     setIsChatStreaming(true);
 
     let streamedContent = "";
-
     let tokenCounter = 0;
+
+    // Cleanup any existing listeners before registering new ones
+    const cleanupExistingListeners = () => {
+      if (chatCleanupRef.current.token) {
+        chatCleanupRef.current.token();
+        chatCleanupRef.current.token = null;
+      }
+      if (chatCleanupRef.current.complete) {
+        chatCleanupRef.current.complete();
+        chatCleanupRef.current.complete = null;
+      }
+      if (chatCleanupRef.current.error) {
+        chatCleanupRef.current.error();
+        chatCleanupRef.current.error = null;
+      }
+    };
+
+    cleanupExistingListeners();
 
     // Token callback
     const handleToken = (data) => {
       tokenCounter++;
-      console.log(`[FRONTEND] Token #${tokenCounter} received:`, data.token.substring(0, 20));
       streamedContent += data.token;
 
       // Update the assistant message with accumulated content
@@ -290,7 +309,7 @@ export function AppProvider({ children }) {
       setChatHistory(workingChatHistory);
     };
 
-    // Complete callback
+    // Complete callback with cleanup
     const handleComplete = async (data) => {
       console.log('[FRONTEND] Stream complete. Total tokens received:', tokenCounter);
       console.log('[FRONTEND] Final message length:', data.message?.length);
@@ -317,11 +336,11 @@ export function AppProvider({ children }) {
       setChatHistory(finalChatHistory);
       await window.electron.saveChatHistory(finalChatHistory);
 
-      // Clean up listeners
-      window.electron.removeChatStreamListeners();
+      // Clean up listeners using ref-stored cleanup functions
+      cleanupExistingListeners();
     };
 
-    // Error callback
+    // Error callback with cleanup
     const handleError = (data) => {
       console.error('[FRONTEND] Chat stream error:', data.error);
       setIsChatStreaming(false);
@@ -338,16 +357,16 @@ export function AppProvider({ children }) {
       };
       setChatHistory(errorChatHistory);
 
-      // Clean up listeners
-      window.electron.removeChatStreamListeners();
+      // Clean up listeners using ref-stored cleanup functions
+      cleanupExistingListeners();
     };
 
     console.log('[FRONTEND] Registering stream listeners...');
 
-    // Register listeners
-    window.electron.onChatStreamToken(handleToken);
-    window.electron.onChatStreamComplete(handleComplete);
-    window.electron.onChatStreamError(handleError);
+    // Register listeners and store cleanup functions in ref
+    chatCleanupRef.current.token = window.electron.onChatStreamToken(handleToken);
+    chatCleanupRef.current.complete = window.electron.onChatStreamComplete(handleComplete);
+    chatCleanupRef.current.error = window.electron.onChatStreamError(handleError);
 
     console.log('[FRONTEND] Starting chat stream...');
     console.log('[FRONTEND] Context IDs:', contextIds);
@@ -422,6 +441,29 @@ export function AppProvider({ children }) {
         setApiKeyStatus(status);
       });
     }
+  }, []);
+
+  // Cleanup chat listeners when switching transcripts (prevents memory leaks)
+  useEffect(() => {
+    return () => {
+      // Only cleanup token listener (messages are persisted, so complete/error are one-time)
+      if (chatCleanupRef.current.token) {
+        console.log('[CLEANUP] Removing token listener on transcript switch');
+        chatCleanupRef.current.token();
+        chatCleanupRef.current.token = null;
+      }
+    };
+  }, [selectedTranscriptId]);
+
+  // Cleanup all chat listeners on component unmount (prevents memory leaks)
+  useEffect(() => {
+    return () => {
+      console.log('[CLEANUP] Removing all chat listeners on unmount');
+      // Use nuclear option to ensure all listeners are removed
+      if (window.electron?.removeChatStreamListeners) {
+        window.electron.removeChatStreamListeners();
+      }
+    };
   }, []);
 
   const checkDisclaimerStatus = async () => {
