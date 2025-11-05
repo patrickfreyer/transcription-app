@@ -51,8 +51,8 @@
 }
 
 .tab-btn.active {
-  color: var(--accent-blue);
-  background: var(--accent-blue-subtle);
+  color: var(--success-green);
+  background: var(--success-green-subtle);
 }
 
 .tab-btn.active::after {
@@ -62,7 +62,7 @@
   left: var(--spacing-sm);
   right: var(--spacing-sm);
   height: 2px;
-  background: var(--accent-blue);
+  background: var(--success-green);
 }
 
 .tab-icon {

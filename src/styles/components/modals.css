@@ -60,7 +60,7 @@
 }
 
 .modal-icon {
-  color: var(--accent-blue);
+  color: var(--success-green);
 }
 
 .modal-header h2 {
@@ -174,7 +174,7 @@
   align-items: center;
   gap: var(--spacing-xs);
   font-size: var(--font-size-sm);
-  color: var(--accent-blue);
+  color: var(--success-green);
   text-decoration: none;
   transition: opacity var(--transition-fast);
 }
@@ -241,8 +241,8 @@
 }
 
 .toast-info {
-  border-color: var(--accent-blue);
-  color: var(--accent-blue);
+  border-color: var(--success-green);
+  color: var(--success-green);
 }
 
 .toast-success {

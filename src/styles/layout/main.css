@@ -63,7 +63,7 @@
   width: 40px;
   height: 40px;
   border: 3px solid var(--border-color);
-  border-top-color: var(--accent-blue);
+  border-top-color: var(--success-green);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -100,7 +100,7 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent-blue), var(--accent-blue-hover));
+  background: linear-gradient(90deg, var(--success-green), var(--success-green-hover));
   border-radius: var(--radius-full);
   animation: indeterminate 1.5s ease-in-out infinite;
   width: 30%;
@@ -137,7 +137,7 @@
 
 .view-all-link {
   font-size: var(--font-size-sm);
-  color: var(--accent-blue);
+  color: var(--success-green);
   text-decoration: none;
   transition: opacity var(--transition-fast);
 }

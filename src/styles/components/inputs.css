@@ -39,8 +39,8 @@ input[type="search"] {
 
 .input:focus {
   background: var(--bg-primary);
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px var(--accent-blue-subtle);
+  border-color: var(--success-green);
+  box-shadow: 0 0 0 3px var(--success-green-subtle);
 }
 
 .input::placeholder {
@@ -111,8 +111,8 @@ textarea:hover {
 
 textarea:focus {
   background: var(--bg-primary);
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px var(--accent-blue-subtle);
+  border-color: var(--success-green);
+  box-shadow: 0 0 0 3px var(--success-green-subtle);
 }
 
 textarea::placeholder {
@@ -153,12 +153,12 @@ textarea::placeholder {
 
 .search-input:focus {
   background: var(--bg-primary);
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px var(--accent-blue-subtle);
+  border-color: var(--success-green);
+  box-shadow: 0 0 0 3px var(--success-green-subtle);
 }
 
 .search-input:focus + .search-icon {
-  color: var(--accent-blue);
+  color: var(--success-green);
 }
 
 /* Select/dropdown */
@@ -185,8 +185,8 @@ select:hover {
 }
 
 select:focus {
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px var(--accent-blue-subtle);
+  border-color: var(--success-green);
+  box-shadow: 0 0 0 3px var(--success-green-subtle);
 }
 
 /* Radio buttons */
@@ -204,12 +204,12 @@ input[type="radio"] {
 }
 
 input[type="radio"]:hover {
-  border-color: var(--accent-blue);
+  border-color: var(--success-green);
 }
 
 input[type="radio"]:checked {
-  border-color: var(--accent-blue);
-  background: var(--accent-blue);
+  border-color: var(--success-green);
+  background: var(--success-green);
 }
 
 input[type="radio"]:checked::after {
@@ -239,12 +239,12 @@ input[type="checkbox"] {
 }
 
 input[type="checkbox"]:hover {
-  border-color: var(--accent-blue);
+  border-color: var(--success-green);
 }
 
 input[type="checkbox"]:checked {
-  border-color: var(--accent-blue);
-  background: var(--accent-blue);
+  border-color: var(--success-green);
+  background: var(--success-green);
 }
 
 input[type="checkbox"]:checked::after {
@@ -287,8 +287,8 @@ input[type="checkbox"]:checked::after {
   display: flex;
   gap: var(--spacing-sm);
   padding: var(--spacing-md);
-  background: var(--accent-blue-subtle);
-  border-left: 3px solid var(--accent-blue);
+  background: var(--success-green-subtle);
+  border-left: 3px solid var(--success-green);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
@@ -299,5 +299,5 @@ input[type="checkbox"]:checked::after {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
-  color: var(--accent-blue);
+  color: var(--success-green);
 }

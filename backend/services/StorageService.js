@@ -47,24 +47,26 @@ class StorageService {
         if (transcripts.length > 0) {
           logger.info(`Migrating ${transcripts.length} transcripts to encrypted storage...`);
 
-          const encryptedTranscripts = transcripts.map((transcript, index) => {
-            try {
-              // Check if already encrypted
-              if (typeof transcript === 'string' && encryptionService.isEncrypted(transcript)) {
-                logger.debug(`Transcript ${index} already encrypted`);
-                return transcript;
-              }
+          const encryptedTranscripts = transcripts
+            .map((transcript, index) => {
+              try {
+                // Check if already encrypted
+                if (typeof transcript === 'string' && encryptionService.isEncrypted(transcript)) {
+                  logger.debug(`Transcript ${index} already encrypted`);
+                  return transcript;
+                }
 
-              // Encrypt the transcript object
-              const encrypted = encryptionService.encryptObject(transcript);
-              logger.debug(`Encrypted transcript ${index}: ${transcript.id || 'unknown'}`);
-              return encrypted;
-            } catch (error) {
-              logger.error(`Failed to encrypt transcript ${index}:`, error);
-              // Keep original if encryption fails
-              return JSON.stringify(transcript);
-            }
-          });
+                // Encrypt the transcript object
+                const encrypted = encryptionService.encryptObject(transcript);
+                logger.debug(`Encrypted transcript ${index}: ${transcript.id || 'unknown'}`);
+                return encrypted;
+              } catch (error) {
+                logger.error(`Failed to encrypt transcript ${index} during migration:`, error);
+                logger.warn(`Skipping transcript ${index} - encryption required but failed`);
+                return null; // Mark for filtering
+              }
+            })
+            .filter(t => t !== null); // Remove failed encryptions
 
           this.store.set('transcripts', encryptedTranscripts);
           logger.info(`✓ Migrated ${encryptedTranscripts.length} transcripts to encrypted storage`);
@@ -93,9 +95,9 @@ class StorageService {
               encryptedChatHistory[transcriptId] = encryptionService.encryptObject(chat);
               logger.debug(`Encrypted chat history for transcript: ${transcriptId}`);
             } catch (error) {
-              logger.error(`Failed to encrypt chat history for ${transcriptId}:`, error);
-              // Keep original if encryption fails
-              encryptedChatHistory[transcriptId] = JSON.stringify(chatHistory[transcriptId]);
+              logger.error(`Failed to encrypt chat history for ${transcriptId} during migration:`, error);
+              logger.warn(`Skipping chat history for ${transcriptId} - encryption required but failed`);
+              // Skip this chat history - do not store unencrypted
             }
           });
 
@@ -174,8 +176,8 @@ class StorageService {
           return encryptionService.encryptObject(transcript);
         } catch (error) {
           logger.error(`Failed to encrypt transcript ${index}:`, error);
-          // Fallback: store as JSON
-          return JSON.stringify(transcript);
+          // Fail securely: do not store unencrypted data
+          throw new Error(`Cannot save transcript ${index}: encryption failed. ${error.message}`);
         }
       });
 
@@ -256,8 +258,8 @@ class StorageService {
           encrypted[transcriptId] = encryptionService.encryptObject(chatHistory[transcriptId]);
         } catch (error) {
           logger.error(`Failed to encrypt chat history for ${transcriptId}:`, error);
-          // Fallback: store as JSON
-          encrypted[transcriptId] = JSON.stringify(chatHistory[transcriptId]);
+          // Fail securely: do not store unencrypted data
+          throw new Error(`Cannot save chat history for ${transcriptId}: encryption failed. ${error.message}`);
         }
       });
 

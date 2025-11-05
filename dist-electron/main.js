@@ -393,6 +393,7 @@ ipcMain.handle("transcribe-audio", validateIpcHandler(
       };
     }
     let chunkPaths = [];
+    let voiceSampleFiles = null;
     let convertedFilePath = null;
     let optimizedFilePath = null;
     let compressedFilePath = null;
@@ -477,13 +478,16 @@ Please use a file smaller than 25MB, or try re-downloading the application.`
           const duration = await transcriptionService.getAudioDuration(chunkPath);
           chunkDurations.push(duration);
         }
-        const { results, failedChunks } = await transcriptionService.transcribeChunksParallel(
+        const transcriptionResult = await transcriptionService.transcribeChunksParallel(
           openai,
           chunkPaths,
           chunkDurations,
           { model, prompt, speakers },
           sendProgress
         );
+        const results = transcriptionResult.results;
+        const failedChunks = transcriptionResult.failedChunks;
+        voiceSampleFiles = transcriptionResult.voiceSampleFiles || null;
         const transcripts = results.map((result) => result.transcription);
         let warningMessage = null;
         if (failedChunks.length > 0) {
@@ -536,6 +540,9 @@ The partial transcription is shown below. You may want to re-transcribe the full
           isDiarized = true;
         }
         transcriptionService.cleanupChunks(chunkPaths);
+        if (voiceSampleFiles) {
+          transcriptionService.cleanupVoiceSamples(voiceSampleFiles);
+        }
         transcriptionService.cleanupTempFile(convertedFilePath);
         transcriptionService.cleanupTempFile(optimizedFilePath);
         transcriptionService.cleanupTempFile(compressedFilePath);
@@ -607,6 +614,9 @@ The partial transcription is shown below. You may want to re-transcribe the full
       }
     } catch (error) {
       transcriptionService.cleanupChunks(chunkPaths);
+      if (voiceSampleFiles) {
+        transcriptionService.cleanupVoiceSamples(voiceSampleFiles);
+      }
       transcriptionService.cleanupTempFile(convertedFilePath);
       transcriptionService.cleanupTempFile(optimizedFilePath);
       transcriptionService.cleanupTempFile(compressedFilePath);
