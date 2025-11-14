@@ -21,7 +21,7 @@
 }
 
 .btn:focus-visible {
-  outline: 2px solid var(--accent-blue);
+  outline: 2px solid var(--success-green);
   outline-offset: 2px;
 }
 
@@ -32,12 +32,12 @@
 
 /* Primary button */
 .btn-primary {
-  background: var(--accent-blue);
+  background: var(--success-green);
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--accent-blue-hover);
+  background: var(--success-green-hover);
 }
 
 /* Secondary button */

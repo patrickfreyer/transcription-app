@@ -58,7 +58,7 @@ button {
 
 /* Remove default link styles */
 a {
-  color: var(--accent-blue);
+  color: var(--success-green);
   text-decoration: none;
 }
 
@@ -107,13 +107,13 @@ svg {
 
 /* Selection styles */
 ::selection {
-  background: var(--accent-blue-subtle);
+  background: var(--success-green-subtle);
   color: var(--text-primary);
 }
 
 /* Focus visible styles */
 :focus-visible {
-  outline: 2px solid var(--accent-blue);
+  outline: 2px solid var(--success-green);
   outline-offset: 2px;
 }
 

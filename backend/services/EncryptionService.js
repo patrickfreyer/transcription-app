@@ -45,17 +45,20 @@ class EncryptionService {
   /**
    * Encrypt a string
    * @param {string} plaintext - Data to encrypt
-   * @returns {string} Base64-encoded encrypted data, or original if encryption unavailable
+   * @returns {string} Base64-encoded encrypted data
+   * @throws {Error} If encryption is unavailable or fails
    */
   encrypt(plaintext) {
     if (!this.isAvailable) {
-      logger.warn('Encryption not available - storing data unencrypted');
-      return plaintext;
+      const error = new Error('Encryption not available on this system. Cannot store sensitive data securely.');
+      logger.error(error.message);
+      throw error;
     }
 
     if (!plaintext || typeof plaintext !== 'string') {
-      logger.error('Invalid plaintext provided to encrypt()');
-      return plaintext;
+      const error = new Error('Invalid plaintext provided to encrypt(): must be a non-empty string');
+      logger.error(error.message);
+      throw error;
     }
 
     try {
@@ -65,9 +68,7 @@ class EncryptionService {
       return encrypted;
     } catch (error) {
       logger.error('Encryption failed:', error);
-      // Fallback: return unencrypted (better than losing data)
-      logger.warn('Falling back to unencrypted storage');
-      return plaintext;
+      throw new Error(`Encryption operation failed: ${error.message}`);
     }
   }
 
@@ -110,16 +111,19 @@ class EncryptionService {
    * Encrypt an object (converts to JSON first)
    * @param {Object} obj - Object to encrypt
    * @returns {string} Encrypted JSON string
+   * @throws {Error} If encryption fails or object cannot be serialized
    */
   encryptObject(obj) {
-    if (!obj) return null;
+    if (!obj) {
+      throw new Error('Cannot encrypt null or undefined object');
+    }
 
     try {
       const json = JSON.stringify(obj);
       return this.encrypt(json);
     } catch (error) {
       logger.error('Failed to encrypt object:', error);
-      return JSON.stringify(obj); // Fallback
+      throw new Error(`Failed to encrypt object: ${error.message}`);
     }
   }
 
@@ -150,16 +154,19 @@ class EncryptionService {
    * Encrypt an array of objects
    * @param {Array} array - Array of objects to encrypt
    * @returns {Array} Array of encrypted strings
+   * @throws {Error} If encryption fails for any item
    */
   encryptArray(array) {
-    if (!Array.isArray(array)) return [];
+    if (!Array.isArray(array)) {
+      throw new Error('encryptArray() requires an array input');
+    }
 
     return array.map((item, index) => {
       try {
         return this.encryptObject(item);
       } catch (error) {
         logger.error(`Failed to encrypt array item ${index}:`, error);
-        return JSON.stringify(item); // Fallback
+        throw new Error(`Failed to encrypt array item at index ${index}: ${error.message}`);
       }
     });
   }
@@ -206,6 +213,20 @@ class EncryptionService {
     }
 
     return false;
+  }
+
+  /**
+   * Check if encryption is ready for operations
+   * @throws {Error} If encryption is not available
+   */
+  ensureEncryptionAvailable() {
+    if (!this.isAvailable) {
+      throw new Error(
+        'Encryption is not available on this system. ' +
+        'This application requires OS-level encryption (macOS Keychain, Windows DPAPI, or Linux libsecret) ' +
+        'to securely store sensitive data. Please ensure your system supports encryption.'
+      );
+    }
   }
 
   /**

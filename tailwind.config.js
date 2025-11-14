@@ -56,10 +56,10 @@ module.exports = {
           bg: '#fffbeb',
         },
         info: {
-          DEFAULT: '#007aff',
-          hover: '#0051d5',
-          light: '#4DA3FF',
-          bg: '#eff6ff',
+          DEFAULT: '#00A758',
+          hover: '#008C4A',
+          light: '#33B977',
+          bg: '#f0fdf4',
         },
         // Primary (maps to interactive for compatibility)
         primary: {
