@@ -1,13 +1,14 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useApp } from '../../context/AppContext';
 import LeftPanel from './LeftPanel';
 import ViewModeSelector from './ViewModeSelector';
 import TranscriptView from './TranscriptView';
 import SummaryView from './SummaryView';
 import ChatPanel from './Chat/ChatPanel';
+import { AudioPlayer } from './AudioPlayer';
 
 function AnalysisPanel({ isActive }) {
-  const { loadTranscripts, loadChatHistory, rightPanelView } = useApp();
+  const { loadTranscripts, loadChatHistory, rightPanelView, selectedTranscript, selectedContextIds } = useApp();
 
   // Panel sizes with localStorage persistence (2-column layout: left panel + chat)
   const [leftPanelWidth, setLeftPanelWidth] = useState(() => {
@@ -16,6 +17,51 @@ function AnalysisPanel({ isActive }) {
   });
 
   const isDragging = useRef(false);
+  const audioPlayerRef = useRef(null);
+
+  // Audio player state
+  const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0);
+  const [hasAudio, setHasAudio] = useState(false);
+
+  // Get the transcript ID for audio (only single selection supported)
+  const audioTranscriptId = selectedContextIds.length === 0 && selectedTranscript
+    ? selectedTranscript.id
+    : selectedContextIds.length === 1
+    ? selectedContextIds[0]
+    : null;
+
+  // Check if audio exists when transcript changes
+  useEffect(() => {
+    const checkAudio = async () => {
+      if (!audioTranscriptId) {
+        setHasAudio(false);
+        return;
+      }
+
+      try {
+        const result = await window.electron.hasAudio(audioTranscriptId);
+        setHasAudio(result.success && result.hasAudio);
+      } catch (error) {
+        console.error('Failed to check audio:', error);
+        setHasAudio(false);
+      }
+    };
+
+    checkAudio();
+    setCurrentPlaybackTime(0);
+  }, [audioTranscriptId]);
+
+  // Handle timestamp click from transcript view
+  const handleTimestampClick = useCallback((seconds) => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.seekTo(seconds);
+    }
+  }, []);
+
+  // Handle time updates from audio player
+  const handleTimeUpdate = useCallback((time) => {
+    setCurrentPlaybackTime(time);
+  }, []);
 
   useEffect(() => {
     // Load transcripts and chat history when component mounts
@@ -88,10 +134,25 @@ function AnalysisPanel({ isActive }) {
 
           {/* Content based on selected view */}
           <div className="flex-1 min-h-0">
-            {rightPanelView === 'transcript' && <TranscriptView />}
+            {rightPanelView === 'transcript' && (
+              <TranscriptView
+                onTimestampClick={handleTimestampClick}
+                currentPlaybackTime={currentPlaybackTime}
+                hasAudio={hasAudio}
+              />
+            )}
             {rightPanelView === 'summary' && <SummaryView />}
             {rightPanelView === 'chat' && <ChatPanel />}
           </div>
+
+          {/* Audio Player - Sticky footer (only when viewing transcript with audio) */}
+          {rightPanelView === 'transcript' && hasAudio && audioTranscriptId && (
+            <AudioPlayer
+              ref={audioPlayerRef}
+              transcriptId={audioTranscriptId}
+              onTimeUpdate={handleTimeUpdate}
+            />
+          )}
         </div>
       </div>
     </div>

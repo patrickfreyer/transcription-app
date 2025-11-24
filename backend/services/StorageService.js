@@ -17,6 +17,12 @@ const { createLogger } = require('../utils/logger');
 
 const logger = createLogger('StorageService');
 
+// Default audio settings
+const DEFAULT_AUDIO_SETTINGS = {
+  defaultSaveAudio: true,        // Save audio by default
+  defaultStorageMode: 'compressed' // 'compressed' or 'original'
+};
+
 class StorageService {
   constructor() {
     this.store = new Store({
@@ -24,7 +30,8 @@ class StorageService {
         transcripts: [],
         chatHistory: {},
         'summary-templates': [],
-        'encryption-version': 0 // Track encryption migration
+        'encryption-version': 0, // Track encryption migration
+        'audio-settings': DEFAULT_AUDIO_SETTINGS
       }
     });
 
@@ -351,6 +358,33 @@ class StorageService {
    */
   getVectorStoreCreatedAt() {
     return this.store.get('vector-store-created-at', null);
+  }
+
+  /**
+   * Get audio settings
+   * @returns {Object} Audio settings
+   */
+  getAudioSettings() {
+    return this.store.get('audio-settings', DEFAULT_AUDIO_SETTINGS);
+  }
+
+  /**
+   * Save audio settings
+   * @param {Object} settings - Audio settings to save
+   */
+  saveAudioSettings(settings) {
+    const current = this.getAudioSettings();
+    const updated = { ...current, ...settings };
+    this.store.set('audio-settings', updated);
+    logger.info('Audio settings updated:', updated);
+  }
+
+  /**
+   * Reset audio settings to defaults
+   */
+  resetAudioSettings() {
+    this.store.set('audio-settings', DEFAULT_AUDIO_SETTINGS);
+    logger.info('Audio settings reset to defaults');
   }
 }
 

@@ -251,6 +251,18 @@ function TranscriptCard({ transcript, isActive }) {
         <span className="flex-shrink-0">{formatDuration(transcript.duration)}</span>
         <span>•</span>
         <span className="truncate">{formatTimestamp(transcript.timestamp)}</span>
+        {transcript.hasAudioFile && (
+          <>
+            <span>•</span>
+            <span className="flex items-center gap-0.5 text-primary" title="Audio available">
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+              <span>Audio</span>
+            </span>
+          </>
+        )}
         {transcript.summary && (
           <>
             <span>•</span>

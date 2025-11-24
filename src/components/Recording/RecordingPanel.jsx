@@ -515,6 +515,32 @@ function RecordingPanel({ isActive }) {
         if (autoSaveResult.success) {
           console.log('✓ Transcript auto-saved to Analysis:', autoSaveResult.transcriptId);
 
+          // 🎵 AUTO-SAVE AUDIO: Save audio file based on settings
+          try {
+            const audioSettingsResult = await window.electron.getAudioSettings();
+            const audioSettings = audioSettingsResult.success ? audioSettingsResult.settings : { defaultSaveAudio: true, defaultStorageMode: 'compressed' };
+
+            if (audioSettings.defaultSaveAudio && filePath) {
+              console.log('🎵 Saving audio file...', { filePath, storageMode: audioSettings.defaultStorageMode });
+              const audioSaveResult = await window.electron.saveAudio(
+                autoSaveResult.transcriptId,
+                filePath,
+                audioSettings.defaultStorageMode
+              );
+
+              if (audioSaveResult.success) {
+                console.log('✓ Audio saved:', audioSaveResult.result?.relativePath);
+              } else {
+                console.warn('Failed to save audio:', audioSaveResult.error);
+              }
+            } else {
+              console.log('Audio saving skipped:', !audioSettings.defaultSaveAudio ? 'disabled in settings' : 'no file path');
+            }
+          } catch (audioError) {
+            console.error('Error saving audio:', audioError);
+            // Don't block - transcript is already saved
+          }
+
           // Reload transcripts in Analysis tab so it appears immediately
           await loadTranscripts();
           console.log('✓ Transcripts reloaded in Analysis tab');

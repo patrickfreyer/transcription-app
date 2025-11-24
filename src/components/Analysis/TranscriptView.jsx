@@ -2,6 +2,25 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 
 /**
+ * Convert VTT timestamp to seconds
+ * Supports HH:MM:SS.mmm and MM:SS.mmm formats
+ */
+function vttTimestampToSeconds(timestamp) {
+  if (!timestamp) return 0;
+  const parts = timestamp.split(':');
+  if (parts.length === 3) {
+    // HH:MM:SS.mmm
+    const [hours, minutes, secondsWithMs] = parts;
+    return parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseFloat(secondsWithMs);
+  } else if (parts.length === 2) {
+    // MM:SS.mmm
+    const [minutes, secondsWithMs] = parts;
+    return parseInt(minutes) * 60 + parseFloat(secondsWithMs);
+  }
+  return 0;
+}
+
+/**
  * Parse VTT transcript into segments with timestamps
  */
 function parseVTT(vttText) {
@@ -46,8 +65,11 @@ function parseVTT(vttText) {
 
 /**
  * TranscriptView - Displays raw transcript text with timestamps
+ * @param {function} onTimestampClick - Called when a timestamp is clicked (passes seconds)
+ * @param {number} currentPlaybackTime - Current audio playback time in seconds (for highlighting)
+ * @param {boolean} hasAudio - Whether the selected transcript has audio available
  */
-function TranscriptView() {
+function TranscriptView({ onTimestampClick, currentPlaybackTime = 0, hasAudio = false }) {
   const { selectedTranscript, selectedContextIds, transcripts } = useApp();
   const [loadedContent, setLoadedContent] = useState({});
   const [loading, setLoading] = useState(false);
@@ -160,16 +182,39 @@ function TranscriptView() {
               <div className="space-y-3">
                 {vttSegments ? (
                   // Render with timestamps
-                  vttSegments.map((segment, segIdx) => (
-                    <div key={segIdx} className="flex gap-4 group hover:bg-surface-secondary px-3 py-2 rounded transition-colors">
-                      <div className="flex-shrink-0 w-20 text-xs font-mono text-foreground-tertiary pt-0.5">
-                        {segment.start}
+                  vttSegments.map((segment, segIdx) => {
+                    const startSeconds = vttTimestampToSeconds(segment.start);
+                    const endSeconds = vttTimestampToSeconds(segment.end);
+                    const isCurrentSegment = hasAudio &&
+                      currentPlaybackTime >= startSeconds &&
+                      currentPlaybackTime < endSeconds;
+
+                    return (
+                      <div
+                        key={segIdx}
+                        className={`flex gap-4 group px-3 py-2 rounded transition-colors ${
+                          isCurrentSegment
+                            ? 'bg-primary/10 border-l-2 border-primary'
+                            : 'hover:bg-surface-secondary'
+                        }`}
+                      >
+                        <div
+                          className={`flex-shrink-0 w-20 text-xs font-mono pt-0.5 ${
+                            hasAudio
+                              ? 'text-primary cursor-pointer hover:underline'
+                              : 'text-foreground-tertiary'
+                          }`}
+                          onClick={hasAudio ? () => onTimestampClick?.(startSeconds) : undefined}
+                          title={hasAudio ? 'Click to play from this point' : undefined}
+                        >
+                          {segment.start}
+                        </div>
+                        <div className="flex-1 text-sm text-foreground leading-relaxed">
+                          {segment.text}
+                        </div>
                       </div>
-                      <div className="flex-1 text-sm text-foreground leading-relaxed">
-                        {segment.text}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   // Fallback to plain text
                   <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">

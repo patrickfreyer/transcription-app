@@ -1,20 +1,49 @@
 import React from 'react';
 
 /**
+ * Convert VTT timestamp to seconds
+ */
+function vttTimestampToSeconds(timestamp) {
+  if (!timestamp) return 0;
+  const parts = timestamp.split(':');
+  if (parts.length === 3) {
+    const [hours, minutes, secondsWithMs] = parts;
+    return parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseFloat(secondsWithMs);
+  } else if (parts.length === 2) {
+    const [minutes, secondsWithMs] = parts;
+    return parseInt(minutes) * 60 + parseFloat(secondsWithMs);
+  }
+  return 0;
+}
+
+/**
  * DiarizedTranscriptView - Enhanced view for speaker-diarized transcripts
  * Groups consecutive speaker turns and provides visual differentiation
+ * @param {string} vttTranscript - VTT transcript content
+ * @param {function} onTimestampClick - Called when a timestamp is clicked (passes seconds)
+ * @param {number} currentPlaybackTime - Current audio playback time in seconds
+ * @param {boolean} hasAudio - Whether audio is available
  */
-function DiarizedTranscriptView({ vttTranscript }) {
-  // Parse VTT format to extract speaker segments
+function DiarizedTranscriptView({ vttTranscript, onTimestampClick, currentPlaybackTime = 0, hasAudio = false }) {
+  // Parse VTT format to extract speaker segments with timestamps
   const parseVTTSegments = (vtt) => {
     if (!vtt) return [];
 
     const lines = vtt.split('\n');
     const segments = [];
-    let currentSegment = null;
+    let currentTimestamp = null;
+    let currentEndTimestamp = null;
 
-    for (const line of lines) {
-      const trimmed = line.trim();
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+
+      // Check for timestamp line
+      if (trimmed.includes('-->')) {
+        const [start, end] = trimmed.split('-->').map(t => t.trim());
+        currentTimestamp = start;
+        currentEndTimestamp = end;
+        continue;
+      }
 
       // Match speaker labels like "[Speaker A] text" or "[A] text"
       const speakerMatch = trimmed.match(/^\[([^\]]+)\]\s*(.*)$/);
@@ -23,11 +52,12 @@ function DiarizedTranscriptView({ vttTranscript }) {
         const [, speaker, text] = speakerMatch;
 
         if (text.trim()) {
-          currentSegment = {
+          segments.push({
             speaker: speaker.trim(),
             text: text.trim(),
-          };
-          segments.push(currentSegment);
+            timestamp: currentTimestamp,
+            endTimestamp: currentEndTimestamp,
+          });
         }
       }
     }
@@ -35,7 +65,7 @@ function DiarizedTranscriptView({ vttTranscript }) {
     return segments;
   };
 
-  // Group consecutive segments by same speaker
+  // Group consecutive segments by same speaker (preserving timestamps)
   const groupBySpeaker = (segments) => {
     if (!segments || segments.length === 0) return [];
 
@@ -46,11 +76,15 @@ function DiarizedTranscriptView({ vttTranscript }) {
       if (currentTurn && currentTurn.speaker === segment.speaker) {
         // Same speaker continues - append text
         currentTurn.text += ' ' + segment.text;
+        // Update end timestamp
+        currentTurn.endTimestamp = segment.endTimestamp;
       } else {
         // New speaker - create new turn
         currentTurn = {
           speaker: segment.speaker,
           text: segment.text,
+          timestamp: segment.timestamp,
+          endTimestamp: segment.endTimestamp,
         };
         grouped.push(currentTurn);
       }
@@ -109,9 +143,36 @@ function DiarizedTranscriptView({ vttTranscript }) {
       <div className="space-y-4">
         {turns.map((turn, i) => {
           const speakerColor = getSpeakerColor(turn.speaker, uniqueSpeakers);
+          const startSeconds = vttTimestampToSeconds(turn.timestamp);
+          const endSeconds = vttTimestampToSeconds(turn.endTimestamp);
+          const isCurrentTurn = hasAudio &&
+            currentPlaybackTime >= startSeconds &&
+            currentPlaybackTime < endSeconds;
 
           return (
-            <div key={i} className="flex gap-4">
+            <div
+              key={i}
+              className={`flex gap-4 px-3 py-2 rounded transition-colors ${
+                isCurrentTurn
+                  ? 'bg-primary/10 border-l-2 border-primary'
+                  : 'hover:bg-surface-secondary'
+              }`}
+            >
+              {/* Timestamp column */}
+              {turn.timestamp && (
+                <div
+                  className={`flex-shrink-0 w-16 text-xs font-mono pt-0.5 ${
+                    hasAudio
+                      ? 'text-primary cursor-pointer hover:underline'
+                      : 'text-foreground-tertiary'
+                  }`}
+                  onClick={hasAudio ? () => onTimestampClick?.(startSeconds) : undefined}
+                  title={hasAudio ? 'Click to play from this point' : undefined}
+                >
+                  {turn.timestamp}
+                </div>
+              )}
+
               {/* Speaker label column */}
               <div className="flex-shrink-0 w-20 pt-0.5">
                 <div className={`font-semibold text-sm ${speakerColor}`}>

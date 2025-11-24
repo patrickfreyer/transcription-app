@@ -89,5 +89,14 @@ contextBridge.exposeInMainWorld("electron", {
   getTranscriptText: (transcriptId) => ipcRenderer.invoke("get-transcript-text", transcriptId),
   getTranscriptWithContent: (transcriptId) => ipcRenderer.invoke("get-transcript-with-content", transcriptId),
   getStorageStats: () => ipcRenderer.invoke("get-storage-stats"),
-  migrateTranscripts: () => ipcRenderer.invoke("migrate-transcripts")
+  migrateTranscripts: () => ipcRenderer.invoke("migrate-transcripts"),
+  // Audio storage APIs
+  getAudioPath: (transcriptId) => ipcRenderer.invoke("get-audio-path", { transcriptId }),
+  saveAudio: (transcriptId, audioPath, storageMode) => ipcRenderer.invoke("save-audio", { transcriptId, audioPath, storageMode }),
+  deleteTranscriptAudio: (transcriptId) => ipcRenderer.invoke("delete-transcript-audio", { transcriptId }),
+  hasAudio: (transcriptId) => ipcRenderer.invoke("has-audio", transcriptId),
+  getAudioStorageStats: () => ipcRenderer.invoke("get-audio-storage-stats"),
+  // Audio settings
+  getAudioSettings: () => ipcRenderer.invoke("get-audio-settings"),
+  saveAudioSettings: (settings) => ipcRenderer.invoke("save-audio-settings", settings)
 });

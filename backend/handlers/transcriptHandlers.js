@@ -7,6 +7,7 @@ const { ipcMain } = require('electron');
 const keytar = require('keytar');
 const TranscriptService = require('../services/TranscriptService');
 const { bulkUploadTranscripts, retryFailedTranscripts, getUploadStatus } = require('../utils/bulkUploadTranscripts');
+const audioStorage = require('../utils/audioStorage');
 const { createLogger } = require('../utils/logger');
 const { validateIpcHandler, multiArgSchema } = require('../utils/ipcValidation');
 const {
@@ -16,7 +17,10 @@ const {
   toggleStarSchema,
   updateTranscriptSchema,
   generateTranscriptNameSchema,
-  bulkUploadSchema
+  bulkUploadSchema,
+  getAudioPathSchema,
+  saveAudioSchema,
+  deleteAudioSchema
 } = require('../schemas/transcript.schemas');
 
 const logger = createLogger('TranscriptHandlers');
@@ -319,6 +323,139 @@ function registerTranscriptHandlers() {
       return { success: true, result };
     } catch (error) {
       logger.error('Migration error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // ============================================
+  // AUDIO STORAGE HANDLERS
+  // ============================================
+
+  // Get audio file path for playback
+  ipcMain.handle('get-audio-path', validateIpcHandler(
+    getAudioPathSchema,
+    async (event, { transcriptId }) => {
+      try {
+        const audioPath = await audioStorage.getAudioPath(transcriptId);
+        if (audioPath) {
+          logger.debug(`Audio path for ${transcriptId}: ${audioPath}`);
+          return { success: true, audioPath };
+        } else {
+          return { success: true, audioPath: null };
+        }
+      } catch (error) {
+        logger.error(`Get audio path error for ${transcriptId}:`, error);
+        return { success: false, error: error.message };
+      }
+    },
+    { name: 'get-audio-path' }
+  ));
+
+  // Save audio file for a transcript
+  ipcMain.handle('save-audio', validateIpcHandler(
+    saveAudioSchema,
+    async (event, { transcriptId, audioPath, storageMode }) => {
+      try {
+        // Get ffmpeg instance if available (for compression)
+        let ffmpeg = null;
+        try {
+          ffmpeg = require('fluent-ffmpeg');
+        } catch {
+          logger.warn('FFmpeg not available, will save audio in original format');
+        }
+
+        const result = await audioStorage.saveAudio(
+          transcriptId,
+          audioPath,
+          storageMode,
+          ffmpeg
+        );
+
+        // Update transcript metadata with audio info
+        transcriptService.update(transcriptId, {
+          hasAudioFile: true,
+          audioFilePath: result.relativePath,
+          audioFormat: result.format,
+          audioFileSize: result.size,
+          audioStorageMode: result.storageMode
+        });
+
+        logger.success(`Saved audio for ${transcriptId}: ${result.relativePath}`);
+        return { success: true, result };
+      } catch (error) {
+        logger.error(`Save audio error for ${transcriptId}:`, error);
+        return { success: false, error: error.message };
+      }
+    },
+    { name: 'save-audio' }
+  ));
+
+  // Delete audio file only (keep transcript)
+  ipcMain.handle('delete-transcript-audio', validateIpcHandler(
+    deleteAudioSchema,
+    async (event, { transcriptId }) => {
+      try {
+        await audioStorage.deleteAudio(transcriptId);
+
+        // Update transcript metadata
+        transcriptService.update(transcriptId, {
+          hasAudioFile: false,
+          audioFilePath: null,
+          audioFormat: null,
+          audioFileSize: null,
+          audioStorageMode: null
+        });
+
+        logger.success(`Deleted audio for ${transcriptId}`);
+        return { success: true };
+      } catch (error) {
+        logger.error(`Delete audio error for ${transcriptId}:`, error);
+        return { success: false, error: error.message };
+      }
+    },
+    { name: 'delete-transcript-audio' }
+  ));
+
+  // Get audio storage statistics
+  ipcMain.handle('get-audio-storage-stats', async () => {
+    try {
+      const stats = await audioStorage.getStats();
+      return { success: true, stats };
+    } catch (error) {
+      logger.error('Get audio storage stats error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Check if audio exists for a transcript
+  ipcMain.handle('has-audio', async (event, transcriptId) => {
+    try {
+      const hasAudio = await audioStorage.hasAudio(transcriptId);
+      return { success: true, hasAudio };
+    } catch (error) {
+      logger.error(`Has audio check error for ${transcriptId}:`, error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get audio settings
+  ipcMain.handle('get-audio-settings', async () => {
+    try {
+      const settings = transcriptService.storage.getAudioSettings();
+      return { success: true, settings };
+    } catch (error) {
+      logger.error('Get audio settings error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Save audio settings
+  ipcMain.handle('save-audio-settings', async (event, settings) => {
+    try {
+      transcriptService.storage.saveAudioSettings(settings);
+      return { success: true };
+    } catch (error) {
+      logger.error('Save audio settings error:', error);
       return { success: false, error: error.message };
     }
   });

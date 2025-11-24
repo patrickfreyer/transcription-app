@@ -5,6 +5,7 @@
 const StorageService = require('./StorageService');
 const VectorStoreService = require('./VectorStoreService');
 const transcriptStorage = require('../utils/transcriptStorage');
+const audioStorage = require('../utils/audioStorage');
 const { vttToPlainText } = require('../utils/transcriptCompression');
 const { estimateTokens } = require('../utils/tokenCounter');
 const { createLogger } = require('../utils/logger');
@@ -255,6 +256,17 @@ class TranscriptService {
       logger.info(`Deleted VTT file for: ${transcriptId}`);
     } catch (error) {
       logger.error(`Failed to delete VTT file for ${transcriptId}:`, error);
+      // Continue with metadata deletion even if file delete fails
+    }
+
+    // Delete audio file from disk (if exists)
+    try {
+      if (transcript.hasAudioFile) {
+        await audioStorage.deleteAudio(transcriptId);
+        logger.info(`Deleted audio file for: ${transcriptId}`);
+      }
+    } catch (error) {
+      logger.error(`Failed to delete audio file for ${transcriptId}:`, error);
       // Continue with metadata deletion even if file delete fails
     }
 

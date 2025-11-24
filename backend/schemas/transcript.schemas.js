@@ -220,6 +220,45 @@ const bulkUploadSchema = z.object({
   }).optional().default({})
 });
 
+/**
+ * Audio-related schemas
+ */
+
+/**
+ * get-audio-path Handler Schema
+ */
+const getAudioPathSchema = z.object({
+  transcriptId: transcriptIdSchema
+});
+
+/**
+ * save-audio Handler Schema
+ */
+const saveAudioSchema = z.object({
+  transcriptId: transcriptIdSchema,
+  audioPath: z.string()
+    .min(1, 'Audio path required'),
+  storageMode: z.enum(['compressed', 'original'])
+    .default('compressed')
+});
+
+/**
+ * delete-transcript-audio Handler Schema
+ */
+const deleteAudioSchema = z.object({
+  transcriptId: transcriptIdSchema
+});
+
+/**
+ * Audio settings schema for global settings
+ */
+const audioSettingsSchema = z.object({
+  defaultSaveAudio: z.boolean()
+    .default(true),
+  defaultStorageMode: z.enum(['compressed', 'original'])
+    .default('compressed')
+});
+
 module.exports = {
   transcriptSchema,
   saveTranscriptsSchema,
@@ -228,5 +267,10 @@ module.exports = {
   toggleStarSchema,
   updateTranscriptSchema,
   generateTranscriptNameSchema,
-  bulkUploadSchema
+  bulkUploadSchema,
+  // Audio schemas
+  getAudioPathSchema,
+  saveAudioSchema,
+  deleteAudioSchema,
+  audioSettingsSchema
 };
