@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import MarkdownRenderer from '../Common/MarkdownRenderer';
 import DiarizedTranscriptView from './DiarizedTranscriptView';
+import { selectExportContent } from '../../utils/exportContent';
 
 function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAnotherButton = false }) {
   const [activeView, setActiveView] = useState('raw'); // 'raw' or 'summary'
@@ -50,18 +51,27 @@ function TranscriptViewer({ transcription, onTranscribeAnother, showTranscribeAn
   };
 
   const handleCopy = () => {
-    const textToCopy = activeView === 'summary' ? summary : rawTranscript;
-    navigator.clipboard.writeText(textToCopy);
+    const picked = selectExportContent(transcription, activeView, 'txt');
+    if (!picked.ok) {
+      alert(picked.error);
+      return;
+    }
+    navigator.clipboard.writeText(picked.content);
     // TODO: Show toast notification
     console.log('Copied to clipboard');
   };
 
   const handleExport = async (format) => {
-    const content = activeView === 'summary' ? summary : rawTranscript;
+    const picked = selectExportContent(transcription, activeView, format);
+    if (!picked.ok) {
+      alert(picked.error);
+      setShowExportMenu(false);
+      return;
+    }
     const suggestedFileName = `${fileName || 'transcript'}-${Date.now()}`;
 
     try {
-      const result = await window.electron.saveTranscript(content, format, suggestedFileName);
+      const result = await window.electron.saveTranscript(picked.content, format, suggestedFileName);
 
       if (result.success) {
         console.log('Exported to:', result.filePath);

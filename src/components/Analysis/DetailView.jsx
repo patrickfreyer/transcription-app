@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import TranscriptViewer from './TranscriptViewer';
 
@@ -8,6 +8,8 @@ import TranscriptViewer from './TranscriptViewer';
  */
 function DetailView() {
   const { detailViewTranscript, closeTranscriptDetail } = useApp();
+  const [loadedContent, setLoadedContent] = useState(null);
+  const [loadError, setLoadError] = useState(null);
 
   // Handle ESC key to close detail view
   useEffect(() => {
@@ -20,6 +22,46 @@ function DetailView() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [closeTranscriptDetail]);
+
+  // Load compressed transcript content on demand. Metadata-only transcripts
+  // (new compressed-storage format) have rawTranscript/vttTranscript stored
+  // on disk, so Save-As / Copy need the hydrated object — otherwise they
+  // silently produced empty files.
+  useEffect(() => {
+    let cancelled = false;
+    setLoadedContent(null);
+    setLoadError(null);
+
+    if (!detailViewTranscript) return undefined;
+
+    const alreadyHasContent =
+      typeof detailViewTranscript.rawTranscript === 'string' &&
+      detailViewTranscript.rawTranscript.length > 0;
+
+    if (alreadyHasContent) {
+      setLoadedContent(detailViewTranscript);
+      return undefined;
+    }
+
+    (async () => {
+      try {
+        const result = await window.electron.getTranscriptWithContent(detailViewTranscript.id);
+        if (cancelled) return;
+        if (result?.success && result.transcript) {
+          setLoadedContent(result.transcript);
+        } else {
+          setLoadError(result?.error || 'Failed to load transcript content');
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err.message || 'Failed to load transcript content');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [detailViewTranscript?.id]);
 
   if (!detailViewTranscript) {
     return (
@@ -72,7 +114,13 @@ function DetailView() {
 
       {/* Content Area - Scrollable */}
       <div className="flex-1 overflow-y-auto">
-        <TranscriptViewer transcription={detailViewTranscript} />
+        {loadedContent ? (
+          <TranscriptViewer transcription={loadedContent} />
+        ) : loadError ? (
+          <div className="p-6 text-sm text-error">Failed to load transcript: {loadError}</div>
+        ) : (
+          <div className="p-6 text-sm text-foreground-secondary">Loading transcript content…</div>
+        )}
       </div>
     </div>
   );
